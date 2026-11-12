@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   PRELOADER_BOOT_SCRIPT,
+  PRELOADER_FALLBACK_MS,
   PRELOADER_FINISH_MS,
   PRELOADER_HOLD_MS,
   PRELOADER_SHOWPIECE_MS,
@@ -13,7 +14,7 @@ import {
  * green. Each case below is a load measured live that day, replayed: when the curtain first
  * paints, when the page's pictures, fonts and styles finish, and when the tab is visible.
  */
-type Picture = { finishAt: number; failed?: boolean; lazy?: boolean }
+type Picture = { finishAt: number; failed?: boolean; lazy?: boolean; below?: boolean }
 type Page = {
   bootAt: number
   pictures?: Picture[]
@@ -21,6 +22,8 @@ type Page = {
   fontsAt?: number
   parsedAt?: number
   hiddenUntil?: number
+  /** With `hiddenUntil`: the tab goes to the back at this moment instead of from the start. */
+  hiddenFrom?: number
   act?: { at: number; type: string }
   endAt?: number
   /** From this moment the page's own list throws, as a broken browser or extension might. */
@@ -49,6 +52,7 @@ async function simulate(page: Page): Promise<{
   const pct = text('0%')
   const picks = [0, 1, 2, 3, 4].map(() => text(''))
   const images = (page.pictures ?? []).map((p) => ({
+    below: Boolean(p.below),
     getAttribute: (name: string) => (name === 'loading' && p.lazy ? 'lazy' : null),
     get complete() {
       return now >= p.finishAt
@@ -89,7 +93,7 @@ async function simulate(page: Page): Promise<{
       return now >= (page.parsedAt ?? 0) ? 'interactive' : 'loading'
     },
     get visibilityState() {
-      return now < (page.hiddenUntil ?? 0) ? 'hidden' : 'visible'
+      return now >= (page.hiddenFrom ?? 0) && now < (page.hiddenUntil ?? 0) ? 'hidden' : 'visible'
     },
     fonts: {
       get status() {
@@ -109,7 +113,16 @@ async function simulate(page: Page): Promise<{
       )
     },
   }
+  const seen: Array<() => void> = []
+  class FakeIntersectionObserver {
+    constructor(private readonly callback: (entries: unknown[]) => void) {}
+    observe(target: { below: boolean }) {
+      seen.push(() => this.callback([{ target, isIntersecting: !target.below }]))
+    }
+    disconnect() {}
+  }
   const scope = {
+    IntersectionObserver: FakeIntersectionObserver,
     document: documentStub,
     window: {} as Record<string, unknown>,
     navigator: { webdriver: false },
@@ -152,6 +165,7 @@ async function simulate(page: Page): Promise<{
       timer.fn()
     }
     // A hidden tab draws no frames.
+    for (const answer of seen.splice(0)) answer()
     if (documentStub.visibilityState === 'visible') {
       const due = frameQueue
       frameQueue = []
@@ -275,6 +289,30 @@ describe('the shipped curtain, replayed on a fake clock', () => {
     expect(summary(frames).liftAfterAppear).toBeLessThan(2000)
   })
 
+  // Review M3 (13 Nov 2026): on a phone, /products had an eager card picture at 970px on an 844px
+  // screen, and the curtain waited for it although nobody could see it.
+  it('a picture below the first screen does not hold the curtain (M3)', async () => {
+    const { frames } = await simulate({
+      bootAt: 150,
+      pictures: [{ finishAt: 200 }, { finishAt: 9000, below: true }],
+      stylesAt: 180,
+      fontsAt: 190,
+      parsedAt: 200,
+    })
+    expect(summary(frames).liftAfterAppear).toBeLessThan(2000)
+  })
+
+  it('a picture ON the first screen still holds it until it is in (M3 control)', async () => {
+    const { frames } = await simulate({
+      bootAt: 150,
+      pictures: [{ finishAt: 200 }, { finishAt: 2400 }],
+      stylesAt: 180,
+      fontsAt: 190,
+      parsedAt: 200,
+    })
+    expect(frames.find((f) => f.state === 'lifting')?.t).toBeGreaterThanOrEqual(2400)
+  })
+
   it('never reads layout while it counts (A6)', async () => {
     const { layoutReads } = await simulate({
       bootAt: 150,
@@ -339,5 +377,27 @@ describe('a fault inside the show never leaves the curtain holding the page', ()
       parsedAt: 200,
     })
     expect(listening).toEqual([])
+  })
+})
+
+/*
+ * Review M7 (13 Nov 2026): a tab sent to the back mid-show and brought back just after the CSS
+ * fallback began its 220 ms exit (3820 ms) was ended at once, cutting that exit short.
+ */
+describe('a tab back during the fallback exit lets the exit finish (M7)', () => {
+  it('does not remove the curtain before the fallback exit has played', async () => {
+    const appearAt = 166
+    const { frames } = await simulate({
+      bootAt: 150,
+      pictures: [{ finishAt: 9000 }],
+      parsedAt: 300,
+      hiddenFrom: 600,
+      hiddenUntil: appearAt + PRELOADER_FALLBACK_MS + 80,
+    })
+    const removed = frames.find((f) => f.t > 600 && f.state === '-')
+    expect(removed, 'the curtain never left').toBeDefined()
+    expect((removed?.t ?? 0) - appearAt).toBeGreaterThanOrEqual(
+      PRELOADER_FALLBACK_MS + PRELOADER_FINISH_MS,
+    )
   })
 })

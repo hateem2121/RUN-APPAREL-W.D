@@ -120,12 +120,17 @@ const DRIVER = [
   'var H=document.documentElement,Y=new Date().getFullYear(),S=__FROM__,T=__TIMING__,',
   'q=function(s){return document.querySelector(s)},',
   'stepShown=__STEP__,liftReason=__LIFT__,counterYear=__YEAR__,curtainPercent=__PCT__,',
-  'A=null,L=null,F=null,shown=0,target=0,ready=false,acted=false,scanned=-1e9,done=false;',
+  'A=null,L=null,F=null,shown=0,target=0,ready=false,acted=false,scanned=-1e9,done=false,',
+  // Which pictures are off the first screen, from the browser's own drawing pass: no layout read
+  // (A6). On a phone, /products had an eager card picture at 970px on an 844px screen and the curtain
+  // waited for it (review M3, 13 Nov 2026). A picture not yet reported still counts.
+  'io=typeof IntersectionObserver==="function"?new IntersectionObserver(function(es){for(var k=0;k<es.length;k++)es[k].target.__below=!es[k].isIntersecting}):null;',
   // Not `nomodule` scripts: Next puts a polyfill on every page that a modern browser never fetches,
   // and waiting for it held every visitor on every page to the 3 s ceiling (measured locally, 12 Nov).
   'function scan(t){scanned=t;var a=document.querySelectorAll("link[rel=stylesheet],script[src]:not([nomodule])"),n=0,d=0,i,m,ok=true;',
   'for(i=0;i<a.length;i++){n++;if(performance.getEntriesByName(a[i].href||a[i].src).length)d++;else ok=false}',
-  'var g=document.querySelectorAll("img");for(i=0;i<g.length;i++){m=g[i];if(m.getAttribute("loading")==="lazy")continue;n++;',
+  'var g=document.querySelectorAll("img");for(i=0;i<g.length;i++){m=g[i];if(m.getAttribute("loading")==="lazy")continue;',
+  'if(io&&!m.__io){m.__io=1;io.observe(m)}if(m.__below)continue;n++;',
   'if(m.complete){if(!m.naturalWidth)m.__rd=2;else if(!m.__rd){m.__rd=1;m.decode().then(function(){this.__rd=2}.bind(m),function(){this.__rd=2}.bind(m))}}',
   'if(m.__rd===2)d++;else ok=false}',
   'var f=!document.fonts||document.fonts.status==="loaded";',
@@ -144,7 +149,7 @@ const DRIVER = [
   'for(i0=0;i0<EV.length;i0++)document.addEventListener(EV[i0],act,{passive:true});',
   'document.addEventListener("pointerdown",tap);document.addEventListener("click",nab,true);',
   // The click comes on release, which can be after the lift, so the catcher stays for the 600 ms fade.
-  'function end(t,why,quiet){done=true;for(i0=0;i0<EV.length;i0++)document.removeEventListener(EV[i0],act);document.removeEventListener("pointerdown",tap);',
+  'function end(t,why,quiet){done=true;if(io)io.disconnect();for(i0=0;i0<EV.length;i0++)document.removeEventListener(EV[i0],act);document.removeEventListener("pointerdown",tap);',
   'setTimeout(function(){document.removeEventListener("click",nab,true)},600);window.__runCurtain={appearedAt:A,liftedAt:t,reason:why};',
   'if(quiet){H.removeAttribute("data-preload");return}',
   'H.setAttribute("data-preload","lifting");setTimeout(function(){H.removeAttribute("data-preload")},600)}',
@@ -152,25 +157,39 @@ const DRIVER = [
   // `data-preload="on"` and every listener above still in place, so each later tap and key was eaten.
   'function frame(t){if(done)return;try{step(t)}catch(e){end(t,"error",true)}}',
   'function step(t){if(A===null){A=t;L=t}var since=t-A,capped=acted||since>=T.ceiling;',
-  // A tab sent to the back mid-show: the CSS fallback has played meanwhile, so leave without a second wipe.
-  'if(since>=T.fallback){end(t,"cap",true);return}',
+  // A tab sent to the back mid-show: the CSS fallback has played meanwhile, so leave without a second
+  // wipe, but only once its own 220 ms exit is over (review M7): from 3820 ms it was cut short.
+  'if(since>=T.fallback+T.finish){end(t,"cap",true);return}',
   'if(t-scanned>=250)scan(t);if(capped)target=1;shown=stepShown(shown,target,t-L,capped,T);L=t;paint();if(shown>=1&&F===null)F=t;',
   // This year stays on screen for a beat before the lift: 2026 was otherwise drawn in the lifting frame only.
   'var why=acted||(F!==null&&t-F>=T.hold)?liftReason({sinceAppearMs:since,ready:ready,shown:shown,interacted:acted},T):null;',
   'if(why){end(t,why,false);return}requestAnimationFrame(frame)}',
   'requestAnimationFrame(frame)',
 ]
-  .join('')
-  .replace('__FROM__', String(FROM_YEAR))
-  .replace('__TIMING__', JSON.stringify(CURTAIN_TIMING))
-  .replace('__STEP__', String(stepShown))
-  .replace('__LIFT__', String(liftReason))
-  .replace('__YEAR__', String(counterYear))
-  .replace('__PCT__', String(curtainPercent))
+
+/**
+ * Fill the driver's `__NAME__` slots word for word. A replacement STRING given to `replace` reads
+ * `$&`, `$'` and `` $` `` as patterns, so a function body holding one (a minifier's `$`-names can)
+ * would have been inlined wrong (review M1, 13 Nov 2026); a replacement FUNCTION is taken as is.
+ */
+export function fillDriver(template: string, parts: Record<string, string>): string {
+  let filled = template
+  for (const [slot, text] of Object.entries(parts)) filled = filled.replace(slot, () => text)
+  return filled
+}
+
+const FILLED_DRIVER = fillDriver(DRIVER.join(''), {
+  __FROM__: String(FROM_YEAR),
+  __TIMING__: JSON.stringify(CURTAIN_TIMING),
+  __STEP__: String(stepShown),
+  __LIFT__: String(liftReason),
+  __YEAR__: String(counterYear),
+  __PCT__: String(curtainPercent),
+})
 
 export const PRELOADER_BOOT_SCRIPT =
   "(()=>{try{if(navigator.webdriver)return;if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;if(document.visibilityState==='hidden')return;var n=performance.getEntriesByType('navigation')[0];if(n&&n.type!=='navigate')return;var r=document.referrer;if(r){try{if(new URL(r).host===location.host)return}catch(e){}}document.documentElement.setAttribute('data-preload','on');" +
-  DRIVER +
+  FILLED_DRIVER +
   '}catch(e){}})()'
 
 /** What the driver leaves on `window.__runCurtain` when the curtain lifts (in memory only). */
