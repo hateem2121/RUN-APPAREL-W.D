@@ -9396,7 +9396,7 @@ html[data-preload="on"] .preloader__lockup {
   animation-duration: var(--ui);
   animation-timing-function: var(--ease);
   animation-fill-mode: both;
-  animation-delay: 3000ms;
+  animation-delay: 3820ms;
 }
 
 html[data-preload="on"] .preloader__paper--a {
