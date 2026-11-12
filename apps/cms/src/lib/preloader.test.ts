@@ -14,6 +14,7 @@ import {
   PRELOADER_SHOWPIECE_MS,
   stepShown,
 } from './preloader'
+import { escapeRegExp } from '../../regexEscape.mjs'
 
 /**
  * The /about preloader's decision (as the owner ruled on 2026-10-09: "No saving:
@@ -198,7 +199,7 @@ describe("the CSS fallback lifts after the script's ceiling and finish", () => {
 describe('the curtain leaves gently and never holds the page itself', () => {
   const css = readFileSync(join(import.meta.dirname, '..', 'app', '(frontend)', 'site.css'), 'utf8')
   const block = (selector: string) =>
-    new RegExp(`${selector.replace(/[[\]().*"=]/g, '\\$&')} \\{([^}]*)\\}`).exec(css)?.[1] ?? ''
+    new RegExp(`${escapeRegExp(selector)} \\{([^}]*)\\}`).exec(css)?.[1] ?? ''
 
   it('fades the year and the mark out over --ui instead of hiding them in one frame (A9)', () => {
     const rule = block('html[data-preload="lifting"] .preloader__lockup')
