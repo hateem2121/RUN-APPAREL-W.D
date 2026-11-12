@@ -117,8 +117,9 @@ export function NavProgress() {
       )
       if (!to) return
       clear()
-      layWeave(to)
       timers.current.push(
+        // The weave waits like the line (12 Nov 2026, D1): a page that arrives sooner is never woven.
+        window.setTimeout(() => layWeave(to), NAV_PROGRESS_DELAY_MS),
         window.setTimeout(() => setState('loading'), NAV_PROGRESS_DELAY_MS),
         window.setTimeout(finish, NAV_PROGRESS_GIVE_UP_MS),
       )
