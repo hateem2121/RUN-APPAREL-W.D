@@ -398,6 +398,35 @@ function startPostHog(win: TrackerWindow): void {
 }
 
 /**
+ * How long one loading screen showed, for PostHog (12 Nov 2026, loader fix F3, owner's choice):
+ * `loader_timing` with which loader, the whole milliseconds it covered the page and why it left.
+ * ⚠️ ONLY AFTER ACCEPT, like everything in this file: with no Accept the trackers never start, so
+ * nothing is sent, nothing waits and nothing is stored. PostHog's stand-in queue takes no calls
+ * (`startPostHog`), so a screen that leaves before PostHog has started waits for it: every half second,
+ * for up to twenty seconds, then the number is dropped.
+ */
+export type LoaderName = 'curtain' | 'garment_opening' | 'model_3d'
+
+export function loaderTiming(
+  win: TrackerWindow,
+  loader: LoaderName,
+  shownMs: number,
+  reason: string,
+  tries = 40,
+): void {
+  const posthog = win.posthog as {
+    capture?: (name: string, props: Record<string, unknown>) => void
+  }
+  if (typeof posthog?.capture === 'function') {
+    posthog.capture('loader_timing', { loader, shown_ms: Math.round(shownMs), reason })
+    return
+  }
+  if (!win.runTrackersStarted && !win.runTrackersPending) return
+  if (tries <= 0 || !win.setTimeout) return
+  win.setTimeout(() => loaderTiming(win, loader, shownMs, reason, tries - 1), 500)
+}
+
+/**
  * One named event for Google Analytics, such as the owner's key event `ask_about_garment` (Q37,
  * polish S10). ⚠️ ONLY WHEN THE VISITOR ACCEPTED: before Accept, or after Decline on a page that
  * has not reloaded, the tag is not running and nothing is queued, so no event can wait in the

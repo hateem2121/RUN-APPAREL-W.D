@@ -8,6 +8,7 @@ import {
   declineTrackers,
   followOtherTab,
   forgetTrackers,
+  loaderTiming,
   GA_MEASUREMENT_ID,
   parseConsent,
   POSTHOG_API_HOST,
@@ -878,5 +879,48 @@ describe('starting the trackers 3 s after Accept, one per quiet moment', () => {
     trackerEvent(win, 'contact_click', { method: 'email' })
     const last = Array.from((win.dataLayer ?? []).at(-1) as ArrayLike<unknown>)
     expect(last).toEqual(['event', 'contact_click', { method: 'email' }])
+  })
+})
+
+describe('loaderTiming: how long a loading screen showed, after Accept only (12 Nov 2026, F3)', () => {
+  type Captured = Array<[string, Record<string, unknown>]>
+  const windowWith = (posthog: unknown, started: boolean) => {
+    const timers: Array<() => void> = []
+    const win = {
+      posthog,
+      runTrackersStarted: started,
+      setTimeout: (fn: () => void) => timers.push(fn),
+      document: { createElement: () => ({}), head: { appendChild: () => {} } },
+    }
+    return { win: win as unknown as Parameters<typeof loaderTiming>[0], timers }
+  }
+
+  it('sends nothing, and waits for nothing, when the visitor has not accepted', () => {
+    const { win, timers } = windowWith(undefined, false)
+    loaderTiming(win, 'curtain', 1520, 'ready')
+    expect(timers).toHaveLength(0)
+  })
+
+  it('sends one event with the loader, the whole milliseconds and the reason', () => {
+    const seen: Captured = []
+    const posthog = {
+      capture: (name: string, props: Record<string, unknown>) => seen.push([name, props]),
+    }
+    const { win } = windowWith(posthog, true)
+    loaderTiming(win, 'garment_opening', 2350.6, 'ready')
+    expect(seen).toEqual([
+      ['loader_timing', { loader: 'garment_opening', shown_ms: 2351, reason: 'ready' }],
+    ])
+  })
+
+  it('waits for PostHog to finish starting, then sends once', () => {
+    const seen: Captured = []
+    const queue: { capture?: unknown } = {}
+    const { win, timers } = windowWith(queue, true)
+    loaderTiming(win, 'curtain', 1600, 'cap')
+    expect(seen).toHaveLength(0)
+    queue.capture = (name: string, props: Record<string, unknown>) => seen.push([name, props])
+    timers.shift()?.()
+    expect(seen).toEqual([['loader_timing', { loader: 'curtain', shown_ms: 1600, reason: 'cap' }]])
   })
 })

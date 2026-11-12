@@ -89,3 +89,20 @@ describe('the browser\x27s own progress bar, for assistive technology (C2)', () 
     )
   })
 })
+
+describe('3D download timing for PostHog (12 Nov 2026, F3)', () => {
+  it('reports how long the block showed once the download is over, after Accept only', () => {
+    const seen: Array<[string, Record<string, unknown>]> = []
+    const w = window as unknown as { posthog?: unknown; runTrackersStarted?: boolean }
+    w.posthog = {
+      capture: (name: string, props: Record<string, unknown>) => seen.push([name, props]),
+    }
+    w.runTrackersStarted = true
+    draw()
+    act(() => root.render(null))
+    expect(seen).toHaveLength(1)
+    expect(seen[0]?.[1]).toMatchObject({ loader: 'model_3d' })
+    delete w.posthog
+    delete w.runTrackersStarted
+  })
+})

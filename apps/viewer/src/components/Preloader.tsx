@@ -1,3 +1,4 @@
+import { loaderTiming, type TrackerWindow } from '@run-apparel/shared'
 import { useEffect, useRef, useState } from 'react'
 import { prefersReducedMotion } from '../lib/capabilities'
 import { PRELOADER_MIN_DWELL_MS, PRELOADER_WIPE_MS } from '../lib/motion'
@@ -37,6 +38,12 @@ export function Preloader({ done, onExited }: PreloaderProps) {
   useEffect(() => {
     if (!done) return
     if (reduce) {
+      loaderTiming(
+        window as unknown as TrackerWindow,
+        'garment_opening',
+        performance.now() - startRef.current,
+        'ready',
+      )
       // No wipe to wait for. Hand back immediately so the page is never held
       // behind an animation that is not going to play.
       onExited()
@@ -61,6 +68,13 @@ export function Preloader({ done, onExited }: PreloaderProps) {
    */
   useEffect(() => {
     if (!exiting) return
+    // How long it covered the page, for PostHog after Accept only (12 Nov 2026, F3).
+    loaderTiming(
+      window as unknown as TrackerWindow,
+      'garment_opening',
+      performance.now() - startRef.current,
+      'ready',
+    )
     const toDone = window.setTimeout(onExited, PRELOADER_WIPE_MS)
     return () => clearTimeout(toDone)
   }, [exiting, onExited])

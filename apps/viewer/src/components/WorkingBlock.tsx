@@ -1,3 +1,4 @@
+import { loaderTiming, type TrackerWindow } from '@run-apparel/shared'
 import { useEffect, useRef, useState } from 'react'
 import type { LoadPhase } from '../lib/loadProgress'
 import { formatMb, showsIndeterminateSweep } from '../lib/loadProgress'
@@ -38,6 +39,18 @@ export function WorkingBlock({
   const clock = useRef(createTimeLeft())
   const [waking, setWaking] = useState(false)
   const [resting, setResting] = useState(false)
+
+  // How long the block showed, sent when the download is over (F3; PostHog after Accept only).
+  useEffect(() => {
+    const shownFrom = performance.now()
+    return () =>
+      loaderTiming(
+        window as unknown as TrackerWindow,
+        'model_3d',
+        performance.now() - shownFrom,
+        'ended',
+      )
+  }, [])
 
   // S4 starts after 1 s: a quick load never shows a loop it has no time to finish.
   useEffect(() => {

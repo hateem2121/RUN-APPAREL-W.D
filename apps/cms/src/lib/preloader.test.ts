@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CURTAIN_TIMING,
   counterYear,
+  curtainReport,
   curtainPercent,
   liftReason,
   PRELOADER_BOOT_SCRIPT,
@@ -209,5 +210,19 @@ describe('the curtain leaves gently and catches taps while it is up', () => {
   it('takes taps while it covers the page and lets them through once it lifts (A8)', () => {
     expect(block('html[data-preload="on"] .preloader')).toMatch(/pointer-events:\s*auto/)
     expect(block('html[data-preload="lifting"] .preloader')).toMatch(/pointer-events:\s*none/)
+  })
+})
+
+describe('what the curtain reports after it lifts (F3)', () => {
+  it('the whole time it covered the page and why it left', () => {
+    expect(curtainReport({ appearedAt: 1706, liftedAt: 3256.4, reason: 'cap' })).toEqual({
+      shownMs: 1550.4,
+      reason: 'cap',
+    })
+  })
+
+  it('nothing when the curtain never showed or has not lifted', () => {
+    expect(curtainReport(undefined)).toBe(null)
+    expect(curtainReport({ appearedAt: null, liftedAt: 900, reason: 'cap' })).toBe(null)
   })
 })

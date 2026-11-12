@@ -159,3 +159,18 @@ export const PRELOADER_BOOT_SCRIPT =
   "(()=>{try{if(navigator.webdriver)return;if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;if(document.visibilityState==='hidden')return;var n=performance.getEntriesByType('navigation')[0];if(n&&n.type!=='navigate')return;var r=document.referrer;if(r){try{if(new URL(r).host===location.host)return}catch(e){}}document.documentElement.setAttribute('data-preload','on');" +
   DRIVER +
   '}catch(e){}})()'
+
+/** What the driver leaves on `window.__runCurtain` when the curtain lifts (in memory only). */
+export interface CurtainRecord {
+  appearedAt: number | null
+  liftedAt: number
+  reason: string
+}
+
+/** How long the curtain covered the page and why it left, for PostHog after Accept (F3). */
+export function curtainReport(
+  record: CurtainRecord | undefined,
+): { shownMs: number; reason: string } | null {
+  if (!record || record.appearedAt === null) return null
+  return { shownMs: record.liftedAt - record.appearedAt, reason: record.reason }
+}
