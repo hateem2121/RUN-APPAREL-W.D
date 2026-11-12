@@ -9433,16 +9433,6 @@ html[data-preload="lifting"] .preloader__lockup {
     visibility var(--instant) var(--ui);
 }
 
-/* While it covers the page a tap lands on the curtain, never on a link hidden under it (12 Nov 2026,
- * A8); the driver ends the curtain on that tap or key. Once it lifts, taps pass straight through. */
-html[data-preload="on"] .preloader {
-  pointer-events: auto;
-}
-
-html[data-preload="lifting"] .preloader {
-  pointer-events: none;
-}
-
 /* A visitor who turns reduced motion on mid-visit, and paper, never get the curtain. */
 @media (prefers-reduced-motion: reduce) {
   html[data-preload] .preloader {

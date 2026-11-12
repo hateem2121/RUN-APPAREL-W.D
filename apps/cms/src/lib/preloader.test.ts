@@ -195,7 +195,7 @@ describe("the CSS fallback lifts after the script's ceiling and finish", () => {
   })
 })
 
-describe('the curtain leaves gently and catches taps while it is up', () => {
+describe('the curtain leaves gently and never holds the page itself', () => {
   const css = readFileSync(join(import.meta.dirname, '..', 'app', '(frontend)', 'site.css'), 'utf8')
   const block = (selector: string) =>
     new RegExp(`${selector.replace(/[[\]().*"=]/g, '\\$&')} \\{([^}]*)\\}`).exec(css)?.[1] ?? ''
@@ -207,9 +207,13 @@ describe('the curtain leaves gently and catches taps while it is up', () => {
     expect(rule).toMatch(/transition:[^;]*opacity var\(--ui\)/)
   })
 
-  it('takes taps while it covers the page and lets them through once it lifts (A8)', () => {
-    expect(block('html[data-preload="on"] .preloader')).toMatch(/pointer-events:\s*auto/)
-    expect(block('html[data-preload="lifting"] .preloader')).toMatch(/pointer-events:\s*none/)
+  // Review I1 and I2 (12 Nov 2026): the curtain is `inert`, so a `pointer-events: auto` on it took no
+  // tap at all, and had it worked, a curtain stuck on "on" would have eaten every tap for good. The
+  // tap is kept from the page by the driver's click catcher instead (firstArrival.spec.ts proves it
+  // with a real link under the tap), and the curtain itself never takes one.
+  it('never takes a tap itself, so a stuck curtain cannot block the page', () => {
+    expect(block('html[data-preload] .preloader')).toMatch(/pointer-events:\s*none/)
+    expect(css).not.toMatch(/\.preloader \{[^}]*pointer-events:\s*auto/)
   })
 })
 

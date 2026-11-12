@@ -103,6 +103,23 @@ test.describe('a visitor who acts ends the curtain', () => {
   })
 
   test('a tap ends it and does not follow a link hidden under it', async ({ page }) => {
+    // A real link under the tap point, or the test passes on a page with nothing there (review I1,
+    // 12 Nov 2026: the first version of this test tapped empty ground and proved nothing).
+    await page.evaluate(() => {
+      const a = document.createElement('a')
+      a.href = '/products'
+      a.id = 'planted-link'
+      a.style.cssText = 'position:fixed;inset:0;z-index:1;display:block'
+      document.body.append(a)
+    })
+    const under = await page.evaluate(() => {
+      const preloader = document.querySelector('.preloader') as HTMLElement
+      preloader.style.visibility = 'hidden'
+      const id = document.elementFromPoint(200, 300)?.id
+      preloader.style.visibility = ''
+      return id
+    })
+    expect(under, 'the planted link is not under the tap point').toBe('planted-link')
     const before = page.url()
     await page.mouse.click(200, 300)
     await expect
@@ -111,6 +128,13 @@ test.describe('a visitor who acts ends the curtain', () => {
         intervals: [50],
       })
       .not.toBe('on')
+    await page.waitForTimeout(1000)
     expect(page.url()).toBe(before)
+    // Once the curtain is gone the same link works again: nothing keeps eating taps.
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.hasAttribute('data-preload')))
+      .toBe(false)
+    await page.mouse.click(200, 300)
+    await page.waitForURL('**/products')
   })
 })

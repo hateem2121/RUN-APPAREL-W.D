@@ -23,14 +23,19 @@ type Page = {
   hiddenUntil?: number
   act?: { at: number; type: string }
   endAt?: number
+  /** From this moment the page's own list throws, as a broken browser or extension might. */
+  breakAt?: number
 }
 type Frame = { t: number; state: string; year: string; pct: string }
 
 const THIS_YEAR = new Date().getFullYear()
 
-async function simulate(
-  page: Page,
-): Promise<{ frames: Frame[]; layoutReads: number; prevented: boolean }> {
+async function simulate(page: Page): Promise<{
+  frames: Frame[]
+  layoutReads: number
+  prevented: boolean
+  listening: string[]
+}> {
   let now = page.bootAt
   let layoutReads = 0
   const attributes = new Map<string, string>()
@@ -57,6 +62,7 @@ async function simulate(
   }))
   const sheet = { href: 'https://wear-run.com/a.css', tagName: 'LINK' }
   const all = (selector: string): unknown[] => {
+    if (page.breakAt !== undefined && now >= page.breakAt) throw new Error('planted fault')
     if (selector.includes('loom-mark__pick')) return picks
     if (selector.includes('img')) return images.filter((i) => i.getAttribute('loading') !== 'lazy')
     if (selector.includes('stylesheet') || selector.includes('script')) return [sheet]
@@ -150,7 +156,8 @@ async function simulate(
       pct: pct.textContent,
     })
   }
-  return { frames, layoutReads, prevented: actEvent.prevented }
+  const listening = [...listeners].filter(([, fns]) => fns.length).map(([type]) => type)
+  return { frames, layoutReads, prevented: actEvent.prevented, listening }
 }
 
 function summary(frames: Frame[]) {
@@ -281,5 +288,34 @@ describe('a visitor who acts ends the curtain (A5, A8)', () => {
       act: { at: 700, type: 'pointerdown' },
     })
     expect(prevented).toBe(true)
+  })
+})
+
+/*
+ * Review I2 (12 Nov 2026): an error inside one frame stopped the loop, and the curtain's listeners
+ * and its `data-preload="on"` stayed for good, eating every later tap and key. The CSS fallback
+ * hid the papers, so nothing on screen showed it. Now any error ends the curtain quietly.
+ */
+describe('a fault inside the show never leaves the curtain holding the page', () => {
+  it('ends quietly and lets go of every listener when a frame throws', async () => {
+    const { frames, listening } = await simulate({
+      bootAt: 150,
+      pictures: [{ finishAt: 9000 }],
+      parsedAt: 300,
+      breakAt: 700,
+    })
+    expect(frames.at(-1)?.state).toBe('-')
+    expect(listening).toEqual([])
+  })
+
+  it('lets go of every listener after a normal lift too', async () => {
+    const { listening } = await simulate({
+      bootAt: 150,
+      pictures: [{ finishAt: 200 }],
+      stylesAt: 180,
+      fontsAt: 190,
+      parsedAt: 200,
+    })
+    expect(listening).toEqual([])
   })
 })

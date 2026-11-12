@@ -132,13 +132,24 @@ const DRIVER = [
   'if(y)y.textContent=String(counterYear(shown,S,Y));if(p)p.textContent=curtainPercent(shown)+"%";',
   'for(i=0;i<r.length;i++)r[i].style.transform="scaleX("+Math.min(1,Math.max(0,5*shown-i))+")"}',
   // A key, a tap, a wheel or a touch ends the show (12 Nov 2026, A5): Tab had focused links hidden under it.
-  // The tap itself is kept from the page: the curtain takes it (site.css) and its default is stopped.
-  'var EV=["keydown","wheel","touchstart"],act=function(){acted=true},tap=function(e){acted=true;e.preventDefault()},i0;',
-  'for(i0=0;i0<EV.length;i0++)document.addEventListener(EV[i0],act,{passive:true});document.addEventListener("pointerdown",tap);',
-  'function end(t,why,quiet){done=true;for(i0=0;i0<EV.length;i0++)document.removeEventListener(EV[i0],act);document.removeEventListener("pointerdown",tap);window.__runCurtain={appearedAt:A,liftedAt:t,reason:why};',
+  // The tap itself is kept from the page. The curtain is `inert`, so the tap lands on whatever is under
+  // it, and stopping `pointerdown` stops only the mouse events, not the click: a link under the curtain
+  // was followed (review I1, proved with a planted link). So the click a curtain tap makes is caught on
+  // its way down and stopped, and only that one: a click made by a key after the lift still works.
+  'var EV=["keydown","wheel","touchstart"],tapped=false,act=function(){acted=true},',
+  'tap=function(e){acted=true;tapped=true;e.preventDefault()},',
+  'nab=function(e){if(!tapped)return;tapped=false;e.preventDefault();e.stopImmediatePropagation()},i0;',
+  'for(i0=0;i0<EV.length;i0++)document.addEventListener(EV[i0],act,{passive:true});',
+  'document.addEventListener("pointerdown",tap);document.addEventListener("click",nab,true);',
+  // The click comes on release, which can be after the lift, so the catcher stays for the 600 ms fade.
+  'function end(t,why,quiet){done=true;for(i0=0;i0<EV.length;i0++)document.removeEventListener(EV[i0],act);document.removeEventListener("pointerdown",tap);',
+  'setTimeout(function(){document.removeEventListener("click",nab,true)},600);window.__runCurtain={appearedAt:A,liftedAt:t,reason:why};',
   'if(quiet){H.removeAttribute("data-preload");return}',
   'H.setAttribute("data-preload","lifting");setTimeout(function(){H.removeAttribute("data-preload")},600)}',
-  'function frame(t){if(done)return;if(A===null){A=t;L=t}var since=t-A,capped=acted||since>=T.ceiling;',
+  // Any fault inside a frame ends the curtain quietly (review I2): an uncaught one stopped the loop with
+  // `data-preload="on"` and every listener above still in place, so each later tap and key was eaten.
+  'function frame(t){if(done)return;try{step(t)}catch(e){end(t,"error",true)}}',
+  'function step(t){if(A===null){A=t;L=t}var since=t-A,capped=acted||since>=T.ceiling;',
   // A tab sent to the back mid-show: the CSS fallback has played meanwhile, so leave without a second wipe.
   'if(since>=T.fallback){end(t,"cap",true);return}',
   'if(t-scanned>=250)scan(t);if(capped)target=1;shown=stepShown(shown,target,t-L,capped,T);L=t;paint();if(shown>=1&&F===null)F=t;',
