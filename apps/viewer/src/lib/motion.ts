@@ -36,6 +36,13 @@ export const PRELOADER_MIN_DWELL_MS = 400
 export const PRELOADER_PICTURE_WAIT_MS = 1500
 
 /**
+ * How long a looping loader mark may move before it rests (12 Nov 2026, C1; owner's choice). WCAG 2.2
+ * SC 2.2.2: motion that starts by itself and lasts over five seconds beside other content needs a way
+ * to stop; resting after five is that way. The numbers beside it keep moving.
+ */
+export const MOTION_REST_AFTER_MS = 5000
+
+/**
  * Hover intent before a colourway preview is applied to the model.
  *
  * Not a token either. Rebinding a variant swaps every material on the model,

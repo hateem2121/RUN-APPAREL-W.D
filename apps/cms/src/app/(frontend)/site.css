@@ -9245,6 +9245,12 @@ a.contact-block__value:active {
     animation-delay: calc(var(--stagger) * 4);
   }
 
+  /* After five seconds of holding the mark rests (12 Nov 2026, C1; WCAG 2.2 SC 2.2.2). */
+  .nav-weave[data-rest] .loom-mark__pick {
+    animation: none;
+    transform: scaleX(0);
+  }
+
   @keyframes pick-loop {
     0% {
       transform: scaleX(0);
