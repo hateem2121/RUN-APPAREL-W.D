@@ -7,6 +7,15 @@ import { PRELOADER_PICTURE_WAIT_MS } from '../src/lib/motion'
  * empty stage. Here the poster is held back on purpose, then broken, then removed from the payload,
  * so the wait is proved to happen, to give up on a broken picture, and never to wait for nothing.
  */
+/*
+ * Every test here holds back or rewrites a request with `page.route`, and the production build installs
+ * `/sw.js`. In WebKit a page the worker controls stops reaching `page.route` (fontSwap.spec.ts has the
+ * probe, 23 Sep 2026). CI's mobile Safari showed it here on PR #386 (13 Nov 2026): one request for the
+ * poster came back in 5 ms, never held, while the held one took 1,337 ms, so the screen rightly left
+ * once that picture was in and the test read "left before the picture". Same fix as the other specs.
+ */
+test.use({ serviceWorkers: 'block' })
+
 const POSTER = (url: URL) => url.pathname.endsWith('/n001-wine-poster.webp')
 const SCREEN_COPY = (url: URL) => url.pathname.endsWith('/n001-wine-screen.png')
 

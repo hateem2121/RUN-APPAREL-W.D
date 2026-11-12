@@ -1284,3 +1284,14 @@ wraps every `requestAnimationFrame` callback; the work inside is model-viewer dr
 garment for the first time (geometry upload and shader compile). No time was attributed to the app's own
 bundle (`index-*.js`). So there is nothing of ours to move: the real lever is the topstitch geometry (98.9%
 of the triangles, `.claude/rules/viewer-model-viewer.md`), which is pipeline work outside this fix.
+
+**Proved on 13 Nov 2026, with Sentry's file blocked.** Same setup: live `rxps/wine`, Metal graphics, a phone
+screen, 4x CPU. Three runs each, alternating, with Sentry's lazily loaded bundle (`prod-*.js`) either loaded
+or refused in the test browser:
+
+| | longest frame | the frame callback |
+|---|---|---|
+| Sentry loaded | 418, 395, 395 ms | 292, 277, 278 ms (attributed to `prod-*.js`) |
+| Sentry blocked | 415, 408, 387 ms | 275, 277, 274 ms (attributed to `model-viewer-*.js`) |
+
+Sentry costs nothing here: its wrapper only changes whose name the browser writes on the frame.

@@ -4174,18 +4174,27 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
     // between two polls. ⚠️ Not a page.evaluate promise on the 'load' event: <model-viewer>
     // arrives by a dynamic import, so the element can be absent when that runs, and the
     // promise then never settles (it timed out that way on 2026-09-25).
+    //
+    // "Loaded" is model-viewer's own `load` EVENT, caught on its way down: Stage.tsx starts the
+    // idle pause from that event, so it is the only fair start for the stopwatch. It was the first
+    // drawn frame with `loaded` true, and on CI's software WebGL that frame can come a long first
+    // draw AFTER the event, so the cue read 2,864 ms on a correct page (PR #383, 13 Nov 2026).
+    // Measured locally at 6x CPU: cue 3,174-3,180 ms after the event in 4 of 4 runs.
     await page.addInitScript(() => {
       const log = { loadedAt: -1, hintAt: -1, hintAtLoad: false }
       ;(window as unknown as { __cue: typeof log }).__cue = log
+      document.addEventListener(
+        'load',
+        (event) => {
+          if ((event.target as Element | null)?.tagName !== 'MODEL-VIEWER' || log.loadedAt >= 0)
+            return
+          log.loadedAt = performance.now()
+          log.hintAtLoad = document.querySelector('.stage__hint') !== null
+        },
+        true,
+      )
       const tick = () => {
-        const mv = document.querySelector('model-viewer') as { loaded?: boolean } | null
-        const hint = document.querySelector('.stage__hint')
-        const now = performance.now()
-        if (mv?.loaded && log.loadedAt < 0) {
-          log.loadedAt = now
-          log.hintAtLoad = hint !== null
-        }
-        if (hint && log.hintAt < 0) log.hintAt = now
+        if (document.querySelector('.stage__hint') && log.hintAt < 0) log.hintAt = performance.now()
         if (log.hintAt < 0) requestAnimationFrame(tick)
       }
       requestAnimationFrame(tick)
