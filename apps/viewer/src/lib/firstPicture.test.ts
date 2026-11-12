@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { posterPicture } from './garmentContour'
-import { waitForFirstPicture } from './firstPicture'
+import { pictureWaitLeft, waitForFirstPicture } from './firstPicture'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -72,5 +72,22 @@ describe('the opening screen waits for the garment picture (12 Nov 2026, B2)', (
     expect(fakeImage.src).toBe('https://media.wear-run.com/rxps-wine-screen.webp')
     expect(fakeImage.crossOrigin).toBe('')
     vi.unstubAllGlobals()
+  })
+})
+
+describe('the wait never outlasts its allowance (review M6, M5; 13 Nov 2026)', () => {
+  it('settles as failed when the loader throws at once, instead of never settling (M6)', async () => {
+    const throwing = () => {
+      throw new Error('no Image here')
+    }
+    await expect(waitForFirstPicture({ src: 'https://m/x.webp' }, 1500, throwing)).resolves.toBe(
+      'failed',
+    )
+  })
+
+  it('counts the allowance from the FIRST wait when the stage switches pictures (M5)', () => {
+    expect(pictureWaitLeft(1000, 1000, 1500)).toBe(1500)
+    expect(pictureWaitLeft(1000, 1900, 1500)).toBe(600)
+    expect(pictureWaitLeft(1000, 3000, 1500)).toBe(0)
   })
 })
