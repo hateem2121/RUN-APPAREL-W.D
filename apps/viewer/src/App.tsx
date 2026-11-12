@@ -28,7 +28,7 @@ import { track } from './lib/analytics'
 import { type ViewerFetchFailure, ViewerFetchError, fetchViewerData } from './lib/api'
 import { diagnostic } from './lib/diagnostic'
 import { takeEmbeddedPayload } from './lib/embeddedPayload'
-import { type PictureRequest, waitForFirstPicture } from './lib/firstPicture'
+import { type PictureRequest, pictureWaitLeft, waitForFirstPicture } from './lib/firstPicture'
 import { isFocusUnclaimed } from './lib/focusHandoff'
 import { PRELOADER_PICTURE_WAIT_MS } from './lib/motion'
 import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
@@ -432,20 +432,28 @@ export default function App() {
    */
   // The stage reports only when its picture changes (Stage.tsx), so a new object is a new picture.
   const [stagePicture, setStagePicture] = useState<PictureRequest | null | undefined>(undefined)
+  // When the allowance began, so a second picture named mid-wait gets only what is left (M5).
+  const waitStartedRef = useRef<number | null>(null)
   useEffect(() => {
     if (state.kind !== 'ready' || pictureSettled) return
     let live = true
     const settle = () => {
       if (live) setPictureSettled(true)
     }
+    waitStartedRef.current ??= performance.now()
+    const left = pictureWaitLeft(
+      waitStartedRef.current,
+      performance.now(),
+      PRELOADER_PICTURE_WAIT_MS,
+    )
     if (stagePicture === undefined) {
-      const timer = window.setTimeout(settle, PRELOADER_PICTURE_WAIT_MS)
+      const timer = window.setTimeout(settle, left)
       return () => {
         live = false
         window.clearTimeout(timer)
       }
     }
-    void waitForFirstPicture(stagePicture, PRELOADER_PICTURE_WAIT_MS).then(settle)
+    void waitForFirstPicture(stagePicture, left).then(settle)
     return () => {
       live = false
     }

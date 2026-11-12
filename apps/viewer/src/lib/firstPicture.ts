@@ -36,7 +36,15 @@ export function waitForFirstPicture(
   if (!request) return Promise.resolve('none')
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve('timeout'), maxMs)
-    load(request).then(
+    // A loader that throws at once (no `Image` here, say) counts as a broken picture, or the opening
+    // screen would wait on a promise that never settles (review M6, 13 Nov 2026).
+    let loading: Promise<void>
+    try {
+      loading = load(request)
+    } catch (error) {
+      loading = Promise.reject(error)
+    }
+    loading.then(
       () => {
         clearTimeout(timer)
         resolve('decoded')
@@ -47,4 +55,13 @@ export function waitForFirstPicture(
       },
     )
   })
+}
+
+/**
+ * What is left of the allowance, counted from the FIRST wait. The stage can name a second picture
+ * mid-wait (a 3D download that fails at once falls back to the HD copy), and starting a fresh
+ * allowance then could hold the screen for twice the limit (review M5, 13 Nov 2026).
+ */
+export function pictureWaitLeft(startedAt: number, now: number, maxMs: number): number {
+  return Math.max(0, maxMs - (now - startedAt))
 }

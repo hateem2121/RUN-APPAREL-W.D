@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   CURTAIN_TIMING,
+  fillDriver,
   counterYear,
   curtainReport,
   curtainPercent,
@@ -229,5 +230,15 @@ describe('what the curtain reports after it lifts (F3)', () => {
   it('nothing when the curtain never showed or has not lifted', () => {
     expect(curtainReport(undefined)).toBe(null)
     expect(curtainReport({ appearedAt: null, liftedAt: 900, reason: 'cap' })).toBe(null)
+  })
+})
+
+// Review M1 (13 Nov 2026): `String.replace` reads `$&`, `$'` and `` $` `` in a replacement STRING as
+// patterns, so a function body containing one (a minifier's `$`-names can) would be inlined wrong.
+describe('the driver is filled in word for word (M1)', () => {
+  it("inserts text holding $& and $' exactly as written", () => {
+    expect(fillDriver('a=__X__;b=__Y__', { __X__: 'f($&)', __Y__: "g($')" })).toBe(
+      "a=f($&);b=g($')",
+    )
   })
 })
