@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { ABOUT_PAGE } from '../src/lib/aboutPages'
 import { ABOUT_PORTRAITS, wholePhoto } from '../src/lib/factoryPhotos'
+import { PRELOADER_CEILING_MS, PRELOADER_FINISH_MS, PRELOADER_HOLD_MS } from '../src/lib/preloader'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -857,6 +858,14 @@ test.describe('the factory photo viewer', () => {
       .toBe(true)
     const scrollY = () => page.evaluate(() => Math.round(window.scrollY + document.body.scrollTop))
     await links(page).first().scrollIntoViewIfNeeded()
+    // Lifting webdriver also brings the first-arrival curtain, and since 12 Nov 2026 (review I1) a
+    // click on the curtain is kept from the page under it, so wait for it to be gone, not 1.5 s.
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.hasAttribute('data-preload')), {
+        timeout: 8_000,
+      })
+      .toBe(false)
+    // …and the 1.5 s the page has always had to settle after the jump, or Firefox drifts 2 px.
     await page.waitForTimeout(1500)
     await links(page).first().click()
     await expect(page.getByRole('dialog')).toBeVisible()
@@ -900,10 +909,22 @@ test.describe('the /about preloader', () => {
     await page.goto('/about', { referer: 'https://www.google.com/' })
     expect(await covering(page), 'no curtain on a visit from a search').toBe(true)
     await expect(page.locator('.preloader')).toHaveAttribute('aria-hidden', 'true')
-    // The year the counter shows as the curtain starts to lift.
-    await expect.poll(() => mark(page), { timeout: 4000 }).not.toBe('on')
+    // The year the counter shows as the curtain starts to lift. The 3 s ceiling counts from the
+    // curtain's own first paint since 12 Nov 2026 (A1), not from the request, so the wait here is
+    // loose and the rule is checked below from the curtain's own record: Firefox beside two other
+    // engines missed a 4 s wait counted from `goto` twice while the curtain kept its 3 s.
+    await expect.poll(() => mark(page), { timeout: 8000 }).not.toBe('on')
     const landed = await page.locator('.preloader__year').textContent()
     expect(landed).toBe(String(new Date().getFullYear()))
+    const shown = await page.evaluate(() => {
+      const r = (window as { __runCurtain?: { appearedAt: number; liftedAt: number } }).__runCurtain
+      return r ? r.liftedAt - r.appearedAt : null
+    })
+    expect(shown, 'the curtain left no record of its show').not.toBeNull()
+    // Ceiling, the finish, this year's beat, and one frame.
+    expect(shown as number).toBeLessThanOrEqual(
+      PRELOADER_CEILING_MS + PRELOADER_FINISH_MS + PRELOADER_HOLD_MS + 34,
+    )
     // 3 s ceiling + the picks (0.6 s), and a margin for a busy machine.
     await expect.poll(() => covering(page), { timeout: 4000 }).toBe(false)
     expect(Date.now() - started).toBeLessThan(7000)

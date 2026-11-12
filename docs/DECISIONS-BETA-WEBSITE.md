@@ -1556,8 +1556,14 @@ showed 0.10–0.74 s on a fast line and never reached this year on Slow 4G; on a
 - **How long each loading screen showed goes to PostHog after Accept only** (owner, 12 Nov):
   `loader_timing`. The privacy page's owner-approved wording was not changed; it describes PostHog
   recording how visitors use the pages.
-- **Card picture quality: the owner's pick after a side-by-side** (see Task 9 of the plan); 90 stands
-  until then.
+- **Card pictures stay at quality 90** (owner, 12 Nov, after a side-by-side of zoomed chest crops):
+  85, 80 and 75 would save about 21–28%, 33–40% and 40–50% of the bytes, but the fine diagonal weave
+  of the RXPS wine fabric fades at 85 and is nearly gone at 80. Measured on a local AVIF stand-in
+  calibrated against Cloudflare's own quality-90 file, because Cloudflare answers 403 for any other
+  quality.
+- **A tap on the curtain never reaches the page under it** (fresh review, 12 Nov): the curtain is
+  `inert`, so the tap lands on what is under it, and the click that follows is now caught. A fault
+  inside the curtain's own script ends it quietly instead of leaving it holding the page.
 - Measured and left: the first draw of a 2.4-million-triangle garment (`docs/HARDENING-LOG.md`).
 
 ## Closed since
