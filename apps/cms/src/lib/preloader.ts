@@ -121,7 +121,9 @@ const DRIVER = [
   'q=function(s){return document.querySelector(s)},',
   'stepShown=__STEP__,liftReason=__LIFT__,counterYear=__YEAR__,curtainPercent=__PCT__,',
   'A=null,L=null,F=null,shown=0,target=0,ready=false,acted=false,scanned=-1e9,done=false;',
-  'function scan(t){scanned=t;var a=document.querySelectorAll("link[rel=stylesheet],script[src]"),n=0,d=0,i,m,ok=true;',
+  // Not `nomodule` scripts: Next puts a polyfill on every page that a modern browser never fetches,
+  // and waiting for it held every visitor on every page to the 3 s ceiling (measured locally, 12 Nov).
+  'function scan(t){scanned=t;var a=document.querySelectorAll("link[rel=stylesheet],script[src]:not([nomodule])"),n=0,d=0,i,m,ok=true;',
   'for(i=0;i<a.length;i++){n++;if(performance.getEntriesByName(a[i].href||a[i].src).length)d++;else ok=false}',
   'var g=document.querySelectorAll("img");for(i=0;i<g.length;i++){m=g[i];if(m.getAttribute("loading")==="lazy")continue;n++;',
   'if(m.complete){if(!m.naturalWidth)m.__rd=2;else if(!m.__rd){m.__rd=1;m.decode().then(function(){this.__rd=2}.bind(m),function(){this.__rd=2}.bind(m))}}',

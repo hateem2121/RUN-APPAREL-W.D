@@ -1,3 +1,4 @@
+import { PRELOADER_CEILING_MS } from '../src/lib/preloader'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -53,6 +54,33 @@ for (const [width, height] of SCREENS) {
       .toBe(false)
   })
 }
+
+/*
+ * A fast page lifts on "ready", not at the 3 s ceiling (12 Nov 2026). Next puts a `nomodule`
+ * polyfill script on every page; a modern browser never fetches it, the driver waited for it, and
+ * every visitor on every page sat through the whole 3 s. The fake DOM in preloaderSimulation.test.ts
+ * had no such script, so only a real page shows it.
+ */
+test('a fast page lifts when it is ready, not at the ceiling', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine: the rule is in the inline script')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false })
+  })
+  await page.goto('/')
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.hasAttribute('data-preload')), {
+      timeout: 8_000,
+    })
+    .toBe(false)
+  const run = await page.evaluate(
+    () =>
+      (window as { __runCurtain?: { appearedAt: number; liftedAt: number; reason: string } })
+        .__runCurtain,
+  )
+  expect(run?.reason, 'the curtain lifted at its ceiling on a page that had loaded').toBe('ready')
+  expect((run?.liftedAt ?? 0) - (run?.appearedAt ?? 0)).toBeLessThan(PRELOADER_CEILING_MS)
+})
 
 test('under automation there is no curtain', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'one engine')

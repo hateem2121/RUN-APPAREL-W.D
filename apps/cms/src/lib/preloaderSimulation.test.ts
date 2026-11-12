@@ -25,6 +25,8 @@ type Page = {
   endAt?: number
   /** From this moment the page's own list throws, as a broken browser or extension might. */
   breakAt?: number
+  /** Next's `nomodule` polyfill: in the page, never fetched by a modern browser, so never timed. */
+  noModuleScript?: boolean
 }
 type Frame = { t: number; state: string; year: string; pct: string }
 
@@ -61,11 +63,18 @@ async function simulate(page: Page): Promise<{
     },
   }))
   const sheet = { href: 'https://wear-run.com/a.css', tagName: 'LINK' }
+  const polyfill = { src: 'https://wear-run.com/polyfills.js', tagName: 'SCRIPT' }
+  // The stand-in answers only the selectors the driver uses; a `nomodule` script matches any
+  // selector that does not leave it out, as `script[src]` alone does in a real page.
   const all = (selector: string): unknown[] => {
     if (page.breakAt !== undefined && now >= page.breakAt) throw new Error('planted fault')
     if (selector.includes('loom-mark__pick')) return picks
     if (selector.includes('img')) return images.filter((i) => i.getAttribute('loading') !== 'lazy')
-    if (selector.includes('stylesheet') || selector.includes('script')) return [sheet]
+    if (selector.includes('stylesheet') || selector.includes('script')) {
+      return page.noModuleScript && !selector.includes(':not([nomodule])')
+        ? [sheet, polyfill]
+        : [sheet]
+    }
     return []
   }
   const documentStub = {
@@ -110,7 +119,8 @@ async function simulate(page: Page): Promise<{
     performance: {
       now: () => now,
       getEntriesByType: () => [{ type: 'navigate' }],
-      getEntriesByName: () => (now >= (page.stylesAt ?? 0) ? [{}] : []),
+      getEntriesByName: (name: string) =>
+        name === polyfill.src ? [] : now >= (page.stylesAt ?? 0) ? [{}] : [],
     },
     requestAnimationFrame: (fn: (t: number) => void) => {
       frameQueue.push(fn)
@@ -249,6 +259,18 @@ describe('the shipped curtain, replayed on a fake clock', () => {
       stylesAt: 200,
       fontsAt: 200,
       parsedAt: 300,
+    })
+    expect(summary(frames).liftAfterAppear).toBeLessThan(2000)
+  })
+
+  it('a never-fetched nomodule script does not hold a fast page to the ceiling', async () => {
+    const { frames } = await simulate({
+      bootAt: 150,
+      pictures: [{ finishAt: 200 }],
+      stylesAt: 180,
+      fontsAt: 190,
+      parsedAt: 200,
+      noModuleScript: true,
     })
     expect(summary(frames).liftAfterAppear).toBeLessThan(2000)
   })
