@@ -8,6 +8,7 @@ import { PRELOADER_PICTURE_WAIT_MS } from '../src/lib/motion'
  * so the wait is proved to happen, to give up on a broken picture, and never to wait for nothing.
  */
 const POSTER = (url: URL) => url.pathname.endsWith('/n001-wine-poster.webp')
+const SCREEN_COPY = (url: URL) => url.pathname.endsWith('/n001-wine-screen.png')
 
 async function watch(page: Page) {
   // Under automation the screen leaves before its first frame (Preloader.tsx), so act like a person.
@@ -20,7 +21,11 @@ async function watch(page: Page) {
       if (document.querySelector('.preloader--exit') && w.__gone === undefined) {
         w.__gone = performance.now()
       }
-      const picture = document.querySelector<HTMLImageElement>('.stage__placeholder')
+      // Whichever picture the stage draws first: the blurred one while the 3D downloads, or the
+      // sharp one when there is no 3D (PR #383: CI's Firefox has no WebGL and drew only that).
+      const picture = document.querySelector<HTMLImageElement>(
+        '.stage__placeholder, .stage__picture',
+      )
       // The stage's picture is drawn in the same render that starts the wait (App.tsx), so its
       // first frame is when the 1.5 s allowance began.
       if (picture && w.__asked === undefined) w.__asked = performance.now()
@@ -72,6 +77,67 @@ test.describe('the opening screen waits for the garment picture', () => {
       gone as number,
       `left at ${Math.round(gone as number)} ms: before the picture (${Math.round(pictured as number)}) and before the allowance ran out (${Math.round(allowanceEnds)})`,
     ).toBeGreaterThanOrEqual(Math.min(pictured as number, allowanceEnds) - 34)
+  })
+
+  /*
+   * With no 3D the stage draws the screen-sized HD copy, not the poster (Stage.tsx, polish D9), and
+   * the screen waited for the poster: it left onto a stage still fetching the copy. Found on PR
+   * #383 by CI's Firefox, which has no WebGL. 3D is switched off here the way such a browser is.
+   */
+  test('with no 3D, the screen waits for the picture the stage draws instead', async ({ page }) => {
+    await watch(page)
+    await page.addInitScript(() => {
+      const real = HTMLCanvasElement.prototype.getContext
+      HTMLCanvasElement.prototype.getContext = function (
+        this: HTMLCanvasElement,
+        kind: string,
+        ...rest: unknown[]
+      ) {
+        if (kind === 'webgl' || kind === 'webgl2') return null
+        return (real as (...a: unknown[]) => unknown).call(this, kind, ...rest)
+      } as typeof real
+    })
+    let held = 0
+    await page.route(SCREEN_COPY, async (route) => {
+      held += 1
+      await new Promise((r) => setTimeout(r, 1300))
+      await route.continue()
+    })
+    await page.goto('/n001/wine')
+    await expect.poll(async () => (await read(page)).gone, { timeout: 10_000 }).not.toBe(null)
+    await expect
+      .poll(async () => (await read(page)).pictured, {
+        message: 'the picture never arrived, so nothing was measured',
+        timeout: 10_000,
+      })
+      .not.toBe(null)
+    expect(
+      held,
+      'the stage never asked for its HD copy, so this measured the poster',
+    ).toBeGreaterThan(0)
+    await expect(page.locator('.stage__picture')).toHaveCount(1)
+    const { gone, pictured, asked } = await read(page)
+    const allowanceEnds = (asked as number) + PRELOADER_PICTURE_WAIT_MS
+    expect(
+      gone as number,
+      `left at ${Math.round(gone as number)} ms: before the picture (${Math.round(pictured as number)}) and before the allowance ran out (${Math.round(allowanceEnds)})`,
+    ).toBeGreaterThanOrEqual(Math.min(pictured as number, allowanceEnds) - 34)
+  })
+
+  /*
+   * Under automation every loading screen gets out of the way (.claude/rules/tests-and-fixtures.md),
+   * so the rest of the suite sees the bare page. The picture wait broke that: the paper-coloured
+   * screen stayed up for the picture, and on a busy run a WebKit footer test sampled it instead of
+   * the footer (PR #383). A robot gets no wait; a person still does (the tests above).
+   */
+  test('under automation the screen never waits for the picture', async ({ page }) => {
+    await page.route(POSTER, async (route) => {
+      await new Promise((r) => setTimeout(r, 2000))
+      await route.continue()
+    })
+    await page.goto('/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 1000 })
   })
 
   test('a broken picture does not hold the screen', async ({ page }) => {

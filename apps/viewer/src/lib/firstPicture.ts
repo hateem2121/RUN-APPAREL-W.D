@@ -1,5 +1,3 @@
-import { posterPicture } from './garmentContour'
-
 /**
  * THE OPENING SCREEN WAITS FOR THE GARMENT'S PICTURE (12 Nov 2026, loader fix B2).
  *
@@ -9,28 +7,36 @@ import { posterPicture } from './garmentContour'
  * garment's data (Chrome: "Request is discoverable in initial document: FAILED"), so the screen now
  * waits for it: once it has decoded, or failed, or after `maxMs`, whichever comes first.
  *
- * It asks for the SAME address in the same mode as the stage (`posterPicture`: `?seam=1`, CORS), or a
- * phone would download the picture twice (garmentContour.ts has the 243,042-byte measurement).
+ * It asks for the very request the stage makes, address AND mode, or a phone would download the
+ * picture twice (garmentContour.ts has the 243,042-byte measurement). The stage says which picture
+ * it draws (`Stage`'s `onPicture`): the poster at `?seam=1` with CORS while the 3D downloads, or,
+ * with no 3D, the screen-sized HD copy at its plain address. Waiting for the poster in that case
+ * let the screen leave 0.9 s before the copy painted (CI's Firefox, which has no WebGL, PR #383).
  */
 export type FirstPictureOutcome = 'decoded' | 'timeout' | 'none' | 'failed'
 
-function loadPoster(url: string): Promise<void> {
+/** The picture as the stage asks for it: what goes in `src`, and `crossOrigin` when it sets one. */
+export interface PictureRequest {
+  src: string
+  crossOrigin?: 'anonymous'
+}
+
+function loadPicture(request: PictureRequest): Promise<void> {
   const picture = new Image()
-  const { src, crossOrigin } = posterPicture(url)
-  picture.crossOrigin = crossOrigin
-  picture.src = src
+  if (request.crossOrigin) picture.crossOrigin = request.crossOrigin
+  picture.src = request.src
   return picture.decode()
 }
 
 export function waitForFirstPicture(
-  url: string | null,
+  request: PictureRequest | null,
   maxMs: number,
-  load: (url: string) => Promise<void> = loadPoster,
+  load: (request: PictureRequest) => Promise<void> = loadPicture,
 ): Promise<FirstPictureOutcome> {
-  if (!url) return Promise.resolve('none')
+  if (!request) return Promise.resolve('none')
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve('timeout'), maxMs)
-    load(url).then(
+    load(request).then(
       () => {
         clearTimeout(timer)
         resolve('decoded')

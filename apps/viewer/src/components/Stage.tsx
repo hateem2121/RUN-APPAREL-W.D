@@ -25,6 +25,7 @@ import { downloadWithRetries, MAX_ATTEMPTS } from '../lib/downloadWithRetries'
 import { DownloadStalledError, fetchFailureReason } from '../lib/fetchWithProgress'
 import { describeLoad, smoothRate } from '../lib/loadProgress'
 import { CAMERA_DECAY_MS } from '../lib/motion'
+import type { PictureRequest } from '../lib/firstPicture'
 import { posterPicture } from '../lib/garmentContour'
 import { pictureHeadStart } from '../lib/pictureFirst'
 import { reloadForStaleChunk } from '../lib/staleChunkReload'
@@ -107,6 +108,12 @@ interface StageProps {
    */
   onFallbackChange?: (fallback: boolean) => void
   /**
+   * Fires with the picture the stage draws first, as it asks for it, or null when it has none.
+   * App.tsx holds the opening screen until that very picture has decoded (loader fix B2). With
+   * no 3D it is the HD copy, not the poster (PR #383).
+   */
+  onPicture?: (picture: PictureRequest | null) => void
+  /**
    * The page is the Worker's copy for a search robot: show the picture, fetch no model
    * (`PosterReason` 'crawler' has the Search Console numbers). A person never gets it.
    */
@@ -121,6 +128,7 @@ export function Stage({
   onSelectColourway,
   cornerSpecs = false,
   onFallbackChange,
+  onPicture,
   forCrawler = false,
 }: StageProps) {
   const { product } = data
@@ -163,6 +171,12 @@ export function Stage({
    * every read site reading the way it did.
    */
   const [phase, dispatchPhase] = useReducer(stagePhase, { kind: 'loading' } as StagePhase)
+  /**
+   * Whether the stage has decided between 3D and the picture. On the first render `phase` is
+   * 'loading' either way, and reporting the poster then let a page with no 3D settle on it 2 ms
+   * before the stage switched to its HD copy (mobile Safari, PR #383): `onPicture` waits for this.
+   */
+  const [threeDDecided, setThreeDDecided] = useState(false)
   const fallback = isPoster(phase)
   const modelLoaded = isLive(phase)
   const swapping = isSwapping(phase)
@@ -257,6 +271,9 @@ export function Stage({
   // identity changes that mean nothing, in the most delicate component here.
   // biome-ignore lint/correctness/useExhaustiveDependencies: report labels only, never inputs — see above
   useEffect(() => {
+    // From here the stage knows whether it opens in 3D: every branch below either goes on to the
+    // model or moves `phase` to the picture, in this same pass, so the next render is decided.
+    setThreeDDecided(true)
     // Two very different failures, previously collapsed into one branch whose
     // diagnostic was guarded by `if (glbUrl)` — so the WORSE of the two reported
     // nothing at all. A published product with no finished model looks healthy
@@ -1122,6 +1139,25 @@ export function Stage({
    * download is a failing connection, and the full render is 0.5-1.2 MB.
    */
   const fallbackPicture = fallback ? (!savesData() && selected.renderScreen) || placeholder : null
+  // The picture drawn first, as the <img> below asks for it: the HD copy plain when there is no 3D
+  // (`.stage__picture`), else the poster at the seam's address with CORS (`.stage__placeholder`).
+  // App.tsx waits for exactly this one, so the opening screen never leaves onto an empty stage.
+  const firstPictureSrc = fallback
+    ? (fallbackPicture?.url ?? null)
+    : placeholder
+      ? posterPicture(placeholder.url).src
+      : null
+  const firstPictureCors = !fallback && placeholder !== null
+  useEffect(() => {
+    if (!onPicture || !threeDDecided) return
+    if (firstPictureSrc === null) onPicture(null)
+    else
+      onPicture(
+        firstPictureCors
+          ? { src: firstPictureSrc, crossOrigin: 'anonymous' }
+          : { src: firstPictureSrc },
+      )
+  }, [firstPictureSrc, firstPictureCors, onPicture, threeDDecided])
   // The sentence under that picture: a garment with no 3D on purpose says "coming soon"
   // (2026-10-08); a search robot's copy says nothing, since nothing failed and "not available"
   // would be indexed as the garment's words (2026-10-23); everything else says what failed.

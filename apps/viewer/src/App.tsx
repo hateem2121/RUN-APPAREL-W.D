@@ -28,10 +28,9 @@ import { track } from './lib/analytics'
 import { type ViewerFetchFailure, ViewerFetchError, fetchViewerData } from './lib/api'
 import { diagnostic } from './lib/diagnostic'
 import { takeEmbeddedPayload } from './lib/embeddedPayload'
-import { waitForFirstPicture } from './lib/firstPicture'
+import { type PictureRequest, waitForFirstPicture } from './lib/firstPicture'
 import { isFocusUnclaimed } from './lib/focusHandoff'
 import { PRELOADER_PICTURE_WAIT_MS } from './lib/motion'
-import { placeholderAsset } from './lib/placeholder'
 import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
 import { reloadOnChunkFailure } from './lib/staleChunkReload'
 import { useIdentityInAside } from './lib/useIdentityInAside'
@@ -425,21 +424,32 @@ export default function App() {
     document.getElementById(PAGE_TOP_ID)?.focus({ preventScroll: true })
   }, [state.kind, preloaderGone])
 
-  // Start the wait the moment the data is in; the opening screen stays until it settles (B2).
-  const firstPictureUrl =
-    state.kind === 'ready'
-      ? (placeholderAsset(state.selected, state.data.product)?.url ?? null)
-      : undefined
+  /*
+   * The opening screen stays until the stage's first picture has decoded (B2), at most
+   * PRELOADER_PICTURE_WAIT_MS. The stage names that picture (`onPicture`): the poster while the 3D
+   * downloads, the HD copy when there is no 3D. Until it has said, the allowance already runs, so
+   * a page whose stage never draws cannot hold the screen.
+   */
+  // The stage reports only when its picture changes (Stage.tsx), so a new object is a new picture.
+  const [stagePicture, setStagePicture] = useState<PictureRequest | null | undefined>(undefined)
   useEffect(() => {
-    if (firstPictureUrl === undefined || pictureSettled) return
+    if (state.kind !== 'ready' || pictureSettled) return
     let live = true
-    void waitForFirstPicture(firstPictureUrl, PRELOADER_PICTURE_WAIT_MS).then(() => {
+    const settle = () => {
       if (live) setPictureSettled(true)
-    })
+    }
+    if (stagePicture === undefined) {
+      const timer = window.setTimeout(settle, PRELOADER_PICTURE_WAIT_MS)
+      return () => {
+        live = false
+        window.clearTimeout(timer)
+      }
+    }
+    void waitForFirstPicture(stagePicture, PRELOADER_PICTURE_WAIT_MS).then(settle)
     return () => {
       live = false
     }
-  }, [firstPictureUrl, pictureSettled])
+  }, [state.kind, stagePicture, pictureSettled])
 
   // Stable identity: this is in <Preloader>'s effect dependency array, and a new
   // arrow function per App render re-ran that effect — clearing and rescheduling
@@ -463,7 +473,12 @@ export default function App() {
   }
 
   const preloader = preloaderGone ? null : (
-    <Preloader done={state.kind === 'ready' && pictureSettled} onExited={onPreloaderExited} />
+    <Preloader
+      // Under automation the screen gets out of the way at once, as every loader does there
+      // (Preloader.tsx), so the rest of the suite sees the bare page and not paper (PR #383).
+      done={state.kind === 'ready' && (pictureSettled || navigator.webdriver)}
+      onExited={onPreloaderExited}
+    />
   )
 
   if (state.kind === 'loading') {
@@ -589,6 +604,7 @@ export default function App() {
                 onSelectColourway={onSelectColourway}
                 cornerSpecs={specsInCorners}
                 onFallbackChange={setStageFallback}
+                onPicture={setStagePicture}
                 forCrawler={crawlerCopy}
               />
             </div>
