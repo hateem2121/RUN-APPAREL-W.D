@@ -72,26 +72,32 @@ describe('the preloader wipe (FA-H-23)', () => {
    * cannot be repeated here, so the three inputs that produce it are pinned
    * instead.
    */
-  it('wipes the clip-path on the editorial curve, not on the UI one', () => {
-    const body = ruleBody(PAGE_CSS, '\\.preloader')
-    const transition = body
-      .match(/transition\s*:\s*([^;]+);/)?.[1]
-      ?.replace(/\s+/g, ' ')
-      .trim()
-
+  // Since 12 Nov 2026 (loader fix B1) the wipe is two opposing slides, both on the compositor: the
+  // screen rises while its sheet sinks, which draws the same rising edge the clip-path did, and
+  // keeps moving while the 3D engine works (the clip froze 0.16–0.27 s in Chrome). The editorial
+  // curve and the length stay as FA-H-23 pinned them.
+  it('wipes on the editorial curve, not on the UI one', () => {
+    const transitionOf = (selector: string) =>
+      ruleBody(PAGE_CSS, selector)
+        .match(/transition\s*:\s*([^;]+);/)?.[1]
+        ?.replace(/\s+/g, ' ')
+        .trim()
     expect(
-      transition,
-      'the preloader no longer transitions its clip-path. The wipe IS the ' +
-        'clip-path — a preloader that cannot animate it simply disappears. ' +
-        'See audit FA-H-23.',
-    ).toBe('clip-path var(--slow) var(--ease-out-expo)')
+      transitionOf('\\.preloader'),
+      'the preloader no longer slides on --slow / --ease-out-expo. The wipe IS this slide — ' +
+        'a preloader that cannot animate it simply disappears. See audit FA-H-23.',
+    ).toBe('translate var(--slow) var(--ease-out-expo)')
+    expect(transitionOf('\\.preloader__sheet')).toBe('translate var(--slow) var(--ease-out-expo)')
+    expect(ruleBody(PAGE_CSS, '\\.preloader')).toContain('overflow: clip')
   })
 
   it('wipes upward to nothing, so the page is uncovered from the bottom', () => {
-    // `inset(0 0 100% 0)` closes the bottom edge to the top. Any other final
-    // value leaves part of the overlay on screen for good, over a page whose
-    // `<main>` has just taken focus.
-    expect(ruleBody(PAGE_CSS, '\\.preloader--exit')).toContain('clip-path: inset(0 0 100% 0)')
+    // The screen rises its whole height. Any shorter slide leaves part of the overlay
+    // on screen for good, over a page whose `<main>` has just taken focus.
+    expect(ruleBody(PAGE_CSS, '\\.preloader--exit')).toContain('translate: 0 -100%')
+    expect(ruleBody(PAGE_CSS, '\\.preloader--exit \\.preloader__sheet')).toContain(
+      'translate: 0 100%',
+    )
   })
 
   /**
