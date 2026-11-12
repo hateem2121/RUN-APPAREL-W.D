@@ -193,3 +193,21 @@ describe("the CSS fallback lifts after the script's ceiling and finish", () => {
     expect(PRELOADER_FALLBACK_MS).toBe(PRELOADER_CEILING_MS + PRELOADER_FINISH_MS + 600)
   })
 })
+
+describe('the curtain leaves gently and catches taps while it is up', () => {
+  const css = readFileSync(join(import.meta.dirname, '..', 'app', '(frontend)', 'site.css'), 'utf8')
+  const block = (selector: string) =>
+    new RegExp(`${selector.replace(/[[\]().*"=]/g, '\\$&')} \\{([^}]*)\\}`).exec(css)?.[1] ?? ''
+
+  it('fades the year and the mark out over --ui instead of hiding them in one frame (A9)', () => {
+    const rule = block('html[data-preload="lifting"] .preloader__lockup')
+    expect(rule, 'the lifting rule was not found').not.toBe('')
+    expect(rule).toMatch(/opacity:\s*0/)
+    expect(rule).toMatch(/transition:[^;]*opacity var\(--ui\)/)
+  })
+
+  it('takes taps while it covers the page and lets them through once it lifts (A8)', () => {
+    expect(block('html[data-preload="on"] .preloader')).toMatch(/pointer-events:\s*auto/)
+    expect(block('html[data-preload="lifting"] .preloader')).toMatch(/pointer-events:\s*none/)
+  })
+})
