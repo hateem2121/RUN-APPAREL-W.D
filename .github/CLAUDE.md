@@ -194,7 +194,9 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   cancelled (step-security/harden-runner#708). 🟡 **#708 was closed on 2026-11-06** ("create a new
   issue if you still face this problem after using v2.22.4"), so since 2026-11-07 (owner) the
   `deploy` job runs in BLOCK mode on v2.22.4 with the 28-host allow-list; the step's comment says how
-  to back it out if a deploy fails on a blocked connection. Every other job stays in watch mode; the
+  to back it out if a deploy fails on a blocked connection. Since 2026-11-13 (owner: "Low-risk two first")
+  `r2-budget` and `diagnostics-digest` block too, each with exactly the hosts Harden-Runner recorded on two
+  scheduled runs; `nightly-backup` and `deploy-shrink` wait for two clean weeks. Every other job stays in watch mode; the
   tools `verify` downloads by version are watched by `tool-versions.yml` weekly,
   because Dependabot cannot see an `env:` pin — 🟡 and **since 2026-11-07 (owner) EVERY workflow runs
   from GitHub's workflow LOCKFILE**, `.github/workflows/actions.lock` (generally available since
