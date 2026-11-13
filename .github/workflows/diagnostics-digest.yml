@@ -79,10 +79,25 @@ jobs:
       # sit here are now scoped to the two steps that need them — see below.
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Network guard (Harden-Runner, watch mode)
+      # BLOCK MODE since 2026-11-13 (owner: "Low-risk two first"), after ci.yml's `deploy` held on
+      # v2.22.4 from 7 Nov: 12 of 14 main runs green, and the 2 reds were not the guard (11 Nov: a
+      # Cloudflare API error 10021, and an ECONNRESET from wear-run.com; the guard's own report
+      # blocked only the runner's api.snapcraft.io). The list is exactly what Harden-Runner recorded
+      # for this job on two scheduled runs (41500486254, 42677660994; app.stepsecurity.io insights, read 13 Nov):
+      # checkout (GitHub), npx wrangler (npm), the D1 read (Cloudflare API) and wrangler's telemetry (sparrow).
+      # IF A RUN FAILS ON A BLOCKED CONNECTION (the step summary names it): set `egress-policy: audit`
+      # again and find out why the host appeared before adding it. `>-`, not `>`: see ci.yml's deploy.
+      - name: Network guard (Harden-Runner, BLOCK mode)
         uses: step-security/harden-runner@v2.22.4
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >-
+            github.com:443
+            api.github.com:443
+            release-assets.githubusercontent.com:443
+            registry.npmjs.org:443
+            api.cloudflare.com:443
+            sparrow.cloudflare.com:443
       # Aligned to the versions every other workflow here already proves in
       # production: ci.yml and nightly-backup.yml (and deploy-shrink.yml, until its job
       # moved into ci.yml on 2026-09-29) all run green

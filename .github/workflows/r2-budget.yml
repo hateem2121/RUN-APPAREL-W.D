@@ -42,10 +42,23 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - name: Network guard (Harden-Runner, watch mode)
+      # BLOCK MODE since 2026-11-13 (owner: "Low-risk two first"), after ci.yml's `deploy` held on
+      # v2.22.4 from 7 Nov: 12 of 14 main runs green, and the 2 reds were not the guard (11 Nov: a
+      # Cloudflare API error 10021, and an ECONNRESET from wear-run.com; the guard's own report
+      # blocked only the runner's api.snapcraft.io). The list is exactly what Harden-Runner recorded
+      # for this job on two scheduled runs (41498855989, 42676475860; app.stepsecurity.io insights, read 13 Nov):
+      # checkout and the tool download (GitHub), and the R2 usage read (Cloudflare API).
+      # IF A RUN FAILS ON A BLOCKED CONNECTION (the step summary names it): set `egress-policy: audit`
+      # again and find out why the host appeared before adding it. `>-`, not `>`: see ci.yml's deploy.
+      - name: Network guard (Harden-Runner, BLOCK mode)
         uses: step-security/harden-runner@v2.22.4
         with:
-          egress-policy: audit
+          egress-policy: block
+          allowed-endpoints: >-
+            github.com:443
+            api.github.com:443
+            release-assets.githubusercontent.com:443
+            api.cloudflare.com:443
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
