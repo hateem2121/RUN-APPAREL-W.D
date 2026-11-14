@@ -131,6 +131,13 @@ export const Inquiries: CollectionConfig = {
       options: [
         { label: 'New', value: 'new' },
         { label: 'Replied', value: 'replied' },
+        /*
+         * An order's stages after the reply (owner, 2026-11-15), so the team can count which
+         * inquiries became orders. Plain text in D1 like the others, so no migration.
+         */
+        { label: 'Qualified', value: 'qualified' },
+        { label: 'Sample sent', value: 'sample-sent' },
+        { label: 'Ordered', value: 'ordered' },
         { label: 'Archived', value: 'archived' },
         /*
          * Set by the contact route alone, never typed (owner, 2026-11-10): an inquiry the spam

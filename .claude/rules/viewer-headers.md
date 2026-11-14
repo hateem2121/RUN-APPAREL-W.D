@@ -51,6 +51,11 @@ Moved here from `apps/viewer/CLAUDE.md` on 2026-09-26, word for word.
   carries the negative control that a plain browser is *not* rewritten; without it,
   someone "simplifying" the check would ship the 2 s regression and it would be
   diagnosed as "the site got slow", somewhere else entirely.
+  🟡 **Since 2026-11-15 a PERSON's garment page carries its data too, bounded at 300 ms**
+  (`apps/viewer/worker/personPayload.ts`): the numbers above predate the CMS keeping these answers
+  at the edge (2026-10-07), and that day a robot's page came back as fast as a person's. The head is
+  still rewritten for crawlers only. The person's copy is marked `data-for="person"`, because a
+  robot's copy skips the 3D file, and it carries no `ETag`, because a 304 would hand back old data.
   Two more measured facts from building it. **Asset requests never reach the
   Worker** — logged every entry to the handler: `/assets/index-*.js`,
   `/og/n001/wine.jpg` and `/` produced no line, `/n001/lime` produced one — so

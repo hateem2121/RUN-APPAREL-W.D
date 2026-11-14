@@ -10,6 +10,7 @@ import { FACTORY_PAGE } from './aboutPages'
 import { CERTIFICATION_LINES, FACTS, LEAD_TIME } from './companyFacts'
 import { faqEntryById, OWNER_FIGURES } from './faqs'
 import { FACTORY_PHOTOS, WHOLE_PHOTOS } from './factoryPhotos'
+import { FAMILY_PAGES } from './familyPages'
 import { GLOSSARY_TERMS } from './glossary'
 import { BUYER_QUESTIONS, countCell, CSV_PATH } from './buyerQuestions'
 import { toolWords } from './guideTools'
@@ -21,6 +22,7 @@ import {
   guideAt,
   legalLine,
   READ_NEXT,
+  READ_NEXT_PAGE,
 } from './guides'
 import { MAX_FILES } from './inquiryFiles'
 import { ACCEPTED_KINDS, LIMIT } from './inquiryForm'
@@ -568,6 +570,16 @@ describe('garments and read-next links (2026-10-08)', () => {
       for (const target of next) expect(() => guideAt(target), `${path} → ${target}`).not.toThrow()
     }
   })
+
+  it('leads a guide’s Read next only with a real buyer page, from a real guide (2026-11-15)', () => {
+    const pages = new Set(FAMILY_PAGES.map((page) => page.path))
+    const guides = new Set(GUIDES.map((guide) => guide.path))
+    expect(Object.keys(READ_NEXT_PAGE).length, 'the soccer-ball link is gone').toBeGreaterThan(0)
+    for (const [from, to] of Object.entries(READ_NEXT_PAGE)) {
+      expect(guides.has(from), from).toBe(true)
+      expect(pages.has(to), `${from} → ${to}`).toBe(true)
+    }
+  })
 })
 
 /**
@@ -577,6 +589,36 @@ describe('garments and read-next links (2026-10-08)', () => {
  * the US federal government's (and CBP's own bulletin account, where its CSMS messages are
  * published), Canada's, Australia's and New Zealand's.
  */
+/**
+ * 2026-11-15: the Green Claims source linked `…reference=2023/0085(COD`, its closing bracket lost, and
+ * the European Parliament answered 404 for weeks. The weekly crawl never saw it: it follows this
+ * site's own links and logs every other one as "external — not followed" (link-crawl-probe.mjs). A
+ * bracket opened and never closed is how a copied address loses its end, so it fails here.
+ */
+describe('a guide’s source addresses are whole (2026-11-15)', () => {
+  const unbalanced = (url: string) => {
+    let open = 0
+    for (const character of url) {
+      if (character === '(') open += 1
+      if (character === ')') open -= 1
+      if (open < 0) return true
+    }
+    return open !== 0
+  }
+
+  it('closes every bracket it opens, in every source of every guide', () => {
+    const broken = GUIDES.flatMap((guide) =>
+      (guide.sources ?? []).filter((source) => unbalanced(source.url)).map((s) => s.url),
+    )
+    expect(broken).toEqual([])
+  })
+
+  it('NEGATIVE CONTROL: sees the address that shipped without its bracket', () => {
+    expect(unbalanced('https://oeil.europarl.europa.eu/x?reference=2023/0085(COD')).toBe(true)
+    expect(unbalanced('https://oeil.europarl.europa.eu/x?reference=2023/0085(COD)')).toBe(false)
+  })
+})
+
 describe('a guide’s sources (2026-10-08)', () => {
   const OFFICIAL =
     /^https:\/\/(?:(?:[a-z0-9-]+\.)*(?:europa\.eu|gov\.uk|gov|gc\.ca|gov\.au|govt\.nz)\/|content\.govdelivery\.com\/accounts\/USDHSCBP\/)/
@@ -740,11 +782,14 @@ describe('a guide’s sources (2026-10-08)', () => {
       'support.clo3d.com',
     ),
     '/guides/stitch-and-seam-types': hosts(
+      // Two journals' own homes, where their DOIs failed (2026-11-15): DergiPark and BazTech.
+      'dergipark.org.tr',
       'digitalcommons.usu.edu',
       'doi.org',
       'inside.fifa.com',
       'iso.org',
       'store.astm.org',
+      'yadda.icm.edu.pl',
     ),
     '/guides/outerwear-and-waterproof-fabrics': hosts(
       'astm.org',

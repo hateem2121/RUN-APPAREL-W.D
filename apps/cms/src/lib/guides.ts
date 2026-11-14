@@ -276,6 +276,8 @@ const WEIGHT_BAND_TEXT = WEIGHT_BANDS.map((entry, index) => {
 export const GUIDES_INDEX = {
   path: '/guides',
   title: 'Buyer Guides',
+  // The <title> alone (owner, 2026-11-15): "Buyer Guides" said too little to a searcher.
+  metaTitle: 'Apparel Manufacturing Guides for Brands',
   description:
     'Short guides for buyers: how an order works, the 3D reference, minimum order and samples, printing, fabrics, packaging, and shipping and duties.',
   heading: 'Buyer guides,',
@@ -3272,6 +3274,17 @@ export const GUIDES: readonly Guide[] = [
   // The buyer library's new guides, waves 2 to 12 (owner approved every word, 2026-11-06).
   ...LIBRARY_GUIDES,
 ]
+
+/**
+ * A buyer page that goes FIRST under a guide's "Read next", above its 2–3 guides (owner, 2026-11-15).
+ * The soccer-ball page had 2 links from the whole site that day (Screaming Frog, 274 pages), against
+ * 69–159 for the other buyer pages: every site-wide list is built from the five families, and that
+ * page is a product line of one. Its link carries that page's own heading and description, so it
+ * adds no new claim. `guides.test.ts` checks each is a real buyer page.
+ */
+export const READ_NEXT_PAGE: Readonly<Record<string, string>> = {
+  '/guides/how-soccer-balls-are-made': '/custom-soccer-ball-manufacturer',
+}
 
 /**
  * What to read after each guide (owner, 2026-10-08: "2–3 with reasons"), replacing the list of every

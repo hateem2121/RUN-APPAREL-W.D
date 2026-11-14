@@ -137,8 +137,16 @@ describe('buildPreview — title', () => {
    * code until then; the code moved to the front of the description (tested below).
    */
   it('is the page title without the brand, for a garment with a garment type', () => {
-    const preview = build(payload({ product: { garmentType: "Women's Cycling Skinsuit" } }))
+    // Not the main colour: its 62-character title keeps the colour (the main colour's drops it,
+    // owner 2026-11-15, tested under "the page title search engines show").
+    const preview = build(
+      payload({
+        product: { garmentType: "Women's Cycling Skinsuit" },
+        selectedColourway: colourway({ isDefault: false }),
+      }),
+    )
     expect(preview.title).toBe("Velocity Performance Skinsuit — Women's Cycling Skinsuit, Wine")
+    expect(preview.title).toBe(preview.pageTitle)
     expect(preview.title).not.toContain('RUN APPAREL')
     expect(preview.title).not.toContain('N001')
   })
@@ -174,10 +182,32 @@ describe('buildPreview — title', () => {
  */
 describe('buildPreview — the page title search engines show', () => {
   it('says the garment type when the owner has typed one, and ends with the brand', () => {
-    const preview = build(payload({ product: { garmentType: "Women's Cycling Skinsuit" } }))
-    expect(preview.pageTitle).toBe("Velocity Performance Skinsuit — Women's Cycling Skinsuit, Wine")
+    const preview = build(
+      payload({
+        product: { garmentType: 'Tee' },
+        selectedColourway: colourway({ isDefault: false }),
+      }),
+    )
+    expect(preview.pageTitle).toBe('Velocity Performance Skinsuit — Tee, Wine | RUN APPAREL')
     // …and the link preview says the same, without the brand (2026-10-25).
     expect(preview.title).toBe(preview.pageTitle.replace(/ \| RUN APPAREL$/, ''))
+  })
+
+  // 62 characters with its colour: the main colour's page loses the colour, another colour's page
+  // keeps it and loses the brand (owner, 2026-11-15).
+  it('drops the colour of a long title on the main colour’s page only', () => {
+    const product = { garmentType: "Women's Cycling Skinsuit" }
+    const main = build(payload({ product }))
+    expect(main.pageTitle).toBe("Velocity Performance Skinsuit — Women's Cycling Skinsuit")
+    // The card is the page title without the brand, always (the post-deploy gate holds it to that).
+    expect(main.title).toBe(main.pageTitle)
+    const other = build(
+      payload({
+        product,
+        selectedColourway: colourway({ displayName: 'Blush', slug: 'blush', isDefault: false }),
+      }),
+    )
+    expect(other.pageTitle).toBe("Velocity Performance Skinsuit — Women's Cycling Skinsuit, Blush")
   })
 
   it('keeps the code-led title, with the brand, for a garment with no type yet', () => {
@@ -629,6 +659,29 @@ describe('buildPreview — the readable page body for robots', () => {
     // Before the links to the website's other pages, as the section sits before the contact one.
     expect(html.indexOf('More Sportswear in 3D.')).toBeLessThan(html.indexOf('All products'))
     expect(build(payload({ related })).bodyHtml).not.toContain('More Sportswear')
+  })
+
+  /*
+   * The soccer-ball page beside "See all", for robots as for people (owner, 2026-11-15): a ball's
+   * garment page was one of the places the soccer page had 0 links from (Googlebot fetch that day).
+   */
+  it('links a ball’s own page beside "See all", and no other garment’s', () => {
+    const ball = { category: 'Sports Accessories' as const, garmentType: 'Pro Match Soccer Ball' }
+    const html = onSite(payload({ related, product: ball }))
+    expect(html).toContain(
+      '<p><a href="https://wear-run.com/custom-sports-accessories-manufacturer">See all sports accessories in 3D</a> · <a href="https://wear-run.com/custom-soccer-ball-manufacturer">Custom soccer balls</a></p>',
+    )
+    // The Kaizen is the only accessory (live, 2026-11-15: `related` []), so the block is drawn for
+    // a ball with no other garment too (owner's choice that day): its heading and both links, no list.
+    for (const none of [undefined, []]) {
+      expect(onSite(payload({ related: none, product: ball }))).toContain(
+        '<h2>More Sports Accessories in 3D.</h2><p><a href="https://wear-run.com/custom-sports-accessories-manufacturer">See all sports accessories in 3D</a> · <a href="https://wear-run.com/custom-soccer-ball-manufacturer">Custom soccer balls</a></p>',
+      )
+    }
+    // A cap in the same category, and a garment in another, carry no ball link.
+    const cap = onSite(payload({ related, product: { ...ball, garmentType: 'Baseball cap' } }))
+    expect(cap).not.toContain('custom-soccer-ball-manufacturer')
+    expect(onSite(payload({ related }))).not.toContain('custom-soccer-ball-manufacturer')
   })
 
   it('says nothing of other garments when the answer carries none', () => {

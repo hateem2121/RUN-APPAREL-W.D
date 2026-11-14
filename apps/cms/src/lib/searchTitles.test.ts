@@ -2,10 +2,12 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { TITLE_MAX } from '../../../../scripts/seo-page-rules.mjs'
+import { CASE_STUDIES_HUB } from './caseStudies'
 import { COMMUNITY_PAGE, CAREERS_PAGE, PRESS_PAGE } from './companyPages'
 import { FAQ_INDEX, FAQ_TOPICS } from './faqs'
 import { GLOSSARY_INDEX } from './glossary'
 import { GUIDES, GUIDES_INDEX } from './guides'
+import { JOURNAL_HUB } from './journal'
 import { POLICIES, POLICIES_INDEX } from './policies'
 import { metaTitleOf } from './seo'
 
@@ -103,8 +105,34 @@ const APPROVED: readonly [path: string, shipped: string, approved: string, short
   ],
 ]
 
-describe('the search titles the owner approved on 2026-10-26', () => {
-  for (const [path, shipped, approved, short] of APPROVED) {
+/*
+ * 2026-11-15: three hubs whose titles were under 30 characters with the brand (Screaming Frog that
+ * day: "Buyer Guides", "Case studies", "Journal"), a title too short to say what the page holds.
+ * The owner approved these words that day; the short titles stay the breadcrumbs.
+ */
+const APPROVED_NOV: typeof APPROVED = [
+  [
+    '/guides',
+    metaTitleOf(GUIDES_INDEX),
+    'Apparel Manufacturing Guides for Brands',
+    GUIDES_INDEX.title,
+  ],
+  [
+    '/case-studies',
+    metaTitleOf(CASE_STUDIES_HUB),
+    'Case Studies: Garments Made in Sialkot',
+    CASE_STUDIES_HUB.title,
+  ],
+  [
+    '/journal',
+    metaTitleOf(JOURNAL_HUB),
+    'Journal: Notes From a Sialkot Factory',
+    JOURNAL_HUB.title,
+  ],
+]
+
+describe('the search titles the owner approved on 2026-10-26 and 2026-11-15', () => {
+  for (const [path, shipped, approved, short] of [...APPROVED, ...APPROVED_NOV]) {
     it(`${path}: "${approved}"`, () => {
       expect(shipped).toBe(approved)
       expect(`${shipped}${BRAND_SUFFIX}`.length).toBeLessThanOrEqual(TITLE_MAX)
@@ -117,10 +145,20 @@ describe('the search titles the owner approved on 2026-10-26', () => {
     }
   }
 
+  // The words above reach the page only if its metadata asks for them (2026-11-15).
+  it('the three hubs put their search title, not their short one, in the <title>', () => {
+    for (const folder of ['guides', 'case-studies', 'journal']) {
+      const source = readFileSync(join(FRONTEND, folder, 'page.tsx'), 'utf8')
+      expect(source, folder).toMatch(/buildMetadata\(\{\s*title: metaTitleOf\(/)
+    }
+  })
+
   it('no two pages share a search title', () => {
     const titles = [
       // The policies come from POLICIES below, so they are not counted twice.
       ...APPROVED.filter(([path]) => !path.startsWith('/policies/')).map(([, shipped]) => shipped),
+      metaTitleOf(CASE_STUDIES_HUB),
+      metaTitleOf(JOURNAL_HUB),
       ...POLICIES.map(metaTitleOf),
       ...FAQ_TOPICS.map(metaTitleOf),
       ...GUIDES.map(metaTitleOf),

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { GuideCard } from '../../../components/site/GuideCard'
 import { GuideLinks } from '../../../components/site/GuidePage'
 import { GUIDES, GUIDES_INDEX } from '../../../lib/guides'
-import { buildMetadata } from '../../../lib/seo'
+import { buildMetadata, metaTitleOf } from '../../../lib/seo'
 
 /**
  * The guides' index: the page the footer's "Guides" link opens (owner, 2026-09-30).
@@ -21,7 +21,7 @@ import { buildMetadata } from '../../../lib/seo'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = buildMetadata({
-  title: GUIDES_INDEX.title,
+  title: metaTitleOf(GUIDES_INDEX),
   description: GUIDES_INDEX.description,
   path: GUIDES_INDEX.path,
 })

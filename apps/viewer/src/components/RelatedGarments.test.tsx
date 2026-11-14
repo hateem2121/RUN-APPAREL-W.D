@@ -39,8 +39,12 @@ const garment = (slug: string): ViewerRelatedGarment => ({
   imageUrl: null,
 })
 
-const draw = (related: ViewerRelatedGarment[] | undefined, category = 'Teamwear & Uniforms') => {
-  const data = { product: { category }, related } as unknown as ViewerApiSuccess
+const draw = (
+  related: ViewerRelatedGarment[] | undefined,
+  category = 'Teamwear & Uniforms',
+  garmentType = 'Team shirt',
+) => {
+  const data = { product: { category, garmentType }, related } as unknown as ViewerApiSuccess
   act(() => root.render(<RelatedGarments data={data} />))
 }
 
@@ -58,6 +62,9 @@ describe('RelatedGarments', () => {
     draw([])
     expect(host.innerHTML).toBe('')
     draw([garment('r1')], '  ')
+    expect(host.innerHTML).toBe('')
+    // An accessory that is not a ball has no page of its own to offer instead.
+    draw([], 'Sports Accessories', 'Baseball cap')
     expect(host.innerHTML).toBe('')
   })
 
@@ -79,8 +86,9 @@ describe('RelatedGarments', () => {
     // The SAME element: the reveal found it at the first render and must still be watching it.
     expect(host.querySelector('section')).toBe(section)
     expect(section?.querySelectorAll('.related__card')).toHaveLength(2)
-    // The cards sit between the heading and "See all".
-    expect(section?.lastElementChild?.classList.contains('related__all')).toBe(true)
+    // The cards sit between the heading and the links ("See all").
+    expect(section?.lastElementChild?.classList.contains('related__links')).toBe(true)
+    expect(section?.lastElementChild?.querySelector('.related__all')).not.toBeNull()
   })
 
   it('ends with "See all … in 3D", the website’s words, to the category’s own page (polish S1)', () => {
@@ -91,6 +99,29 @@ describe('RelatedGarments', () => {
     expect(all?.href).toBe('https://wear-run.com/custom-teamwear-manufacturer')
   })
 
+  /*
+   * The soccer-ball page beside "See all" (owner, 2026-11-15): the Kaizen is the only accessory
+   * (live `related` [] that day), so on a ball the section is drawn without cards, as two links.
+   */
+  it('on a ball, draws the section with "See all" and the soccer-ball page side by side', async () => {
+    draw([], 'Sports Accessories', 'Pro Match Soccer Ball')
+    await cardsArrive()
+    const section = host.querySelector('section')
+    expect(host.querySelector('.section-number')?.textContent).toBe('№03 · More from this category')
+    expect(host.querySelector('h2')?.textContent).toBe('More Sports Accessories in 3D.')
+    expect(section?.querySelectorAll('.related__card')).toHaveLength(0)
+    const links = [...host.querySelectorAll<HTMLAnchorElement>('.related__links a')]
+    expect(links.map((link) => [link.textContent, link.href])).toEqual([
+      [
+        'See all sports accessories in 3D',
+        'https://wear-run.com/custom-sports-accessories-manufacturer',
+      ],
+      ['Custom soccer balls', 'https://wear-run.com/custom-soccer-ball-manufacturer'],
+    ])
+    // Both drawn as the same button.
+    for (const link of links) expect(link.className).toContain('btn btn--ghost')
+  })
+
   it('keeps the cards’ rules out of the page’s stylesheet, which every first paint waits for', () => {
     const page = readFileSync(join(import.meta.dirname, '..', 'styles', 'page.css'), 'utf8')
     const cards = readFileSync(
@@ -99,7 +130,7 @@ describe('RelatedGarments', () => {
     )
     const source = readFileSync(join(import.meta.dirname, 'RelatedCards.tsx'), 'utf8')
     const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '')
-    expect(strip(page).match(/\.related__[a-z]+/g) ?? []).toEqual(['.related__all'])
+    expect(strip(page).match(/\.related__[a-z]+/g) ?? []).toEqual(['.related__links'])
     expect(strip(cards)).toContain('.related__card')
     expect(source).toContain("import '../styles/related-cards.css'")
   })

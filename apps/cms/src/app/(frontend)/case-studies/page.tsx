@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { CaseStudyIndex } from '../../../components/site/CaseStudyPage'
 import { CASE_STUDIES_HUB, CASE_STUDIES_PATH } from '../../../lib/caseStudies'
 import { getCaseStudies } from '../../../lib/content'
-import { buildMetadata } from '../../../lib/seo'
+import { buildMetadata, metaTitleOf } from '../../../lib/seo'
 
 /** Rendered per request, like every page here (the layout reads the site settings). */
 export const dynamic = 'force-dynamic'
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
  * applies, so a site hidden as a whole stays hidden.
  */
 export const metadata: Metadata = buildMetadata({
-  title: CASE_STUDIES_HUB.title,
+  title: metaTitleOf(CASE_STUDIES_HUB),
   description: CASE_STUDIES_HUB.description,
   path: CASE_STUDIES_PATH,
 })

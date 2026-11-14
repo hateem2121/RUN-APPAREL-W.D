@@ -4,9 +4,16 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { stripUntilStable } from '../../../../../scripts/strip-until-stable.mjs'
 import { describe, expect, it } from 'vitest'
 import { FAMILIES } from '../../lib/families'
-import { familyPageFor } from '../../lib/familyPages'
+import { FAMILY_PAGES, familyPageFor } from '../../lib/familyPages'
 import { FACTORY_PHOTOS, factoryPhotoWidths } from '../../lib/factoryPhotos'
-import { type Guide, GUIDES, GUIDES_INDEX, guideAt, READ_NEXT } from '../../lib/guides'
+import {
+  type Guide,
+  GUIDES,
+  GUIDES_INDEX,
+  guideAt,
+  READ_NEXT,
+  READ_NEXT_PAGE,
+} from '../../lib/guides'
 import type { ProductCard } from '../../lib/projectPublic'
 import { HALF_COLUMN_SIZES } from './FactoryFigure'
 import {
@@ -279,8 +286,10 @@ describe('the end of a guide: three labelled groups, every link kept (polish X22
     if (titles.join(' | ') !== 'Read next | What we make | Answers') {
       problems.push(`groups "${titles.join(' | ')}"`)
     }
-    // 2–3 guides with reasons, then all of them (owner, 2026-10-08), where every guide was listed.
-    const guides = [...(READ_NEXT[guide.path] ?? []), GUIDES_INDEX.path]
+    // 2–3 guides with reasons, then all of them (owner, 2026-10-08), where every guide was listed;
+    // a buyer page first where `READ_NEXT_PAGE` names one (owner, 2026-11-15).
+    const lead = READ_NEXT_PAGE[guide.path]
+    const guides = [...(lead ? [lead] : []), ...(READ_NEXT[guide.path] ?? []), GUIDES_INDEX.path]
     if (end.groups[0]?.hrefs.join(' ') !== guides.join(' ')) {
       problems.push(`the guides group links ${end.groups[0]?.hrefs.join(' ')}`)
     }
@@ -344,6 +353,23 @@ describe('read-next reasons and reference garments (2026-10-08)', () => {
       updatedAt: null,
       ...over,
     }) as ProductCard
+
+  /*
+   * The soccer-ball page had 2 links from the whole site (Screaming Frog, 2026-11-15), because every
+   * site-wide list is built from the five families and that page is a product line. The owner
+   * approved it first under the soccer guide's "Read next", in its own heading's words, with its own
+   * description as the reason (2026-11-15), so the link adds no new claim.
+   */
+  it('puts the soccer-ball page first under the soccer guide’s Read next, in its own words', () => {
+    const html = render(guideAt('/guides/how-soccer-balls-are-made'))
+    const group = /<h3\b[^>]*id="read-next"[^>]*>[\s\S]*?<\/h3>([\s\S]*?)<\/ul>/.exec(html)?.[1]
+    const first = /<li\b[^>]*>([\s\S]*?)<\/li>/.exec(group ?? '')?.[1] ?? ''
+    expect(first).toContain('href="/custom-soccer-ball-manufacturer"')
+    expect(text(first)).toContain('Custom soccer balls')
+    const ball = FAMILY_PAGES.find((page) => page.path === '/custom-soccer-ball-manufacturer')
+    expect(ball, 'the soccer-ball page left FAMILY_PAGES').toBeDefined()
+    expect(text(first)).toContain(text(ball?.description ?? '(none)'))
+  })
 
   it('draws each read-next guide’s own description under its link', () => {
     const guide = guideAt('/guides/minimum-order-and-samples')

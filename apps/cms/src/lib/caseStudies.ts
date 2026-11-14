@@ -27,6 +27,8 @@ export const CASE_STUDY_STORY = [
 
 export const CASE_STUDIES_HUB = {
   title: 'Case studies',
+  // The <title> alone (owner, 2026-11-15); the breadcrumb keeps "Case studies".
+  metaTitle: 'Case Studies: Garments Made in Sialkot',
   eyebrow: '[ Case studies ]',
   heading: 'Proof,',
   headingAccent: 'not promises.',

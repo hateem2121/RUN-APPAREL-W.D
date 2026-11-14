@@ -83,6 +83,8 @@ export const differentDay = (a: string, b: string) => a.slice(0, 10) !== b.slice
  */
 export const JOURNAL_HUB = {
   title: 'Journal',
+  // The <title> alone (owner, 2026-11-15); the breadcrumb and llms.txt keep "Journal".
+  metaTitle: 'Journal: Notes From a Sialkot Factory',
   eyebrow: '[ Journal ]',
   heading: 'Notes',
   headingAccent: 'from the works.',

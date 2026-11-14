@@ -89,6 +89,9 @@ const listOf = (garments: readonly ShareGarment[]) => {
 
 const headline = (heading: string, accent: string) => (accent ? `${heading} ${accent}` : heading)
 
+/** A headline as a sentence: "Inside the factory" gains its full stop before the brand (2026-11-15). */
+const sentence = (words: string) => (/[.!?…]$/.test(words) ? words : `${words}.`)
+
 function wordsCard(file: string, label: string, heading: string, accent: string): ShareCard {
   return {
     file,
@@ -96,7 +99,7 @@ function wordsCard(file: string, label: string, heading: string, accent: string)
     heading,
     accent,
     picture: { kind: 'words' },
-    alt: `${headline(heading, accent)} ${BRAND}`,
+    alt: `${sentence(headline(heading, accent))} ${BRAND}`,
   }
 }
 
@@ -113,7 +116,7 @@ function garmentsCard(
     heading,
     accent,
     picture: { kind: 'garments', garments },
-    alt: `${headline(heading, accent)} Four garments from the catalogue: ${listOf(garments)}. ${BRAND}`,
+    alt: `${sentence(headline(heading, accent))} Four garments from the catalogue: ${listOf(garments)}. ${BRAND}`,
   }
 }
 
@@ -202,7 +205,7 @@ const CARDS: ReadonlyMap<string, ShareCard> = new Map([
               heading: page.heading,
               accent: page.headingAccent,
               picture: { kind: 'ball' as const },
-              alt: `${headline(page.heading, page.headingAccent)} The orange Kaizen soccer ball. ${BRAND}`,
+              alt: `${sentence(headline(page.heading, page.headingAccent))} The orange Kaizen soccer ball. ${BRAND}`,
             }
           : garmentsCard(
               fileFor(page.path),

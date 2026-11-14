@@ -2787,8 +2787,11 @@ summary.spec-item__row:focus-visible {
   gap: 18px;
 }
 
-.related__all {
-  justify-self: start;
+/* "See all", and on a ball the soccer-ball page beside it (2026-11-15), as the contact buttons sit. */
+.related__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 /* ── Contact ───────────────────────────────────────────────────────── */

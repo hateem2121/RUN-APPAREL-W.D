@@ -2873,7 +2873,10 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
       },
       {
         name: 'Maanvizhi, Prakash and Rameshbabu, Effect of Stitch Density and Stitch Type on the Moisture Management Properties of Seams for High Active Sportswear Application, Fibres & Textiles in Eastern Europe 28, 6(144)',
-        url: 'https://doi.org/10.5604/01.3001.0014.3263',
+        // ⚠️ NOT ITS DOI (2026-11-15): doi.org sends 10.5604/01.3001.0014.3263 to ftee.com.pl, a domain
+        // the journal no longer holds (a storage-rental site that day, answering 404). BazTech, Poland's
+        // national archive of this journal, keeps the paper; it asks a browser to pass a bot check first.
+        url: 'https://yadda.icm.edu.pl/baztech/element/bwmeta1.element.baztech-8f676be4-f973-47cb-aa3b-35d3dca230f5',
         date: '2020-12-31',
         kind: 'published',
       },
@@ -2891,7 +2894,8 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
       },
       {
         name: 'Tama Birkocak, Aslan, Boğa, Özdemir and Acar, Evaluation of Seam Performance of Knitted Fabric Combinations in Sportswear, Süleyman Demirel University Journal of Natural and Applied Sciences 30(1)',
-        url: 'https://doi.org/10.19113/sdufenbed.1782958',
+        // Its DOI was not registered on 2026-11-15 (doi.org 404); the journal's own page on DergiPark.
+        url: 'https://dergipark.org.tr/en/pub/sdufenbed/article/1782958',
         date: '2026-04-24',
         kind: 'published',
       },
@@ -4283,7 +4287,7 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
       },
       {
         name: 'European Parliament, Legislative Observatory, procedure 2023/0085(COD), Green Claims Directive',
-        url: 'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2023/0085(COD',
+        url: 'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2023/0085(COD)',
         date: '2026-11-06',
         kind: 'read',
       },

@@ -600,7 +600,7 @@ export interface Inquiry {
   /**
    * The one field on this screen you are meant to change.
    */
-  status: 'new' | 'replied' | 'archived' | 'spam';
+  status: 'new' | 'replied' | 'qualified' | 'sample-sent' | 'ordered' | 'archived' | 'spam';
   /**
    * Whether the notification email was accepted for delivery.
    */
