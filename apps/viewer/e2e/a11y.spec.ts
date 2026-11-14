@@ -601,7 +601,9 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
   }) => {
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    await expect(page).toHaveTitle("Velocity Performance Tee — Men's Training Tee, Wine")
+    // Wine is the main colour: with its colour the title is 64 characters, so it drops the colour
+    // and keeps the brand (owner, 2026-11-15, pageTitle.ts). Every other colour keeps its colour.
+    await expect(page).toHaveTitle("Velocity Performance Tee — Men's Training Tee | RUN APPAREL")
     await page.goto('/n001/blush')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     // The fixture names this colour with two words on purpose (a wrap test elsewhere), so

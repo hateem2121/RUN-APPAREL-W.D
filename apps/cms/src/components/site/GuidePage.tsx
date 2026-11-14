@@ -5,7 +5,7 @@ import { IntentLink as Link } from './IntentLink'
 import { type CSSProperties, Fragment, type ReactNode } from 'react'
 import { FACTORY_PHOTOS, factoryPhotoImage, wholePhoto } from '../../lib/factoryPhotos'
 import { FAMILIES } from '../../lib/families'
-import { familyPageFor } from '../../lib/familyPages'
+import { FAMILY_PAGES, familyPageFor } from '../../lib/familyPages'
 import {
   GUIDES_INDEX,
   type Guide,
@@ -16,6 +16,7 @@ import {
   guideAt,
   legalLine,
   READ_NEXT,
+  READ_NEXT_PAGE,
 } from '../../lib/guides'
 import { CSV_FILE_NAME, CSV_PATH } from '../../lib/buyerQuestions'
 import { formatPostDate } from '../../lib/journal'
@@ -556,6 +557,17 @@ function GuideSources({ sources }: { sources: readonly GuideSource[] }) {
   )
 }
 
+/**
+ * A buyer page as a "Read next" link (`READ_NEXT_PAGE`): its own heading without the trailing
+ * comma ("Custom soccer balls,") as the words, its own description as the reason (owner,
+ * 2026-11-15: no new words).
+ */
+function buyerPageAt(path: string | undefined) {
+  const page = path ? FAMILY_PAGES.find((entry) => entry.path === path) : undefined
+  if (!page) return null
+  return { href: page.path, name: page.heading.replace(/,\s*$/, ''), why: page.description }
+}
+
 export function GuideLinks({ current, guides = true }: { current: string; guides?: boolean }) {
   const buyerPages = FAMILIES.flatMap((family) => {
     const page = familyPageFor(family)
@@ -579,7 +591,9 @@ export function GuideLinks({ current, guides = true }: { current: string; guides
    * 2–3 guides to read next, each with its own approved description as the reason (owner,
    * 2026-10-08), where every other guide used to be listed with none. `READ_NEXT` says which.
    */
+  const lead = buyerPageAt(READ_NEXT_PAGE[current])
   const readNext = [
+    ...(lead ? [lead] : []),
     ...(READ_NEXT[current] ?? []).map((path) => {
       const next = guideAt(path)
       return { href: next.path, name: next.title, why: next.description }

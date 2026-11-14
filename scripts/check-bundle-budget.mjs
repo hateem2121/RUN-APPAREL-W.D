@@ -227,12 +227,22 @@ const REPORT_ONLY = process.argv.includes('--report')
  *       script total  +145 B gzip                         budget 480,200 -> 480,500
  *   CI read the first draft 103 B over (469.0 KB, run 41786277471), so main had about 100 B left
  *   in CI; 300 B covers this growth and CI measuring larger than this Mac.
+ *   ⚠️ 2026-11-15, the SEO pass (#389; the owner chose a 400 B raise over moving the ball link's rule
+ *   into the CMS data or dropping the Kaizen link). The Kaizen pages link the soccer-ball page
+ *   (`PRODUCT_LINE_PAGES`), a person's copy carrying its data is told from a robot's, and a main
+ *   colour's long title drops its colour. Built from main (9a2d6f5e) and from this branch, gzip
+ *   level 9, on this Mac, each part put back to main's in turn:
+ *       script     index-*.js  38,724 -> 38,953 B  (+229: the ball link +133, the person marker
+ *                  +51, the title rule +46); every other chunk +4 B in all
+ *       script total  +233 B gzip                         budget 480,500 -> 480,900
+ *   CI read the branch 153 B over (469.4 KB, run 43652403848; main 469.1 KB, 94 B left). The person
+ *   copy it pays for saves the garment-data request, measured 0.10-2.81 s from Sialkot that day.
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
  */
 const BUDGETS = {
-  script: { bytes: 480_500, note: 'app chunks + the meshopt decoder every model needs' },
+  script: { bytes: 480_900, note: 'app chunks + the meshopt decoder every model needs' },
   decoder: { bytes: 507_000, note: 'draco + basis — vendored, in dist, never fetched' },
   wasm: {
     bytes: 20_000,

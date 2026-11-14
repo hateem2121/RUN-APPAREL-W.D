@@ -1,4 +1,9 @@
-import { categoryPath, seeAllInCategoryLabel, type ViewerApiSuccess } from '@run-apparel/shared'
+import {
+  categoryPath,
+  productLinePage,
+  seeAllInCategoryLabel,
+  type ViewerApiSuccess,
+} from '@run-apparel/shared'
 import { useEffect, useState } from 'react'
 import { diagnostic } from '../lib/diagnostic'
 import { SITE_ORIGIN } from '../lib/siteLinks'
@@ -64,7 +69,13 @@ cards.catch(() => {})
 export function RelatedGarments({ data }: { data: ViewerApiSuccess }) {
   const related = data.related ?? []
   const category = data.product.category.trim()
-  const shown = related.length > 0 && category !== ''
+  /*
+   * A ball also links the soccer-ball page beside "See all" (owner, 2026-11-15), and keeps the
+   * section when it is the category's only garment: the Kaizen is (live `related` [] that day), and
+   * the soccer-ball page had 2 links from the whole site. `PRODUCT_LINE_PAGES` has the rest.
+   */
+  const line = productLinePage(category, data.product.garmentType ?? '')
+  const shown = category !== '' && (related.length > 0 || line !== null)
   // Already here (the usual case): drawn in the same render as the section.
   const [Cards, setCards] = useState<Cards | null>(() => readyCards)
 
@@ -91,11 +102,18 @@ export function RelatedGarments({ data }: { data: ViewerApiSuccess }) {
       <h2 id="related-heading" className="display display--section">
         More <span className="serif-accent">{category}</span> in 3D.
       </h2>
-      {Cards ? <Cards related={related} /> : null}
-      {/* The category's own page, its only list since polish S1 (`categoryPath`). */}
-      <a className="btn btn--ghost related__all" href={`${SITE_ORIGIN}${categoryPath(category)}`}>
-        {seeAllInCategoryLabel(category)}
-      </a>
+      {Cards && related.length > 0 ? <Cards related={related} /> : null}
+      <div className="related__links">
+        {/* The category's own page, its only list since polish S1 (`categoryPath`). */}
+        <a className="btn btn--ghost related__all" href={`${SITE_ORIGIN}${categoryPath(category)}`}>
+          {seeAllInCategoryLabel(category)}
+        </a>
+        {line ? (
+          <a className="btn btn--ghost" href={`${SITE_ORIGIN}${line.path}`}>
+            {line.label}
+          </a>
+        ) : null}
+      </div>
     </section>
   )
 }

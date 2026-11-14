@@ -149,10 +149,13 @@ export default function App() {
     }
     try {
       // A search robot's page carries the payload already (src/lib/embeddedPayload.ts), so
-      // its renderer never depends on the request Google's fetcher sometimes drops.
+      // its renderer never depends on the request Google's fetcher sometimes drops. A person's
+      // page may too (2026-11-15, one request fewer before the picture); only a robot's copy
+      // skips the 3D.
       const embedded = takeEmbeddedPayload(viewerApiPath(route.productSlug, route.colourSlug))
-      if (embedded) setCrawlerCopy(true)
-      const response = embedded ?? (await fetchViewerData(route.productSlug, route.colourSlug))
+      if (embedded?.forRobot) setCrawlerCopy(true)
+      const response =
+        embedded?.payload ?? (await fetchViewerData(route.productSlug, route.colourSlug))
       if (isViewerApiError(response)) {
         setState({ kind: 'unavailable' })
         // A real product that will not load and a URL nobody ever published look
@@ -306,6 +309,7 @@ export default function App() {
         garmentType: state.data.product.garmentType,
         colour: state.selected.displayName,
         brand: PAGE_TITLE_BRAND,
+        isDefaultColour: state.selected.isDefault,
       })
     }
   }, [state])

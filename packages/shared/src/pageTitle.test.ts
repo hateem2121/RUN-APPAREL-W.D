@@ -57,6 +57,52 @@ describe('garmentPageTitle', () => {
     expect(fits.endsWith('| RUN APPAREL')).toBe(true)
   })
 
+  /*
+   * 2026-11-15: 22 of the 42 sitemap garment pages had titles over 60 (fetched as Googlebot that
+   * day, the longest 87). The owner chose: on the MAIN colour's page (the one in the sitemap) drop
+   * the colour when the title is too long, and keep the brand if it then fits; every other colour's
+   * page keeps its colour, so no two colour pages share one title (Google's "Influencing your title
+   * links" counts titles that differ in nothing as boilerplate).
+   */
+  it('on the main colour’s page, drops the colour of a title too long, before the brand', () => {
+    const aggressor = {
+      ...base,
+      productName: 'THE AGGRESSOR JERSEY MEN',
+      garmentType: "Men's American Football Jersey",
+      colour: 'Grass Court / Croquet Mint',
+    }
+    const main = garmentPageTitle({ ...aggressor, isDefaultColour: true })
+    expect(main).toBe("THE AGGRESSOR JERSEY MEN — Men's American Football Jersey")
+    expect(main.length).toBeLessThanOrEqual(PAGE_TITLE_MAX)
+    // Another colour's page keeps its colour, as before, so the two titles differ.
+    expect(garmentPageTitle(aggressor)).toBe(
+      "THE AGGRESSOR JERSEY MEN — Men's American Football Jersey, Grass Court / Croquet Mint",
+    )
+    // Without its colour the brand fits again: kept, exactly at 60.
+    const beeflex = garmentPageTitle({
+      ...base,
+      productName: 'BEEFLEX COURT DRESS',
+      garmentType: 'Tennis Bra and Skirt Set',
+      colour: 'Play Magenta',
+      isDefaultColour: true,
+    })
+    expect(beeflex).toBe('BEEFLEX COURT DRESS — Tennis Bra and Skirt Set | RUN APPAREL')
+    expect(beeflex.length).toBe(PAGE_TITLE_MAX)
+    // A main colour whose whole title fits keeps everything.
+    expect(garmentPageTitle({ ...base, isDefaultColour: true })).toBe(
+      "MINECUT MOTION — Women's Tennis Dress, Blush | RUN APPAREL",
+    )
+    // No type yet: the code-led title loses its colour the same way.
+    expect(
+      garmentPageTitle({
+        ...aggressor,
+        garmentType: '',
+        productName: 'X'.repeat(50),
+        isDefaultColour: true,
+      }),
+    ).toBe(`R-MM ${'X'.repeat(50)}`)
+  })
+
   it('does not repeat a type the name already says', () => {
     // "WOMEN’S ATHLETIC TENNIS DRESS — Women's Tennis Dress" would say it twice.
     expect(

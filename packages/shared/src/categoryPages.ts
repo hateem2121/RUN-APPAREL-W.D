@@ -21,6 +21,42 @@ export const CATEGORY_PAGE_PATHS: Readonly<Partial<Record<ProductCategory, strin
 }
 
 /**
+ * A product line's own page on the website, inside a category that also has its family page: the
+ * soccer-ball page inside Sports Accessories. `words` picks the line's garments by their garment
+ * type, as the website's `productLine` does (apps/cms/src/lib/familyPages.ts), and `label` is that
+ * page's own heading. `apps/cms/src/lib/familyPages.test.ts` fails when the two lists differ.
+ *
+ * WHY (owner, 2026-11-15): the soccer-ball page had 2 links from the whole site (Screaming Frog,
+ * 274 pages; the other buyer pages 69–159), because every site-wide list is built from the five
+ * families. A ball's garment page links it beside "See all sports accessories in 3D", for people
+ * and for robots alike. The trail and `categoryPath` keep the family page (owner, 2026-10-31).
+ */
+export type ProductLinePage = {
+  readonly category: ProductCategory
+  readonly words: RegExp
+  readonly path: string
+  readonly label: string
+}
+
+export const PRODUCT_LINE_PAGES: readonly ProductLinePage[] = [
+  {
+    category: 'Sports Accessories',
+    words: /\bball\b/i,
+    path: '/custom-soccer-ball-manufacturer',
+    label: 'Custom soccer balls',
+  },
+]
+
+/** The product line page a garment belongs to, or null (most garments). */
+export function productLinePage(category: string, garmentType: string): ProductLinePage | null {
+  const name = category.trim()
+  return (
+    PRODUCT_LINE_PAGES.find((line) => line.category === name && line.words.test(garmentType)) ??
+    null
+  )
+}
+
+/**
  * A category's slug, spelled the way the website spells it: `Teamwear & Uniforms` →
  * `teamwear-uniforms` (apps/cms/src/lib/families.ts, where each family's `name` is the category
  * verbatim). It names the category's group on the products page (`/products#teamwear-uniforms`),

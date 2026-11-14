@@ -10,6 +10,13 @@ import { CRAWLER } from './crawlerAgents'
 import { applyCrawlerCacheHeaders } from './crawlerCacheHeaders'
 import { withDocumentIsolation } from './documentHeaders'
 import { embeddedPayloadScript } from './embeddedPayload'
+import {
+  PERSON_PAYLOAD_BUDGET_MS,
+  personHeadMarkup,
+  personPageHeaders,
+  withinBudget,
+  withoutValidators,
+} from './personPayload'
 import { withNoTransform } from './noTransform'
 import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { OG_CARDS } from './og-cards'
@@ -94,6 +101,12 @@ interface Env {
  * through to index.html's generic card, which is exactly what every link showed
  * before this file existed. The failure mode of a miss is "no worse than
  * yesterday", never a broken page.
+ *
+ * ⚠️ SINCE 2026-11-15 A PERSON'S GARMENT PAGE CARRIES ITS DATA TOO, BOUNDED (`personPayload.ts`).
+ * The numbers above predate the CMS keeping these answers at the edge (2026-10-07): measured that
+ * day a robot's page, which waits for the data, came back as fast as a person's. A person still
+ * gets no rewritten head, and waits at most `PERSON_PAYLOAD_BUDGET_MS` before the page goes out
+ * as it always did.
  *
  * ⚠️ EXCEPT FOR AN AI AGENT. A link unfurler that misses still shows a card; an AI agent that
  * misses gets the 16-word "Loading" shell and has nothing to quote (2026-10-08). The list
@@ -319,6 +332,30 @@ function applyPreview(response: Response, preview: Preview, payloadScript: strin
   return rewriter.transform(response)
 }
 
+/**
+ * A person's page with its data and the poster's preload in the head (`personHeadMarkup`), and
+ * no validator (`personPageHeaders`). No API preload: the app reads the data from the page, and a
+ * preload it never uses would be a second download.
+ */
+function withPersonPayload(
+  asset: Response,
+  payload: ViewerApiSuccess,
+  route: { productSlug: string; colourSlug: string | null },
+): Response {
+  const transformed = new HTMLRewriter()
+    .on('head', {
+      element(el) {
+        el.append(personHeadMarkup(payload, route), { html: true })
+      },
+    })
+    .transform(asset)
+  return new Response(transformed.body, {
+    status: transformed.status,
+    statusText: transformed.statusText,
+    headers: personPageHeaders(new Headers(transformed.headers)),
+  })
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
@@ -380,15 +417,23 @@ export default {
       return asset
     }
 
-    // Not a garment link, not a GET, or not a crawler → byte-for-byte what this
-    // project served before the Worker existed. The overwhelming majority of
-    // requests take this branch and pay one URL parse and one regex for it.
+    // Not a garment link, not a GET, or not a crawler → what this project served before the
+    // Worker existed, plus, on a person's garment page, its data when the edge has it in time.
     if (
       !route ||
       request.method !== 'GET' ||
       !CRAWLER.test(request.headers.get('user-agent') ?? '')
     ) {
-      const asset = await env.ASSETS.fetch(request)
+      // A person's garment page: its data from the edge, if it comes within the budget, starting
+      // with the page itself (personPayload.ts has the measurements, owner 2026-11-15). The fetch
+      // runs on past the budget so its answer is kept for the next visitor.
+      const person = route && request.method === 'GET' ? route : null
+      const pending = person ? loadPayload(env, person, url.origin, ctx) : null
+      if (pending) ctx.waitUntil(pending.catch(() => null))
+      const [asset, payload] = await Promise.all([
+        env.ASSETS.fetch(person ? withoutValidators(request) : request),
+        pending ? withinBudget(pending, PERSON_PAYLOAD_BUDGET_MS) : Promise.resolve(null),
+      ])
 
       /**
        * A path that cannot be a product page answers 404 — with the SAME body.
@@ -428,9 +473,21 @@ export default {
         )
       }
 
-      // A garment page for a person: tell the browser to start the API request now
-      // (`apiPreload.ts`). `route` is non-null on every garment URL that reaches here.
-      const page = route && request.method === 'GET' ? withApiPreload(asset, route) : asset
+      if (
+        person &&
+        payload &&
+        payload !== MISSING &&
+        asset.status === 200 &&
+        (asset.headers.get('content-type') ?? '').includes('text/html')
+      ) {
+        return withCompression(
+          request,
+          withDocumentIsolation(withPersonPayload(asset, payload, person)),
+        )
+      }
+      // Too late, or no data: tell the browser to start the API request now (`apiPreload.ts`),
+      // exactly as before 2026-11-15.
+      const page = person ? withApiPreload(asset, person) : asset
       return withCompression(request, withDocumentIsolation(withNoTransform(page)))
     }
 

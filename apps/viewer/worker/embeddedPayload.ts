@@ -18,8 +18,8 @@ import type { ViewerApiSuccess } from '@run-apparel/shared'
  * changed by JavaScript is unreliable and server-side rendering is "still a great idea".
  *
  * The Worker already holds this payload for a crawler: `loadPayload` fetched it to write the
- * head. Until now the app threw that away and asked again. A person never takes this path
- * (previews are crawler-only, `index.ts` says why), so no visitor's page grows by a byte.
+ * head. Until now the app threw that away and asked again. Since 2026-11-15 a person's page
+ * carries it too when the edge has it within 300 ms (`personPayload.ts`), marked as a person's.
  *
  * ⚠️ IN THE HEAD, NOT IN `#root`. React replaces `#root`'s children when it mounts, which is
  * before the app's first effect reads this, so a block inside `#root` is gone when it is
@@ -38,11 +38,22 @@ import type { ViewerApiSuccess } from '@run-apparel/shared'
 export const EMBEDDED_PAYLOAD_ID = 'viewer-payload'
 
 /**
+ * Who the copy is for (2026-11-15). A robot's copy shows the picture and asks for no 3D file; a
+ * person's carries the data only to save a request (`personPayload.ts`) and loads the garment
+ * as always. The app reads only "person" as a person, so an unmarked copy stays a robot's.
+ */
+export type EmbeddedAudience = 'robot' | 'person'
+
+/**
  * The markup to append to the head. `apiPath` is `viewerApiPath(route…)`: the request the
  * app would otherwise make, so the app can tell this payload answers its own route.
  */
-export function embeddedPayloadScript(payload: ViewerApiSuccess, apiPath: string): string {
+export function embeddedPayloadScript(
+  payload: ViewerApiSuccess,
+  apiPath: string,
+  audience: EmbeddedAudience = 'robot',
+): string {
   const json = JSON.stringify(payload).replace(/</g, '\\u003c')
   const path = apiPath.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
-  return `<script type="application/json" id="${EMBEDDED_PAYLOAD_ID}" data-path="${path}">${json}</script>`
+  return `<script type="application/json" id="${EMBEDDED_PAYLOAD_ID}" data-path="${path}" data-for="${audience}">${json}</script>`
 }

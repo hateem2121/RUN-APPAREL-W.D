@@ -259,6 +259,19 @@ describe('the pictures on a card come from the repository, and say what they sho
       }
     }
   })
+
+  /*
+   * 2026-11-15: the factory page's card read "Inside the factory RUN APPAREL, wear-run.com." to a
+   * screen reader and a link preview, because its headline has no full stop and the brand was
+   * glued straight on. Every sentence before the brand ends as a sentence.
+   */
+  it('ends the words before the brand as a sentence, so the brand never runs into them', () => {
+    for (const path of OWN_PICTURE) {
+      expect(shareCardFor(path).alt, path).not.toMatch(/[^.!?…] RUN APPAREL, /)
+    }
+    // NEGATIVE CONTROL: the factory card's old words are caught.
+    expect('Inside the factory RUN APPAREL, wear-run.com.').toMatch(/[^.!?…] RUN APPAREL, /)
+  })
 })
 
 describe('a card whose picture changed, or LinkedIn kept small, gets a new address', () => {

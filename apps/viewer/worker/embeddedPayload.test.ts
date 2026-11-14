@@ -36,7 +36,7 @@ afterEach(() => {
 describe('the payload a robot is handed', () => {
   it('reaches the app exactly as the Worker had it', () => {
     serve(embeddedPayloadScript(payload(), PATH))
-    expect(takeEmbeddedPayload(PATH)).toEqual(payload())
+    expect(takeEmbeddedPayload(PATH)).toEqual({ payload: payload(), forRobot: true })
   })
 
   it('survives a description that tries to close the script', () => {
@@ -44,7 +44,7 @@ describe('the payload a robot is handed', () => {
     // One element in the head: the description did not end the block and leave markup behind.
     expect(document.head.children).toHaveLength(1)
     expect(document.head.querySelector('img')).toBeNull()
-    expect(takeEmbeddedPayload(PATH)).toEqual(payload(HOSTILE))
+    expect(takeEmbeddedPayload(PATH)?.payload).toEqual(payload(HOSTILE))
   })
 
   it('is data the browser never runs, so the page CSP has nothing to allow', () => {
@@ -73,8 +73,24 @@ describe('the payload a robot is handed', () => {
     expect(takeEmbeddedPayload(PATH)).toBeNull()
   })
 
-  it('is absent for a person, whose page the Worker never rewrites', () => {
+  it('is absent when the Worker sent the page as it was', () => {
     expect(takeEmbeddedPayload(PATH)).toBeNull()
+  })
+
+  /*
+   * 2026-11-15: a person's page can carry the data too (personPayload.ts). It must NOT read as a
+   * robot's copy, which skips the 3D file; and a copy with no mark (every copy before that day)
+   * must still read as a robot's.
+   */
+  it('tells a person’s copy from a robot’s, and reads an unmarked copy as a robot’s', () => {
+    serve(embeddedPayloadScript(payload(), PATH, 'person'))
+    expect(takeEmbeddedPayload(PATH)).toEqual({ payload: payload(), forRobot: false })
+    serve(embeddedPayloadScript(payload(), PATH, 'robot'))
+    expect(takeEmbeddedPayload(PATH)?.forRobot).toBe(true)
+    serve(
+      `<script type="application/json" id="${EMBEDDED_PAYLOAD_ID}" data-path="${PATH}">{}</script>`,
+    )
+    expect(takeEmbeddedPayload(PATH)?.forRobot).toBe(true)
   })
 
   it('uses the same element id on both sides', () => {

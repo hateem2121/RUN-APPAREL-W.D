@@ -302,8 +302,11 @@ async function runChecks() {
   //     (2026-10-21: Google's fetcher failed it, the app drew "did not load", and that
   //     screen's noindex kept eight garments out of Google). `embeddedPayload.test.ts`
   //     covers the markup; this confirms the DEPLOYED Worker appends it, for THIS garment.
+  //     ⚠️ `data-for` since 2026-11-15: a person's page can carry the data too, and a robot's copy is
+  //     the one marked "robot" (it skips the 3D file). Changed in the same commit as
+  //     embeddedPayload.ts, for the reason #100 gives (a gate pinning the old shape went red).
   const block = html.match(
-    /<script type="application\/json" id="viewer-payload" data-path="([^"]*)">([^<]*)<\/script>/,
+    /<script type="application\/json" id="viewer-payload" data-path="([^"]*)" data-for="([^"]*)">([^<]*)<\/script>/,
   )
   const expectPath = `/api/public/viewer/${encodeURIComponent(PRODUCT)}/${encodeURIComponent(COLOUR)}`
   if (!block) {
@@ -311,9 +314,11 @@ async function runChecks() {
   } else {
     if (block[1] !== expectPath)
       fail(`#viewer-payload answers ${block[1]}, expected ${expectPath}.`)
+    if (block[2] !== 'robot')
+      fail(`a crawler's #viewer-payload is marked "${block[2]}", expected "robot".`)
     let embedded = null
     try {
-      embedded = JSON.parse(block[2])
+      embedded = JSON.parse(block[3])
     } catch {
       fail('#viewer-payload does not parse as JSON.')
     }
@@ -379,7 +384,7 @@ async function runChecks() {
   //    the check above passes just as happily if the Worker started rewriting for
   //    everyone — which would put the ~1.9 s CMS call in front of every QR scan and
   //    show up as "the site got slow", diagnosed somewhere else entirely.
-  const { html: browserHtml } = await get(url, BROWSER_UA)
+  const { res: browserRes, html: browserHtml } = await get(url, BROWSER_UA)
   const browserTitle = browserHtml.match(/<title>([^<]*)<\/title>/i)?.[1] ?? ''
   //    ⚠️ COMPARED WITH THE STATIC TITLE, NOT SEARCHED FOR THE CODE (2026-09-30). A garment
   //    with a garment type has a rewritten title with no code in it ("X-MILO PRO SKIN-SUIT
@@ -391,6 +396,25 @@ async function runChecks() {
         '   Visitors must be served the static shell — see the latency measurement in\n' +
         '   apps/viewer/worker/index.ts.',
     )
+  }
+
+  // 5b. A PERSON'S COPY, IF THE EDGE HAD THE DATA IN TIME (2026-11-15, personPayload.ts). Either
+  //     shape is healthy, since the 300 ms budget decides which a request gets: the data marked
+  //     "person" with no API preload and no ETag, or the page as before with its API preload.
+  //     Never a robot's mark (it skips the 3D for a person), never both (a second download).
+  const personBlock = browserHtml.match(/id="viewer-payload"[^>]*data-for="([^"]*)"/)
+  const apiPreload = (browserRes.headers.get('link') ?? '').includes('/api/public/viewer/')
+  if (personBlock) {
+    if (personBlock[1] !== 'person')
+      fail(`a browser's page carries data marked "${personBlock[1]}": it would skip the 3D.`)
+    if (apiPreload) fail("a browser's page carries the data AND the API preload: two downloads.")
+    if (browserRes.headers.get('etag'))
+      fail("a browser's page with data carries an ETag: a 304 would hand back old data.")
+    console.log('   a browser got its data in the page (within the 300 ms budget)')
+  } else if (!apiPreload) {
+    fail("a browser's page has neither its data nor the API preload.")
+  } else {
+    console.log('   a browser got the page as before, with the API preload (past the budget)')
   }
 
   // 6. THE SAME CRAWLER REQUEST, SENT AS A NAVIGATION. This is the check that was

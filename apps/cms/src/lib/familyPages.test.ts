@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { CATEGORY_PAGE_PATHS } from '@run-apparel/shared'
+import { CATEGORY_PAGE_PATHS, PRODUCT_LINE_PAGES } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { FAMILY_PAGE_SOURCES, PUBLIC_PAGE_SOURCES } from '../../publicViewerHeaders.mjs'
 import { CMS_PUBLIC_PATHS } from '../../siteHostRules.mjs'
@@ -87,6 +87,21 @@ describe('every buyer page is wired everywhere a public page must be', () => {
     expect(CATEGORY_PAGE_PATHS).toEqual(fromPages)
     // NEGATIVE CONTROL: the comparison sees a page missing from either side.
     expect({ ...CATEGORY_PAGE_PATHS, Outerwear: undefined }).not.toEqual(fromPages)
+  })
+
+  it('the garment pages link each product line page here, in its own heading (2026-11-15)', () => {
+    // packages/shared repeats them too: a ball's garment page links the soccer-ball page.
+    const here = FAMILY_PAGES.filter((page) => page.productLine).map((page) => ({
+      category: familyOf(page).name,
+      words: String(page.productLine?.words),
+      path: page.path,
+      label: page.heading.replace(/,\s*$/, ''),
+    }))
+    const shared = PRODUCT_LINE_PAGES.map((line) => ({ ...line, words: String(line.words) }))
+    expect(here.length, 'no product line pages to compare').toBeGreaterThan(0)
+    expect(shared).toEqual(here)
+    // NEGATIVE CONTROL: a changed heading on either side is seen.
+    expect(shared).not.toEqual(here.map((line) => ({ ...line, label: `${line.label}!` })))
   })
 })
 

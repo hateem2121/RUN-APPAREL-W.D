@@ -147,6 +147,11 @@ const HELD_GUIDES = '2026-11-06T22:45:00+05:00'
  * email and form only). First live AND last changed then; the time the facts were committed.
  */
 const HELD_GUIDES_LIVE = '2026-11-08T19:05:18+05:00'
+/**
+ * The SEO pass (owner, 2026-11-15): the three hubs' search titles, and two guides' mended sources
+ * (the Green Claims link's lost bracket; two papers whose DOIs failed, now at their journals' homes).
+ */
+const SEO_PASS = '2026-11-15T04:02:43+05:00'
 /*
  * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
  * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". Its date is
@@ -238,7 +243,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     TECH_PACK_AND_TOOLS,
     'd07809665122',
   ),
-  '/guides/stitch-and-seam-types': byline(AUTHORS.production, LIBRARY, HELD_GUIDES, '74f4c8f28cd2'),
+  '/guides/stitch-and-seam-types': byline(AUTHORS.production, LIBRARY, SEO_PASS, 'f05fc0f0f6a5'),
   '/guides/outerwear-and-waterproof-fabrics': byline(
     AUTHORS.production,
     LIBRARY,
@@ -250,8 +255,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/sportswear-compliance-by-market': byline(
     AUTHORS.merchandiser,
     LIBRARY,
-    FRANCE_KNIT_LINE,
-    'bb4939039ea9',
+    SEO_PASS,
+    '88d6348c1857',
   ),
   '/guides/apparel-manufacturing-machinery': byline(
     AUTHORS.production,

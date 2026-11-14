@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { JournalIndex } from '../../../components/site/JournalIndex'
 import { getJournalPosts } from '../../../lib/content'
 import { JOURNAL_HUB, JOURNAL_PATH, JOURNAL_RSS_PATH } from '../../../lib/journal'
-import { buildMetadata, withFeed } from '../../../lib/seo'
+import { buildMetadata, metaTitleOf, withFeed } from '../../../lib/seo'
 
 /** Rendered per request, like every page here (the layout reads the site settings). */
 export const dynamic = 'force-dynamic'
@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic'
  */
 export async function generateMetadata(): Promise<Metadata> {
   const base = buildMetadata({
-    title: JOURNAL_HUB.title,
+    title: metaTitleOf(JOURNAL_HUB),
     description: JOURNAL_HUB.description,
     path: JOURNAL_PATH,
   })

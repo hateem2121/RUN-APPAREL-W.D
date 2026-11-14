@@ -4,6 +4,7 @@ import {
   GARMENT_PATH_PREFIX,
   garmentPageTitle,
   PAGE_TITLE_BRAND,
+  productLinePage,
   seeAllInCategoryLabel,
   type ViewerApiSuccess,
 } from '@run-apparel/shared'
@@ -97,6 +98,18 @@ function truncate(text: string, limit = MAX_DESCRIPTION): string {
   return `${(lastSpace > limit * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[\s,.·]+$/, '')}…`
 }
 
+/** The page's own `<title>`, the line a search result shows (`garmentPageTitle`). */
+function buildPageTitle(payload: ViewerApiSuccess): string {
+  return garmentPageTitle({
+    productName: payload.product.productName,
+    productCode: payload.product.productCode,
+    garmentType: payload.product.garmentType,
+    colour: payload.selectedColourway.displayName,
+    brand: PAGE_TITLE_BRAND,
+    isDefaultColour: payload.selectedColourway.isDefault,
+  })
+}
+
 /**
  * "X-MILO PRO SKIN-SUIT — Women's Cycling Skinsuit, Claret Red": the page's own title
  * without the brand (2026-10-25, owner's plan).
@@ -107,15 +120,14 @@ function truncate(text: string, limit = MAX_DESCRIPTION): string {
  * 2026-10-25), and the site name is already printed beside every card. The code a buyer
  * quotes moved to the front of the description, so it is still on the card. A garment with
  * no garment type keeps the code-led title, as its page title does (pageTitle.ts).
+ *
+ * ⚠️ CUT FROM THE PAGE TITLE, NOT BUILT BESIDE IT (2026-11-15). Built separately with no brand, the
+ * card kept a colour the main colour's page title had dropped (pageTitle.ts), and the post-deploy
+ * gate `scripts/smoke-viewer-preview.mjs` holds the card to "the page title without the brand".
  */
-function buildTitle(payload: ViewerApiSuccess): string {
-  return garmentPageTitle({
-    productName: payload.product.productName,
-    productCode: payload.product.productCode,
-    garmentType: payload.product.garmentType,
-    colour: payload.selectedColourway.displayName,
-    brand: '',
-  })
+function buildTitle(pageTitle: string): string {
+  const suffix = ` | ${PAGE_TITLE_BRAND}`
+  return pageTitle.endsWith(suffix) ? pageTitle.slice(0, -suffix.length) : pageTitle
 }
 
 /**
@@ -267,15 +279,10 @@ export function buildPreview(payload: ViewerApiSuccess, options: PreviewOptions)
   // structured data must describe the page that loads, not the one requested.
   const url = `${origin}${buildViewerPath(payload.product.slug, payload.selectedColourway.slug, prefix)}`
   const image = pickImage(payload, origin, cards)
+  const pageTitle = buildPageTitle(payload)
   return {
-    title: buildTitle(payload),
-    pageTitle: garmentPageTitle({
-      productName: payload.product.productName,
-      productCode: payload.product.productCode,
-      garmentType: payload.product.garmentType,
-      colour: payload.selectedColourway.displayName,
-      brand: PAGE_TITLE_BRAND,
-    }),
+    title: buildTitle(pageTitle),
+    pageTitle,
     description: buildDescription(payload),
     url,
     image,
@@ -404,13 +411,18 @@ function buildCrawlerBody(
   const related = (payload.related ?? []).filter(
     (garment) => garment.slug && garment.colourSlug && garment.productName.trim(),
   )
-  if (onSite && category && related.length > 0) {
+  // A ball also links the soccer-ball page beside "See all", and keeps the section when it is the
+  // category's only garment (owner, 2026-11-15; `PRODUCT_LINE_PAGES` says why).
+  const line = productLinePage(category, p.garmentType ?? '')
+  if (onSite && category && (related.length > 0 || line)) {
     const cards = related.map(
       (garment) =>
         `<li><a href="${esc(`${origin}${buildViewerPath(garment.slug, garment.colourSlug, GARMENT_PATH_PREFIX)}`)}">${esc(garment.productName.trim())}</a></li>`,
     )
+    const list = cards.length > 0 ? `<ul>${cards.join('')}</ul>` : ''
     const all = `<a href="${esc(`${origin}${categoryPath(category)}`)}">${esc(seeAllInCategoryLabel(category))}</a>`
-    parts.push(`<h2>${esc(`More ${category} in 3D.`)}</h2><ul>${cards.join('')}</ul><p>${all}</p>`)
+    const own = line ? ` · <a href="${esc(`${origin}${line.path}`)}">${esc(line.label)}</a>` : ''
+    parts.push(`<h2>${esc(`More ${category} in 3D.`)}</h2>${list}<p>${all}${own}</p>`)
   }
 
   // The website's own pages, only where they exist: the old viewer host just forwards.

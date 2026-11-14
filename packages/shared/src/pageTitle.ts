@@ -37,6 +37,12 @@ export interface GarmentTitleParts {
   /** The colour that LOADS, which is not always the one the address asked for. */
   colour: string
   brand: string
+  /**
+   * The page shows the garment's MAIN colour, the one the sitemap lists (`isDefault`). Only that
+   * page drops the colour of a title too long (owner, 2026-11-15); the others keep it, so no two
+   * colour pages share one title.
+   */
+  isDefaultColour?: boolean
 }
 
 const words = (value: string) => value.toLowerCase().match(/[a-z0-9]+/g) ?? []
@@ -55,19 +61,27 @@ export function garmentPageTitle(parts: GarmentTitleParts): string {
   const colour = (parts.colour ?? '').trim()
   const brand = (parts.brand ?? '').trim()
 
-  let core: string
-  if (type && !nameAlreadySays(name, type)) {
-    core = `${name} — ${[type, colour].filter(Boolean).join(', ')}`
-  } else if (type) {
+  const coreWith = (shade: string): string => {
+    if (type && !nameAlreadySays(name, type)) {
+      return `${name} — ${[type, shade].filter(Boolean).join(', ')}`
+    }
     // The name says what it is; repeating the type would only spend the 60 characters.
-    core = [name, colour].filter(Boolean).join(' — ')
-  } else {
+    if (type) return [name, shade].filter(Boolean).join(' — ')
     // No type yet: the code-led title this page has always had.
-    core = [[code, name].filter(Boolean).join(' '), colour].filter(Boolean).join(' — ')
+    return [[code, name].filter(Boolean).join(' '), shade].filter(Boolean).join(' — ')
   }
+  const branded = (core: string) => (brand ? `${core} | ${brand}` : core)
+  const fits = (title: string) => title.length <= PAGE_TITLE_MAX
 
-  const withBrand = brand ? `${core} | ${brand}` : core
-  // A result cuts a long title; lose the brand (it is beside every result anyway) rather
-  // than let the cut fall on the garment type, which is what a searcher matches on.
-  return withBrand.length > PAGE_TITLE_MAX ? core : withBrand
+  const core = coreWith(colour)
+  if (fits(branded(core))) return branded(core)
+  // The main colour's page: lose the colour first, then the brand (owner, 2026-11-15). The
+  // name and the type are what a searcher matches on, so they are never the part dropped.
+  if (parts.isDefaultColour && colour) {
+    const plain = coreWith('')
+    return fits(branded(plain)) ? branded(plain) : plain
+  }
+  // Every other colour: lose the brand (it is beside every result anyway) rather than let the
+  // cut fall on the garment type; the colour keeps this page's title its own.
+  return core
 }
