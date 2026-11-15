@@ -1,0 +1,52 @@
+/*
+ * CYRILLIC FOR THE RUSSIAN SECTION (owner's choice of four rendered pairings, 2026-11-15;
+ * design in docs/superpowers/specs/2026-11-15-russian-section-design.md).
+ *
+ * ⚠️ ARCHIVO AND INSTRUMENT SERIF HAVE NO CYRILLIC (Fontsource catalogue, read 2026-11-15:
+ * "latin, latin-ext, vietnamese" and "latin, latin-ext"). Without these faces every Russian
+ * heading falls to the device's system font and the serif accent to Georgia, so a Windows visitor
+ * gets narrow headlines: Segoe UI has no width axis for the 122% the display type asks for.
+ *
+ * So the two companions are declared UNDER THE BRAND'S OWN FAMILY NAMES with a Cyrillic-only
+ * `unicode-range`. Every rule that says `var(--font-display)` or `var(--font-serif)` keeps working,
+ * Latin letters on a Russian page (RUN APPAREL, X-MILO PRO) are still Archivo, and the browser
+ * fetches a file only when a page holds a Cyrillic letter. ⚠️ ONLY THE RUSSIAN LAYOUT IMPORTS THIS
+ * FILE: English pages never see these faces (apps/cms/e2e/russian.spec.ts checks no request).
+ *
+ * - Roboto Flex: the one free Cyrillic sans with a WIDTH axis, so the 122%-wide, weight-860
+ *   capitals keep their shape. Cut by Google Fonts to the widths both apps use (100-125%), as
+ *   archivo.css is: 31,996 B.
+ * - Cormorant italic 500 for Instrument Serif's italic accent: 13,480 B.
+ *
+ * `size-adjust` MEASURED, 2026-11-15, Chromium canvas `actualBoundingBoxAscent` at 1000px with every
+ * face confirmed `loaded` (a first run with the fonts unloaded measured the fallback four times
+ * and agreed to 0.2%, which is what gave it away). In em, [cap height, x-height]: Archivo
+ * [0.686, 0.526], Roboto Flex Cyrillic [0.711, 0.514]; Instrument Serif italic [0.720, 0.516],
+ * Cormorant italic Cyrillic [0.625, 0.395].
+ * - Roboto Flex 99%: capitals ask 96.5%, lowercase 102.4%; the display type is capitals and the
+ *   body lowercase, so the split.
+ * - Cormorant 125%: lowercase asks 130.6%, capitals 115.2%; the accent words are mostly lowercase,
+ *   but 130.6% stands a capital 13% taller than Instrument Serif's.
+ *
+ * Licences: ../fonts/OFL-robotoflex.txt, ../fonts/OFL-cormorant.txt (SIL OFL 1.1).
+ */
+@font-face {
+  font-family: "Archivo Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 1000;
+  font-stretch: 100% 125%;
+  size-adjust: 99%;
+  src: url(../fonts/roboto-flex-cyrillic-wdth-100-125.woff2) format("woff2-variations");
+  unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1;
+}
+
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 400;
+  size-adjust: 125%;
+  src: url(../fonts/cormorant-italic-500-cyrillic.woff2) format("woff2");
+  unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1;
+}
