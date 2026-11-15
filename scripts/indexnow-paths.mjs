@@ -34,11 +34,14 @@ import {
   GUIDE_PAGE_SOURCES,
   POLICY_PAGE_SOURCES,
   PUBLIC_PAGE_SOURCES,
+  ruSourcePath,
 } from '../apps/cms/publicViewerHeaders.mjs'
 import { baseFor } from './ci-changed-paths.mjs'
 
 /** The website's route group. Anything outside it (the admin, the API) is never announced. */
 const ROUTE_ROOT = 'apps/cms/src/app/(frontend)/'
+// The Russian section's route group; a page under it is `/ru/<folders>` (2026-11-15).
+const RU_ROUTE_ROOT = 'apps/cms/src/app/(ru)/'
 
 /**
  * A source file that holds the words of SEVERAL pages → all of those pages.
@@ -121,8 +124,29 @@ export function pathsForChangedFiles(files) {
     for (const path of SOURCE_FILE_PATHS[file] ?? []) hit.add(path)
     const route = routePathFor(file)
     if (route !== null) hit.add(route)
+    // The Russian section (2026-11-15). A Russian words file (`guides.ru.ts`,
+    // `guideLibrary.ru.a.ts`) changes only the RUSSIAN twins of the pages its English file
+    // feeds: IndexNow asks for changed addresses only, so the English pages are not sent again.
+    const english = file.replace(/\.ru(?:\.[a-z])?\.ts$/, '.ts')
+    if (english !== file) {
+      for (const path of SOURCE_FILE_PATHS[english] ?? []) hit.add(ruSourcePath(path))
+    }
+    const russianRoute = russianRoutePathFor(file)
+    if (russianRoute !== null) hit.add(russianRoute)
   }
   return PUBLIC_PAGE_SOURCES.filter((path) => hit.has(path))
+}
+
+/** A route file under the Russian route group, as its public `/ru…` path, or null. */
+function russianRoutePathFor(file) {
+  if (!file.startsWith(RU_ROUTE_ROOT)) return null
+  const segments = file.slice(RU_ROUTE_ROOT.length).split('/')
+  const name = segments.pop() ?? ''
+  if (!/^page\.[cm]?[jt]sx?$/.test(name) || segments.some((each) => each.startsWith('['))) {
+    return null
+  }
+  const path = `/${segments.join('/')}`.replace(/\/$/, '') || '/'
+  return PUBLIC_PAGE_SOURCES.includes(path) ? path : null
 }
 
 /**

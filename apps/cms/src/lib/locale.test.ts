@@ -44,3 +44,17 @@ describe('hasRussianTwin', () => {
     expect(hasRussianTwin('/products')).toBe(true)
   })
 })
+
+describe('the .mjs copy of ruPath (publicViewerHeaders.mjs cannot import TypeScript)', () => {
+  it('agrees with ruPath on every public page source', async () => {
+    const { PUBLIC_PAGE_SOURCES, RU_PAGE_SOURCES, ruSourcePath } = await import(
+      '../../publicViewerHeaders.mjs'
+    )
+    const english = (PUBLIC_PAGE_SOURCES as string[]).filter((source) => !source.startsWith('/ru'))
+    for (const source of english) expect(ruSourcePath(source)).toBe(ruPath(source))
+    // Every English page with a twin has its Russian source listed, and nothing else is.
+    expect([...(RU_PAGE_SOURCES as string[])].sort()).toEqual(
+      english.filter(hasRussianTwin).map(ruPath).sort(),
+    )
+  })
+})

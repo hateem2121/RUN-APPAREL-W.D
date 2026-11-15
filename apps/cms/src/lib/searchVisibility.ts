@@ -7,6 +7,7 @@ import { GUIDE_PATHS } from './guides'
 import { COMPANY_PATHS } from './companyPages'
 import { FAQ_PATHS } from './faqs'
 import { GLOSSARY_INDEX } from './glossary'
+import { hasRussianTwin, ruPath } from './locale'
 import { FAMILIES } from './families'
 import { pageDateFor } from './pageDates'
 import { POLICY_PATHS } from './policies'
@@ -200,7 +201,7 @@ export function sitemapFor(
       .filter((garment) => garment.category === name)
       .map((garment) => garment.updatedAt)
   }
-  return [
+  return withRussianTwins(origin, [
     { url: origin, changeFrequency: 'monthly', priority: 1, ...wordsChanged('/', saved) },
     {
       url: `${origin}/products`,
@@ -276,5 +277,27 @@ export function sitemapFor(
         },
       ]
     }),
-  ]
+  ])
+}
+
+/**
+ * The Russian section (2026-11-15): every listed page that has a Russian twin (`hasRussianTwin`)
+ * gains the hreflang pair, and its twin is listed right after it with the same pair, date and
+ * priority. Derived from the English entries rather than listed again, so a page added in
+ * English cannot be forgotten in Russian. Posts and 3D garment pages have no twin and pass
+ * through untouched.
+ */
+function withRussianTwins(origin: string, english: MetadataRoute.Sitemap): MetadataRoute.Sitemap {
+  return english.flatMap((entry) => {
+    const path = entry.url.slice(origin.length) || '/'
+    if (!hasRussianTwin(path)) return [entry]
+    const at = (pagePath: string) => `${origin}${pagePath === '/' ? '' : pagePath}`
+    const alternates = {
+      languages: { en: at(path), ru: at(ruPath(path)), 'x-default': at(path) },
+    }
+    return [
+      { ...entry, alternates },
+      { ...entry, url: at(ruPath(path)), alternates },
+    ]
+  })
 }

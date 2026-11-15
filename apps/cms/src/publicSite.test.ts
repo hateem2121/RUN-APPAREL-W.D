@@ -964,7 +964,7 @@ describe('the 404, the policy, and analytics', () => {
     // community from theirs, then the FAQ and the glossary from theirs, then the Journal's and
     // the case studies' hubs and pages.
     expect(headers.replace(/\s+/g, ' ')).toMatch(
-      /PUBLIC_PAGE_SOURCES = \[ '\/', '\/products', '\/contact', '\/privacy', '\/terms', \.\.\.FAMILY_PAGE_SOURCES, \.\.\.GUIDE_PAGE_SOURCES, \.\.\.POLICY_PAGE_SOURCES, \.\.\.COMPANY_PAGE_SOURCES, \.\.\.FAQ_PAGE_SOURCES, \.\.\.GLOSSARY_PAGE_SOURCES, \.\.\.JOURNAL_PAGE_SOURCES, \.\.\.CASE_STUDY_PAGE_SOURCES, \]/,
+      /PUBLIC_PAGE_SOURCES = \[ '\/', '\/products', '\/contact', '\/privacy', '\/terms', \.\.\.FAMILY_PAGE_SOURCES, \.\.\.GUIDE_PAGE_SOURCES, \.\.\.POLICY_PAGE_SOURCES, \.\.\.COMPANY_PAGE_SOURCES, \.\.\.FAQ_PAGE_SOURCES, \.\.\.GLOSSARY_PAGE_SOURCES, \.\.\.JOURNAL_PAGE_SOURCES, \.\.\.CASE_STUDY_PAGE_SOURCES, \.\.\.RU_PAGE_SOURCES, \]/,
     )
     expect(headers).toMatch(/FAMILY_PAGE_SOURCES = \[\s*'\/custom-teamwear-manufacturer',/)
     // The directives that are worth having regardless of the inline-script compromise:

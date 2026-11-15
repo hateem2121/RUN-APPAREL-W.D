@@ -218,3 +218,23 @@ describe('turning paths into the URLs IndexNow is sent', () => {
     ])
   })
 })
+
+describe('the Russian section (2026-11-15)', () => {
+  it('a Russian words file announces only the Russian twins of its English file’s pages', async () => {
+    const { pathsForChangedFiles } = await import('../../../scripts/indexnow-paths.mjs')
+    const paths = pathsForChangedFiles(['apps/cms/src/lib/familyPages.ru.ts'])
+    expect(paths).toContain('/ru/custom-teamwear-manufacturer')
+    expect(paths).not.toContain('/custom-teamwear-manufacturer')
+    const library = pathsForChangedFiles(['apps/cms/src/lib/guideLibrary.ru.a.ts'])
+    expect(library).toContain('/ru/guides/aql-inspection')
+    expect(library.every((path: string) => path.startsWith('/ru'))).toBe(true)
+  })
+
+  it('a Russian page file announces its own /ru address', async () => {
+    const { pathsForChangedFiles } = await import('../../../scripts/indexnow-paths.mjs')
+    expect(pathsForChangedFiles(['apps/cms/src/app/(ru)/ru/contact/page.tsx'])).toEqual([
+      '/ru/contact',
+    ])
+    expect(pathsForChangedFiles(['apps/cms/src/app/(ru)/ru/page.tsx'])).toEqual(['/ru'])
+  })
+})

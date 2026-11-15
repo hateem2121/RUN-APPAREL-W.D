@@ -154,9 +154,11 @@ const WORDS: Readonly<Record<string, string>> = {
 }
 
 /** The paths the sitemap lists for the site's own pages (no garments, no posts). */
-const LISTED = sitemapFor('visible', 'https://example.test').map(
-  (entry) => entry.url.replace('https://example.test', '') || '/',
-)
+// The English pages. A Russian twin (2026-11-15) shows its English twin's date, by its English
+// path; `searchVisibility.test.ts` proves the sitemap's /ru list mirrors this one exactly.
+const LISTED = sitemapFor('visible', 'https://example.test')
+  .map((entry) => entry.url.replace('https://example.test', '') || '/')
+  .filter((path) => !/^\/ru(\/|$)/.test(path))
 
 describe('page dates', () => {
   if (process.env.PRINT_PAGE_WORDS) console.log(JSON.stringify(WORDS))

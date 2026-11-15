@@ -34,6 +34,7 @@
 import { resolveTxt } from 'node:dns/promises'
 import { SECURITY_TXT, securityTxtProblems } from '../packages/shared/src/securityTxt.ts'
 import { TRAINING_ONLY_UAS } from '../apps/cms/htmlLimitedBots.mjs'
+import { RU_PAGE_SOURCES } from '../apps/cms/publicViewerHeaders.mjs'
 import { agentsOf, lower, robotsTxtGroups } from '../apps/cms/src/lib/robotsTxtParse.ts'
 import { realpathSync } from 'node:fs'
 
@@ -163,6 +164,9 @@ export const TARGETS = [
     // The about and factory pages, live since #154 (2026-10-10).
     '/about',
     '/inside-the-factory',
+    // The Russian section (2026-11-15), read from the site's own list: it joins with the PR that
+    // makes it, which is one PR merged only when every page is built, so they are live by then.
+    ...RU_PAGE_SOURCES,
     '/',
   ].map((pathname, i, all) => ({
     name: i === all.length - 1 ? 'site / again' : `site ${pathname}`,

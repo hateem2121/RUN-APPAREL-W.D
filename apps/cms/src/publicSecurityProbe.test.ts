@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { TRAINING_ONLY_UAS } from '../htmlLimitedBots.mjs'
 import { REDIRECT_HEADERS, TARGETS, evaluate } from '../../../scripts/public-security-probe.mjs'
 import { NONCED_PAGE_CACHE_CONTROL, newNonce, withNonce } from '../cspNonce.mjs'
-import { PUBLIC_PAGE_CSP, PUBLIC_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
+import { PUBLIC_PAGE_CSP, PUBLIC_PAGE_SOURCES, RU_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 
 /**
  * The public-side security probe (decided 2026-09-18, live from the merge that deploys it):
@@ -167,7 +167,10 @@ describe('TARGETS', () => {
   })
 
   it('never carries a document code — its log is public — only fixed paths', () => {
-    expect([...new Set(urls.map((u) => u.pathname))].sort()).toEqual([
+    // The Russian twins (2026-11-15) are fixed paths too; `watches every fixed public page`
+    // below holds them to the site's own list, so this pin stays on the English ones.
+    const english = urls.map((u) => u.pathname).filter((path) => !/^\/ru(\/|$)/.test(path))
+    expect([...new Set(english)].sort()).toEqual([
       '/',
       '/.well-known/security.txt',
       '/about',
@@ -444,7 +447,12 @@ describe('the script guard, seen from outside (SE-04)', () => {
   it('watches every page type, / twice, and the admin', () => {
     const targets = TARGETS as { kind: string; url: string }[]
     const pages = targets.filter((t) => t.kind === 'page-csp')
-    expect(pages.map((t) => new URL(t.url).pathname).sort()).toEqual(
+    const paths = pages.map((t) => new URL(t.url).pathname)
+    // Every Russian page is watched too (2026-11-15), exactly the site's list of them.
+    expect(paths.filter((path) => /^\/ru(\/|$)/.test(path)).sort()).toEqual(
+      [...(RU_PAGE_SOURCES as string[])].sort(),
+    )
+    expect(paths.filter((path) => !/^\/ru(\/|$)/.test(path)).sort()).toEqual(
       [
         '/',
         '/',

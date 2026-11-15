@@ -6,9 +6,15 @@
 `lang="ru"`, `hreflang` pairs, Cyrillic brand-matched fonts, and facts identical to English.
 
 **Architecture:** A third root route group `app/(ru)` with its own layout (`<html lang="ru">`) and
-ONE catch-all page `app/(ru)/ru/[[...slug]]/page.tsx` that looks the English path up in a
-registry (`lib/ruPages.tsx`) and renders the SAME component the English page renders, fed Russian
-data (`*.ru.ts` twins typed with the English types) and a `locale` prop for component-held words.
+ONE small route file per Russian page (`app/(ru)/ru/<English path>/page.tsx`), each rendering the
+SAME component its English twin renders, fed Russian data (`*.ru.ts` twins typed with the English
+types) and a `locale` prop for component-held words.
+
+> **Changed during Task 2 (2026-11-15):** the plan first said one catch-all route plus a registry.
+> `apps/cms/siteHostRules.mjs` records that a catch-all calling `notFound()` was deleted on
+> 2026-09-07 because `notFound()` does not server-render its page. With one file per page, an
+> unknown `/ru/…` matches no route and the root not-found answers, server-rendered. A test checks
+> that every entry of `RU_PAGE_SOURCES` has its folder, and no folder lacks an entry.
 
 **Tech Stack:** Next.js app router on OpenNext/Cloudflare, Payload 3, Vitest, Playwright, Biome.
 
@@ -86,12 +92,12 @@ data (`*.ru.ts` twins typed with the English types) and a `locale` prop for comp
 ### Task 4: The Russian root layout, chrome and 404
 
 **Files:**
-- Create: `apps/cms/src/app/(ru)/layout.tsx`, `apps/cms/src/app/(ru)/ru/[[...slug]]/page.tsx`, `apps/cms/src/lib/i18n/chrome.ts` (EN and RU strings: skip link, nav, footer labels the website draws itself, cookie banner, language link, 404 words), `apps/cms/src/lib/ruPages.tsx` (registry, filled by Tasks 5–8)
+- Create: `apps/cms/src/app/(ru)/layout.tsx`, one `page.tsx` per Russian page under `apps/cms/src/app/(ru)/ru/`, `apps/cms/src/lib/i18n/chrome.ts` (EN and RU strings: skip link, nav, footer labels the website draws itself, cookie banner, language link, 404 words), `apps/cms/src/lib/ruPages.tsx` (registry, filled by Tasks 5–8)
 - Modify: `apps/cms/src/app/(frontend)/layout.tsx` (pass `locale="en"`), `apps/cms/src/components/site/SiteHeader.tsx`, `SiteFooter.tsx`, `ConsentBanner.tsx` (take `locale`, read words from `chrome.ts`, English output byte-identical), `apps/cms/src/app/not-found.tsx` (language from the request path)
 - Test: `apps/cms/src/lib/i18n/chrome.test.ts`, `apps/cms/e2e/russian.spec.ts`
 
 **Interfaces:**
-- Produces: `CHROME: Record<Locale, ChromeWords>`; `type RuPage = { title: string; description: string; render(props: { searchParams: Record<string, string | string[] | undefined> }): Promise<React.ReactElement> }`; `RU_PAGES: Readonly<Record<string /* English path */, RuPage>>`; the catch-all calls `notFound()` for a path not in `RU_PAGES` and `generateMetadata` calls `buildMetadata({ …, path: enPath, locale: 'ru' })`.
+- Produces: `CHROME: Record<Locale, ChromeWords>`; `type RuPage = { title: string; description: string; render(props: { searchParams: Record<string, string | string[] | undefined> }): Promise<React.ReactElement> }`; each Russian page file exports `metadata = buildMetadata({ …, path: <English path>, locale: 'ru' })` and renders the English page's component with Russian data and `locale="ru"`.
 
 - [ ] **Step 1:** Tests: `CHROME.ru` has every key of `CHROME.en`; e2e `/ru` has `html[lang=ru]`, a link «English» to `/`, and `/` has «Русский» to `/ru`; `/ru/nope` answers 404 with Russian words with JavaScript disabled (Review Focus 1); Russian pages' page-level JSON-LD carries `inLanguage: "ru"` (the Organization node unchanged); every `/ru` page has no horizontal scroll at 375 px and joins `navbar.spec.ts`'s page list for the 44 px touch floor; the existing `footer.spec.ts`, `navbar.spec.ts` and the viewer's footer specs pass unchanged.
 - [ ] **Step 2–4:** fail → implement → pass. Commit "Russian section — Russian layout, header, footer, cookie banner and 404".

@@ -64,8 +64,11 @@ function jpegSize(bytes: Uint8Array): { width: number; height: number } | null {
 /** The page types the owner named (Q11), each with a picture of its own. */
 // A `:slug` source is many pages, each a Journal post or case study sharing its own CMS picture
 // (`buildArticleMetadata`); only its hub has a card here.
+// English pages only: a Russian twin (2026-11-15) shares its English twin's picture, because
+// `buildMetadata` is always given the English path (`seo.test.ts`).
 const OWN_PICTURE = PUBLIC_PAGE_SOURCES.filter(
-  (path) => !['/privacy', '/terms'].includes(path) && !path.includes(':'),
+  (path) =>
+    !['/privacy', '/terms'].includes(path) && !path.includes(':') && !/^\/ru(\/|$)/.test(path),
 )
 
 const cardWords = (card: ShareCard) => [card.label, card.heading, card.accent].join(' ')
