@@ -2,8 +2,18 @@
 The buyer receipt's moving header: apps/cms/public/email/inquiry-received.gif (owner, 2026-11-10).
 
 Run: ~/.venvs/imaging/bin/python apps/cms/scripts/make-receipt-gif.py
+     ~/.venvs/imaging/bin/python apps/cms/scripts/make-receipt-gif.py --lang ru
 Needs Pillow and the brand's three faces installed (Archivo Expanded ExtraBold, IBM Plex Mono,
 Instrument Serif Italic — all free on Google Fonts; this Mac has them in ~/Library/Fonts).
+
+THE RUSSIAN BANNER (inquiry-received-ru.gif, owner 2026-11-15, for a buyer who wrote from
+/ru/contact). Archivo and Instrument Serif have no Cyrillic, so it uses the site's own companions
+from packages/ui/fonts (cyrillic.css): Roboto Flex at weight 800 and its widest committed width,
+at the site's size-adjust 99%, and Cormorant Italic at 125%. Those files are Cyrillic-only subsets,
+so every other character (space, full stop, digits, "<") is drawn from the brand face, exactly as
+the browser's unicode-range does; a first render without that showed "NO GLYPH" boxes for the full
+stops. `require_glyphs` stops the script on any character a face lacks. The English banner is
+drawn by the same code path as before, byte for byte (SHA-256 compared, 2026-11-15).
 
 WHY A GIF: about 98% of mail clients play an animated GIF; CSS animation reaches about 34% and AMP
 about 16% (caniemail.com, read 2026-11-10). Outlook on Windows shows only the FIRST frame, so frame
@@ -16,6 +26,11 @@ volt for the one moving thing. Drawn at 2x (1200 x 360) and shown at 600 x 180.
 import os
 import sys
 
+LANG = "en"
+if "--lang" in sys.argv:
+    LANG = sys.argv[sys.argv.index("--lang") + 1]
+    del sys.argv[sys.argv.index("--lang") : sys.argv.index("--lang") + 2]
+
 from PIL import Image, ImageDraw, ImageFont
 
 FONTS = os.path.expanduser("~/Library/Fonts")
@@ -24,6 +39,21 @@ SERIF = ImageFont.truetype(os.path.join(FONTS, "InstrumentSerif-Italic.ttf"), 70
 MONO = ImageFont.truetype(os.path.join(FONTS, "IBMPlexMono-Medium.ttf"), 26)
 MONO_SMALL = ImageFont.truetype(os.path.join(FONTS, "IBMPlexMono-Medium.ttf"), 26)
 
+UI_FONTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../packages/ui/fonts")
+HEAD_RU = ImageFont.truetype(os.path.join(UI_FONTS, "roboto-flex-cyrillic-wdth-100-125.woff2"), round(64 * 0.99))
+HEAD_RU.set_variation_by_axes([800, 125])  # weight, width (the subset's widest)
+SERIF_RU = ImageFont.truetype(os.path.join(UI_FONTS, "cormorant-italic-500-cyrillic.woff2"), round(70 * 1.25))
+
+# The Russian words, reviewed 2026-11-15 by a helper briefed as a senior Russian B2B editor:
+# «ПРИНЯТО.» (not «МЫ ПОЛУЧИЛИ.», which wants an object and repeats ПОЛУЧ- three times) and
+# «ОТВЕТ ЗА 24 ЧАСА» (in this mono face «Ч» reads as a 4, so «< 24 Ч» read "24 4").
+WORDS = {
+    "en": {"label": "[ INQUIRY RECEIVED ]", "head": "WE HAVE IT.", "accent": "thank you.",
+           "stops": ["RECEIVED", "READING", "REPLY < 24 H"]},
+    "ru": {"label": "[ ЗАПРОС ПОЛУЧЕН ]", "head": "ПРИНЯТО.", "accent": "спасибо.",
+           "stops": ["ПОЛУЧЕН", "ЧИТАЕМ", "ОТВЕТ ЗА 24 ЧАСА"]},
+}[LANG]
+
 W, H = 1200, 360
 INK = (28, 31, 24)  # #1c1f18, the Night Shift ground
 GRID = (44, 49, 38)  # #2c3126, the dark wash
@@ -31,8 +61,39 @@ TEXT = (236, 235, 228)  # #ecebe4
 MUTED = (162, 166, 149)  # #a2a695
 VOLT = (205, 243, 69)  # #cdf345
 
-STOPS = [(120, "RECEIVED"), (560, "READING"), (1000, "REPLY < 24 H")]
+STOPS = list(zip([120, 560, 1000], WORDS["stops"]))
 TRACK_Y = 268
+
+
+def cyrillic(ch: str) -> bool:
+    return "\u0400" <= ch <= "\u045f"
+
+
+def has_glyph(font: ImageFont.FreeTypeFont, ch: str) -> bool:
+    """A face that lacks a character draws its .notdef box: the same bitmap as a code point no
+    face has. Compared as raw masks, so a missing glyph cannot pass as 'drawn'."""
+    missing = "\U0010fffd"
+    return bytes(font.getmask(ch)) != bytes(font.getmask(missing)) or font.getmask(ch).size != font.getmask(missing).size
+
+
+def require_glyphs(text: str, cyr_font, latin_font) -> None:
+    for ch in text:
+        if ch == " ":
+            continue
+        font = cyr_font if cyrillic(ch) else latin_font
+        if not has_glyph(font, ch):
+            raise SystemExit(f"no glyph for {ch!r} in {font.getname()}")
+
+
+def run(d: ImageDraw.ImageDraw, x: float, y: float, text: str, cyr_font, latin_font, fill, latin_dy: float = 0) -> float:
+    """Draw text as the browser does with unicode-range: Cyrillic from the companion face, every
+    other character from the brand face."""
+    require_glyphs(text, cyr_font, latin_font)
+    for ch in text:
+        font, dy = (cyr_font, 0) if cyrillic(ch) else (latin_font, latin_dy)
+        d.text((x, y + dy), ch, font=font, fill=fill)
+        x += d.textlength(ch, font=font)
+    return x
 
 
 def base() -> Image.Image:
@@ -42,10 +103,15 @@ def base() -> Image.Image:
         d.line([(x, 0), (x, H)], fill=GRID, width=1)
     for y in range(0, H, 52):
         d.line([(0, y), (W, y)], fill=GRID, width=1)
-    d.text((64, 44), "[ INQUIRY RECEIVED ]", font=MONO, fill=VOLT)
-    d.text((64, 92), "WE HAVE IT.", font=HEAD, fill=TEXT)
-    head_w = d.textlength("WE HAVE IT. ", font=HEAD)
-    d.text((64 + head_w, 84), "thank you.", font=SERIF, fill=VOLT)
+    require_glyphs(WORDS["label"] + "".join(WORDS["stops"]), MONO, MONO)
+    d.text((64, 44), WORDS["label"], font=MONO, fill=VOLT)
+    if LANG == "en":
+        d.text((64, 92), WORDS["head"], font=HEAD, fill=TEXT)
+        head_w = d.textlength(WORDS["head"] + " ", font=HEAD)
+        d.text((64 + head_w, 84), WORDS["accent"], font=SERIF, fill=VOLT)
+    else:
+        x = run(d, 64, 92, WORDS["head"] + " ", HEAD_RU, HEAD, TEXT)
+        run(d, x, 72, WORDS["accent"], SERIF_RU, SERIF, VOLT, latin_dy=12)
     # The dimension line: a track with end ticks, and a stop for each step.
     d.line([(STOPS[0][0], TRACK_Y), (STOPS[-1][0], TRACK_Y)], fill=MUTED, width=2)
     for x, name in STOPS:
@@ -97,4 +163,5 @@ def main(out: str) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "apps/cms/public/email/inquiry-received.gif")
+    default = "apps/cms/public/email/inquiry-received.gif" if LANG == "en" else "apps/cms/public/email/inquiry-received-ru.gif"
+    main(sys.argv[1] if len(sys.argv) > 1 else default)

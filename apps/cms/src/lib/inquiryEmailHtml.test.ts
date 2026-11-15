@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { RECEIPT_GIF_RU } from './inquiryEmail.ru'
 import type { InquiryInput } from './inquiry'
 import {
   buyerReceipt,
@@ -211,10 +213,22 @@ describe('the buyer receipt in Russian', () => {
     expect(receipt.text).not.toContain(advert)
   })
 
-  it('leaves out the moving header, whose picture spells English words', () => {
+  it('moves in its own Russian header, never the English one, with Russian words for anyone who cannot see it', () => {
     const { html } = buyerReceipt({ id: 1, subject: '', lang: 'ru' })
     expect(html).toContain(`src="${RECEIPT_LOGO}"`)
-    expect(html).not.toContain(RECEIPT_GIF)
+    expect(html).toContain(`src="${RECEIPT_GIF_RU}"`)
+    expect(html).not.toContain(`src="${RECEIPT_GIF}"`)
+    expect(html.indexOf(RECEIPT_LOGO)).toBeLessThan(html.indexOf(RECEIPT_GIF_RU))
+    const alt = html.match(/<img src="[^"]*inquiry-received-ru\.gif"[^>]*alt="([^"]+)"/)?.[1] ?? ''
+    expect(alt).toMatch(/^Запрос получен\. /)
+    expect(alt).not.toMatch(/[A-Za-z]/)
+  })
+
+  it('points at a banner the site actually serves: the file is in public/email', () => {
+    const file = new URL(`../../public/email/${RECEIPT_GIF_RU.split('/').pop()}`, import.meta.url)
+    const bytes = readFileSync(file)
+    expect(bytes.subarray(0, 6).toString('latin1')).toBe('GIF89a')
+    expect(bytes.byteLength).toBeLessThan(150_000) // the English one is 100,035 bytes
   })
 
   it('promises only what the Russian contact page says, with no English left in the words', () => {
