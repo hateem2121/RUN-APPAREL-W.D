@@ -10,6 +10,18 @@
  * carton must show 0.053. `guideTools.test.ts` holds every row of the draft's tables.
  */
 
+import {
+  BALL_WORDS_RU,
+  ballResultRu,
+  CBM_WORDS_RU,
+  cartonLinesRu,
+  GSM_WORDS_RU,
+  gsmResultRu,
+  LESS_THAN_RU,
+  measureErrorRu,
+} from './guideTools.ru'
+import type { Locale } from './locale'
+
 type Fraction = { n: bigint; d: bigint }
 
 /** "5,3" and "5.3" both read as 5.3; spaces at the ends are ignored. Null when not a number. */
@@ -30,18 +42,25 @@ function roundedScaled(f: Fraction, places: number): bigint {
   return (2n * f.n * scale + f.d) / (2n * f.d)
 }
 
-/** 1234567 at 2 places → "12,345.67": a point for decimals and a comma for thousands. */
-function formatScaled(value: bigint, places: number): string {
+/** A no-break space: Russian's thousands separator, as `Intl.NumberFormat('ru')` writes it. */
+const NBSP = String.fromCharCode(0xa0)
+
+/**
+ * 1234567 at 2 places → "12,345.67": a point for decimals and a comma for thousands. In Russian
+ * (2026-11-15) "12 345,67": a comma for decimals and a no-break space for thousands.
+ */
+function formatScaled(value: bigint, places: number, locale: Locale = 'en'): string {
   const digits = value.toString().padStart(places + 1, '0')
   const whole = digits.slice(0, digits.length - places)
-  const part = places > 0 ? `.${digits.slice(digits.length - places)}` : ''
-  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}${part}`
+  const [point, thousands] = locale === 'ru' ? [',', NBSP] : ['.', ',']
+  const part = places > 0 ? `${point}${digits.slice(digits.length - places)}` : ''
+  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, thousands)}${part}`
 }
 
 /** The number as typed, shown back with a point and thousands commas ("5,3" → "5.3"). */
-function echo(f: Fraction): string {
+function echo(f: Fraction, locale: Locale = 'en'): string {
   const places = f.d.toString().length - 1
-  return formatScaled((f.n * 10n ** BigInt(places)) / f.d, places)
+  return formatScaled((f.n * 10n ** BigInt(places)) / f.d, places, locale)
 }
 
 const times = (a: Fraction, b: Fraction): Fraction => ({ n: a.n * b.n, d: a.d * b.d })
@@ -84,17 +103,20 @@ export type ToolAnswer =
   | null
 
 /** The converter's answer for what is typed: a sentence, an error, or nothing (an empty box). */
-export function convertWeight(raw: string, from: GsmUnit): ToolAnswer {
+export function convertWeight(raw: string, from: GsmUnit, locale: Locale = 'en'): ToolAnswer {
+  const words = locale === 'ru' ? GSM_WORDS_RU : GSM_WORDS
   if (raw.trim() === '') return null
-  if (/^\s*-/.test(raw)) return { error: GSM_WORDS.notPositive }
+  if (/^\s*-/.test(raw)) return { error: words.notPositive }
   const value = readDecimal(raw)
-  if (!value) return { error: GSM_WORDS.notANumber }
-  if (isZero(value)) return { error: GSM_WORDS.notPositive }
+  if (!value) return { error: words.notANumber }
+  if (isZero(value)) return { error: words.notPositive }
   if (from === 'gsm') {
-    const ounces = formatScaled(roundedScaled(over(value, GRAMS_PER_OUNCE_YARD), 2), 2)
+    const ounces = formatScaled(roundedScaled(over(value, GRAMS_PER_OUNCE_YARD), 2), 2, locale)
+    if (locale === 'ru') return { result: gsmResultRu('gsm', echo(value, locale), ounces) }
     return { result: `${echo(value)} GSM is ${ounces} ounces per square yard.` }
   }
-  const grams = formatScaled(roundedScaled(times(value, GRAMS_PER_OUNCE_YARD), 1), 1)
+  const grams = formatScaled(roundedScaled(times(value, GRAMS_PER_OUNCE_YARD), 1), 1, locale)
+  if (locale === 'ru') return { result: gsmResultRu('oz', echo(value, locale), grams) }
   return { result: `${echo(value)} ounces per square yard is ${grams} GSM.` }
 }
 
@@ -128,7 +150,8 @@ function named(measures: readonly Measure[]): string {
   return `the ${measures.slice(0, -1).join(', ')} and ${last}`
 }
 
-export function measureError(wrong: readonly Measure[]): string {
+export function measureError(wrong: readonly Measure[], locale: Locale = 'en'): string {
+  if (locale === 'ru') return measureErrorRu(wrong)
   return `Check ${named(wrong)}. Measurements are numbers above 0, like 60 or 40.5.`
 }
 
@@ -138,12 +161,14 @@ const CM3_PER_IN3: Fraction = { n: 16387064n, d: 1000000n }
 /** 1 ft³ = 0.028316846592 m³, exact (1 ft = 0.3048 m). */
 const M3_PER_FT3: Fraction = { n: 28316846592n, d: 1000000000000n }
 
-function volumeLine(m3: Fraction): { meters: string; feet: string } {
+function volumeLine(m3: Fraction, locale: Locale = 'en'): { meters: string; feet: string } {
   const meters = roundedScaled(m3, 3)
   const feet = roundedScaled(over(m3, M3_PER_FT3), 2)
+  const less = locale === 'ru' ? LESS_THAN_RU : 'less than'
   return {
-    meters: meters === 0n ? 'less than 0.001' : formatScaled(meters, 3),
-    feet: feet === 0n ? 'less than 0.01' : formatScaled(feet, 2),
+    meters:
+      meters === 0n ? `${less} ${formatScaled(1n, 3, locale)}` : formatScaled(meters, 3, locale),
+    feet: feet === 0n ? `${less} ${formatScaled(1n, 2, locale)}` : formatScaled(feet, 2, locale),
   }
 }
 
@@ -164,6 +189,7 @@ export function cartonVolume(
   values: Record<Measure, string>,
   count: string,
   unit: CartonUnit,
+  locale: Locale = 'en',
 ): CartonAnswer {
   const wrong: Measure[] = []
   const read: Partial<Record<Measure, Fraction>> = {}
@@ -178,19 +204,32 @@ export function cartonVolume(
   const countOk = /^\d+$/.test(countText) && BigInt(countText) >= 1n
   const answer: CartonAnswer = { lines: [] }
   if (wrong.length > 0) {
-    answer.measureError = measureError(wrong)
+    answer.measureError = measureError(wrong, locale)
     answer.wrong = wrong
   }
-  if (countText !== '' && !countOk) answer.countError = CBM_WORDS.countError
+  if (countText !== '' && !countOk)
+    answer.countError = (locale === 'ru' ? CBM_WORDS_RU : CBM_WORDS).countError
   const { length, width, height } = read
   if (!length || !width || !height || !countOk || wrong.length > 0) return answer
 
   const product = times(times(length, width), height)
   const perCarton =
     unit === 'cm' ? over(product, CM3_PER_M3) : over(times(product, CM3_PER_IN3), CM3_PER_M3)
-  const one = volumeLine(perCarton)
-  answer.lines.push(`One carton: ${one.meters} cubic meters (CBM), or ${one.feet} cubic feet.`)
+  const one = volumeLine(perCarton, locale)
   const cartons = BigInt(countText)
+  if (locale === 'ru') {
+    const all =
+      cartons >= 2n
+        ? {
+            count: cartons,
+            shown: formatScaled(cartons, 0, locale),
+            ...volumeLine(times(perCarton, { n: cartons, d: 1n }), locale),
+          }
+        : null
+    answer.lines.push(...cartonLinesRu(one, all))
+    return answer
+  }
+  answer.lines.push(`One carton: ${one.meters} cubic meters (CBM), or ${one.feet} cubic feet.`)
   if (cartons >= 2n) {
     // The total from the exact volume, rounded once (NIST: round only the final quantity).
     const all = volumeLine(times(perCarton, { n: cartons, d: 1n }))
@@ -262,46 +301,58 @@ export const BALL_WORDS = {
  * Every fixed word a tool shows (not its results), for the guides' word checks: `guides.test.ts`
  * holds them to the site's refused words and to "nothing said twice on one page".
  */
-export function toolWords(tool: 'gsm-converter' | 'cbm-calculator' | 'ball-size-lookup'): string[] {
+export function toolWords(
+  tool: 'gsm-converter' | 'cbm-calculator' | 'ball-size-lookup',
+  locale: Locale = 'en',
+): string[] {
+  const GSM = locale === 'ru' ? GSM_WORDS_RU : GSM_WORDS
+  const CBM = locale === 'ru' ? CBM_WORDS_RU : CBM_WORDS
+  const BALL = locale === 'ru' ? BALL_WORDS_RU : BALL_WORDS
   if (tool === 'gsm-converter') {
-    const { units, ...rest } = GSM_WORDS
-    return [...Object.values(rest), ...Object.values(units).flatMap((u) => Object.values(u))]
+    const { units, ...rest } = GSM
+    return [
+      ...Object.values<string>(rest),
+      ...Object.values(units).flatMap((u) => Object.values<string>(u)),
+    ]
   }
   if (tool === 'cbm-calculator') {
     return [
-      CBM_WORDS.heading,
-      CBM_WORDS.lead,
-      CBM_WORDS.legend,
-      ...Object.values(CBM_WORDS.units),
-      ...MEASURES.flatMap((m) => [
-        CBM_WORDS.measureLabel(m, 'cm'),
-        CBM_WORDS.measureLabel(m, 'in'),
-      ]),
-      CBM_WORDS.countLabel,
-      CBM_WORDS.countHint,
-      CBM_WORDS.countError,
-      measureError(['length']),
-      CBM_WORDS.rounding,
-      CBM_WORDS.closing,
-      CBM_WORDS.credit,
+      CBM.heading,
+      CBM.lead,
+      CBM.legend,
+      ...Object.values(CBM.units),
+      ...MEASURES.flatMap((m) => [CBM.measureLabel(m, 'cm'), CBM.measureLabel(m, 'in')]),
+      CBM.countLabel,
+      CBM.countHint,
+      CBM.countError,
+      measureError(['length'], locale),
+      CBM.rounding,
+      CBM.closing,
+      CBM.credit,
     ]
   }
   return [
-    BALL_WORDS.heading,
-    BALL_WORDS.lead,
-    BALL_WORDS.legend,
-    ...Object.values(BALL_WORDS.countries),
-    ...Object.values(BALL_WORDS.listLabel),
-    BALL_WORDS.firstLine,
-    BALL_WORDS.range,
-    BALL_WORDS.credit,
+    BALL.heading,
+    BALL.lead,
+    BALL.legend,
+    ...Object.values(BALL.countries),
+    ...Object.values(BALL.listLabel),
+    BALL.firstLine,
+    BALL.range,
+    BALL.credit,
   ]
 }
 
 /** "Under 9 (Year 4): size 3 (The FA’s FutureFit table)." — or null for no choice yet. */
-export function ballSize(country: BallCountry, group: string): string | null {
+export function ballSize(
+  country: BallCountry,
+  group: string,
+  locale: Locale = 'en',
+): string | null {
   const row = BALL_SIZES[country].find((entry) => entry.group === group)
-  return row ? `${row.group}: size ${row.size} (${BALL_WORDS.source[country]}).` : null
+  if (!row) return null
+  if (locale === 'ru') return ballResultRu(country, row.group, row.size)
+  return `${row.group}: size ${row.size} (${BALL_WORDS.source[country]}).`
 }
 
 /**

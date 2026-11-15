@@ -1,3 +1,9 @@
+import type { Locale } from './locale'
+import {
+  TEMPLATE_EMAIL_FORMAT_RU,
+  TEMPLATE_MISSING_RU,
+  TEMPLATE_NOTICES_RU,
+} from './templateDownload.ru'
 import { clean, LOOKS_LIKE_EMAIL, MAX_LENGTHS } from './inquiry'
 
 /**
@@ -70,6 +76,7 @@ export function formatTemplateDownloadEmail(
   value: TemplateDownloadInput,
   receivedAt: Date,
   adminUrl: string,
+  locale: Locale = 'en',
 ): string {
   const optional: [string, string][] = [
     ['Job:      ', value.jobTitle],
@@ -85,6 +92,9 @@ export function formatTemplateDownloadEmail(
     ...optional.filter(([, text]) => text).map(([label, text]) => `${label}${text}`),
     // The one line that decides whether we may write to them (the privacy page's promise).
     `Updates:   ${value.updates ? 'YES, they asked for occasional updates' : 'no — send them nothing unless they write to us first'}`,
+    // The team's email stays English; it says when the form was the Russian page's (Russian
+    // section, 2026-11-15), as the contact form's does (`RUSSIAN_FORM_LINE`, inquiry.ts).
+    ...(locale === 'ru' ? [`Language:  Russian (/ru${TEMPLATE_PAGE})`] : []),
     `When:      ${receivedAt.toISOString()}`,
     `Open:      ${adminUrl}`,
     '',
@@ -108,11 +118,15 @@ const MISSING: Record<RequiredField, string> = {
 export function templateFieldError(
   name: string,
   validity: Pick<ValidityState, 'valid' | 'valueMissing' | 'typeMismatch'>,
+  locale: Locale = 'en',
 ): string | null {
   if (validity.valid) return null
-  if (validity.valueMissing && name in MISSING) return MISSING[name as RequiredField]
+  const missing = locale === 'ru' ? TEMPLATE_MISSING_RU : MISSING
+  if (validity.valueMissing && name in missing) return missing[name as RequiredField]
   if (name === 'email' && validity.typeMismatch)
-    return 'Enter an email address like name@company.com.'
+    return locale === 'ru'
+      ? TEMPLATE_EMAIL_FORMAT_RU
+      : 'Enter an email address like name@company.com.'
   return null
 }
 
@@ -162,8 +176,15 @@ export type TemplateNotice = { kind: 'bad'; text: string }
  * The page's message after a refused download, chosen from this table by CODE. No query value is ever
  * shown: a URL can be written by anyone (the contact form's rule, `inquiryForm.ts`).
  */
-export function templateNotice(query: { error?: string }): TemplateNotice | null {
+export function templateNotice(
+  query: { error?: string },
+  locale: Locale = 'en',
+): TemplateNotice | null {
   if (!query.error) return null
+  if (locale === 'ru') {
+    const code = query.error === 'too-many' || query.error === 'storage' ? query.error : 'invalid'
+    return { kind: 'bad', text: TEMPLATE_NOTICES_RU[code] }
+  }
   if (query.error === 'too-many') {
     return {
       kind: 'bad',

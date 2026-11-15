@@ -3,7 +3,10 @@
 import { type TrackerWindow, trackerEvent } from '@run-apparel/shared'
 import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react'
 import { SEND_ANOTHER_APPLICATION } from '../../lib/careersForm'
+import { SEND_ANOTHER_APPLICATION_RU } from '../../lib/careersForm.ru'
+import { useLocale } from '../../lib/i18n/uiClient'
 import { RECEIVED_HEADING } from '../../lib/inquiryForm'
+import { RECEIVED_HEADING_RU } from '../../lib/inquiryForm.ru'
 
 /**
  * The careers form's two results, copied from `InquiryOutcome.tsx` (whose comments carry the
@@ -30,6 +33,8 @@ function useArrival(target: RefObject<HTMLDivElement | null>, keyEvent?: string)
 
 /** A received application: replaces the form; "Send another application" brings it back. */
 export function ApplicationReceived({ thanks }: { thanks: string }) {
+  // Russian section (2026-11-15): the page's language from its address.
+  const ru = useLocale() === 'ru'
   const panel = useRef<HTMLDivElement>(null)
   const again = useRef<HTMLAnchorElement>(null)
   const [shown, setShown] = useState(true)
@@ -66,11 +71,11 @@ export function ApplicationReceived({ thanks }: { thanks: string }) {
         <path d="M15 28l8 8 16-17" pathLength={1} />
       </svg>
       <h3 className="inquiry-done__title" id="application-done-title">
-        {RECEIVED_HEADING}
+        {ru ? RECEIVED_HEADING_RU : RECEIVED_HEADING}
       </h3>
       <p className="inquiry-done__text">{thanks}</p>
-      <a ref={again} className="btn btn--ghost" href="/careers#apply">
-        {SEND_ANOTHER_APPLICATION}
+      <a ref={again} className="btn btn--ghost" href={ru ? '/ru/careers#apply' : '/careers#apply'}>
+        {ru ? SEND_ANOTHER_APPLICATION_RU : SEND_ANOTHER_APPLICATION}
       </a>
     </div>
   )

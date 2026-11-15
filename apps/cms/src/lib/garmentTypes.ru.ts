@@ -1,0 +1,47 @@
+/**
+ * The Russian catalogue name of each garment type, keyed by the exact English type (the products'
+ * own words, as the English pages print them), in the English list's order. Short, as a Russian
+ * apparel catalogue prints them: cycling bibs are «велотрусы с лямками», soccer is «футбол» and
+ * American football «американский футбол»; «джерси» is neuter, as the other Russian files use it.
+ */
+export const GARMENT_TYPE_RU: Readonly<Record<string, string>> = {
+  'Cropped Training Top': 'Укороченный тренировочный топ',
+  'High-Support Sports Bra': 'Спортивный бюстгальтер с высокой поддержкой',
+  "Men's American Football Jersey": 'Мужское джерси для американского футбола',
+  "Men's American Football Uniform": 'Мужская форма для американского футбола',
+  "Men's Cycling Bib Shorts": 'Мужские велотрусы с лямками',
+  "Men's Full-Zip Training Top": 'Мужская тренировочная кофта на молнии',
+  "Men's Half-Zip Fleece Pullover": 'Мужской флисовый пуловер с молнией до груди',
+  "Men's Half-Zip Polo Shirt": 'Мужское поло с молнией до груди',
+  "Men's Insulated Commuter Suit": 'Мужской утеплённый костюм для города',
+  "Men's Leather Utility Jacket": 'Мужская кожаная куртка-утилити',
+  "Men's Long-Sleeve Training Jersey": 'Мужское тренировочное джерси с длинным рукавом',
+  "Men's Longline Softshell Jacket": 'Мужская удлинённая куртка софтшелл',
+  "Men's Sherpa Fleece Jacket": 'Мужская флисовая куртка шерпа',
+  "Men's Sleeveless Training Vest": 'Мужская тренировочная майка',
+  "Men's Softshell Jacket": 'Мужская куртка софтшелл',
+  "Men's Softshell Tech Jacket": 'Мужская техническая куртка софтшелл',
+  "Men's Tracksuit": 'Мужской спортивный костюм',
+  "Men's Training Pullover": 'Мужской тренировочный пуловер',
+  'Neoprene Wetsuit': 'Неопреновый гидрокостюм',
+  'Polo-Collar Soccer Jersey': 'Футбольное джерси с воротником-поло',
+  'Pro Match Soccer Ball': 'Профессиональный матчевый футбольный мяч',
+  'Quarter-Zip Running Shirt': 'Беговая футболка с короткой молнией',
+  'Raglan Soccer Tee': 'Футбольная футболка реглан',
+  'Soccer Jersey': 'Футбольное джерси',
+  'Sublimated Windbreaker Jacket': 'Ветровка с сублимационной печатью',
+  Sweatshirt: 'Свитшот',
+  'Tennis Bra and Skirt Set': 'Теннисный комплект: топ-бра и юбка',
+  'Tennis and Pickleball Shirt': 'Футболка для тенниса и пиклбола',
+  'Training Bib (Scrimmage Vest)': 'Тренировочная манишка',
+  'V-Neck Soccer Jersey': 'Футбольное джерси с V-образным вырезом',
+  "Women's American Football Jersey": 'Женское джерси для американского футбола',
+  "Women's Compression Yoga Tights": 'Женские компрессионные легинсы для йоги',
+  "Women's Crop Hoodie": 'Женское укороченное худи',
+  "Women's Crop Top and Shorts Set": 'Женский комплект: кроп-топ и шорты',
+  "Women's Cycling Skinsuit": 'Женский стартовый велокомбинезон',
+  "Women's Polo Lounge Set": 'Женский комплект для отдыха с поло',
+  "Women's Tennis Dress": 'Женское теннисное платье',
+  "Women's Yoga Tights": 'Женские легинсы для йоги',
+  "Women's Zip-Up Sports Vest": 'Женский спортивный жилет на молнии',
+}

@@ -4,6 +4,8 @@ import { GLOSSARY_INDEX } from '../../lib/glossary'
 import { IntentLink as Link } from './IntentLink'
 import { type CSSProperties, Fragment, type ReactNode } from 'react'
 import { FACTORY_PHOTOS, factoryPhotoImage, wholePhoto } from '../../lib/factoryPhotos'
+import { ruPhoto } from '../../lib/factoryPhotos.ru'
+import { GARMENT_TYPE_RU } from '../../lib/garmentTypes.ru'
 import { FAMILIES } from '../../lib/families'
 import { FAMILY_PAGES, familyPageFor } from '../../lib/familyPages'
 import {
@@ -19,7 +21,18 @@ import {
   READ_NEXT_PAGE,
 } from '../../lib/guides'
 import { CSV_FILE_NAME, CSV_PATH } from '../../lib/buyerQuestions'
+import {
+  buyerPageRu,
+  FAQ_INDEX_PATH,
+  faqTopicTitleRu,
+  familyNameRu,
+  GLOSSARY_TITLE_RU,
+  guideAtRu,
+  legalLineRu,
+} from '../../lib/i18n/ruNames'
+import { t } from '../../lib/i18n/ui'
 import { formatPostDate } from '../../lib/journal'
+import type { Locale } from '../../lib/locale'
 import type { ProductCard } from '../../lib/projectPublic'
 import type { TemplateNotice } from '../../lib/templateDownload'
 import { guideArticleJsonLd, guideBreadcrumbJsonLd } from '../../lib/structuredData'
@@ -279,15 +292,18 @@ export function Block({
   block,
   cards = [],
   notice = null,
+  locale = 'en',
 }: {
   block: GuideBlock
   /** The live catalogue, so a link to a garment finds its default colour (`GuideAnchor`). */
   cards?: readonly ProductCard[]
   /** A refused template download's message, from the page's address (the download block only). */
   notice?: TemplateNotice | null
+  /** The page's language (Russian section, 2026-11-15). */
+  locale?: Locale
 }) {
   // The home page's eight cards, not a copy (polish D4, the owner's answer Q41).
-  if (block.kind === 'orderSteps') return <OrderSteps />
+  if (block.kind === 'orderSteps') return <OrderSteps locale={locale} />
   if (block.kind === 'download') return <TemplateDownload notice={notice} />
   if (block.kind === 'tool') return <GuideToolBlock tool={block.tool} />
   if (block.kind === 'chart') return <BuyerQuestionsChart />
@@ -299,7 +315,13 @@ export function Block({
       </p>
     )
   }
-  if (block.kind === 'legal') return <p className="guide-legal">{legalLine(block.checked)}</p>
+  if (block.kind === 'legal') {
+    return (
+      <p className="guide-legal">
+        {locale === 'ru' ? legalLineRu(block.checked) : legalLine(block.checked)}
+      </p>
+    )
+  }
   if (block.kind === 'label') return <p className="subhead">{block.text}</p>
   if (block.kind === 'point') {
     return (
@@ -414,10 +436,19 @@ export function isWideTable(block: Extract<GuideBlock, { kind: 'table' }>): bool
  * spread under the hero (see `GuidePage`). It loads eager at high priority (`FactoryFigure.tsx`
  * says why); every later section's photo stays lazy.
  */
-function SectionPhoto({ slug, priority }: { slug: string; priority: boolean }) {
-  const photo = FACTORY_PHOTOS.find((entry) => entry.slug === slug)
+function SectionPhoto({
+  slug,
+  priority,
+  locale,
+}: {
+  slug: string
+  priority: boolean
+  locale: Locale
+}) {
+  const found = FACTORY_PHOTOS.find((entry) => entry.slug === slug)
   // `guides.test.ts` fails a slug with no photo; drawing nothing is the safe miss in production.
-  if (!photo) return null
+  if (!found) return null
+  const photo = locale === 'ru' ? ruPhoto(found) : found
   // Every width the photo has (polish X16 added larger ones for sharp screens), as №01 asks.
   return (
     <FactoryFigure
@@ -469,9 +500,11 @@ function LinkGroup({
 function GuideGarmentsSection({
   garments,
   cards,
+  locale,
 }: {
   garments: GuideGarments
   cards: readonly ProductCard[]
+  locale: Locale
 }) {
   const links = garments.picks.flatMap((pick) => {
     const card = cards.find((entry) => entry.slug === pick.slug)
@@ -480,7 +513,15 @@ function GuideGarmentsSection({
       {
         href: buildViewerPath(card.slug, card.defaultColourSlug, GARMENT_PATH_PREFIX),
         name: card.productName,
-        detail: [card.garmentType, pick.shows].filter(Boolean).join(' · '),
+        // A Russian guide names the type in Russian (garmentTypes.ru.ts); the garment's name is a brand.
+        detail: [
+          locale === 'ru' && card.garmentType
+            ? (GARMENT_TYPE_RU[card.garmentType] ?? card.garmentType)
+            : card.garmentType,
+          pick.shows,
+        ]
+          .filter(Boolean)
+          .join(' · '),
       },
     ]
   })
@@ -527,26 +568,43 @@ function GuideGarmentsSection({
 /** How a source's date reads under it: "Read October 8, 2026", "Published August 11, 2026". */
 const SOURCE_DATE = { read: 'Read', published: 'Published', updated: 'Updated' } as const
 
+/** The same words in the page's language (Russian section, 2026-11-15); English is SOURCE_DATE's. */
+function sourceDate(locale: Locale, kind: GuideSource['kind']): string {
+  if (locale !== 'ru') return SOURCE_DATE[kind]
+  return {
+    read: t(locale, 'Read'),
+    published: t(locale, 'Published'),
+    updated: t(locale, 'Updated'),
+  }[kind]
+}
+
 /**
  * The official pages a guide quotes (2026-10-08, the country comparison), each a plain link out
  * with its date under it, so a reader and an AI tool can check every claim. Drawn as the end links
  * are (`.see-also__list`, 44px rows).
  */
-function GuideSources({ sources }: { sources: readonly GuideSource[] }) {
+function GuideSources({ sources, locale }: { sources: readonly GuideSource[]; locale: Locale }) {
   return (
     <section className="site-section" data-site-reveal>
       <div className="site-container prose prose--guide spread">
-        <h2 className="display display--section">Sources</h2>
+        <h2 className="display display--section">{t(locale, 'Sources')}</h2>
         <div className="spread__body">
           <ol className="see-also__list guide-sources">
             {sources.map((source) => (
               <li key={source.url}>
-                <a href={source.url} rel="noopener">
+                {/* WCAG 2.2, 3.1.2 Language of Parts: a cited work's English title on a Russian guide
+                    is marked English, so a screen reader reads it in English (the language audit of
+                    2026-11-15 found every one unmarked). A title with Cyrillic in it is Russian. */}
+                <a
+                  href={source.url}
+                  rel="noopener"
+                  lang={locale === 'ru' && !/[\u0400-\u04FF]/.test(source.name) ? 'en' : undefined}
+                >
                   {source.name}
                 </a>
                 <p className="see-also__why">
-                  {SOURCE_DATE[source.kind]}{' '}
-                  <time dateTime={source.date}>{formatPostDate(source.date)}</time>
+                  {sourceDate(locale, source.kind)}{' '}
+                  <time dateTime={source.date}>{formatPostDate(source.date, locale)}</time>
                 </p>
               </li>
             ))}
@@ -568,47 +626,69 @@ function buyerPageAt(path: string | undefined) {
   return { href: page.path, name: page.heading.replace(/,\s*$/, ''), why: page.description }
 }
 
-export function GuideLinks({ current, guides = true }: { current: string; guides?: boolean }) {
+export function GuideLinks({
+  current,
+  guides = true,
+  locale = 'en',
+}: {
+  current: string
+  guides?: boolean
+  /** The page's language (Russian section, 2026-11-15): Russian names, English paths. */
+  locale?: Locale
+}) {
+  const ru = locale === 'ru'
   const buyerPages = FAMILIES.flatMap((family) => {
     const page = familyPageFor(family)
-    return page ? [{ href: page.path, name: family.name }] : []
+    return page ? [{ href: page.path, name: ru ? familyNameRu(family.name) : family.name }] : []
   })
   if (!guides) {
     return (
       <nav className="see-also" aria-labelledby="what-we-make">
-        <LinkGroup id="what-we-make" title="What we make" level="h2" links={buyerPages} />
+        <LinkGroup
+          id="what-we-make"
+          title={t(locale, 'What we make')}
+          level="h2"
+          links={buyerPages}
+        />
       </nav>
     )
   }
   // The guide's FAQ topic and the glossary (PLAN.md Task 3.4, shown to the owner 2026-10-07).
   const topic = faqTopicForGuide(current)
   const answers = [
-    ...(topic ? [{ href: topic, name: faqTopicAt(topic).title }] : []),
-    { href: FAQ_INDEX.path, name: 'All questions' },
-    { href: GLOSSARY_INDEX.path, name: GLOSSARY_INDEX.title },
+    ...(topic
+      ? [{ href: topic, name: ru ? faqTopicTitleRu(topic) : faqTopicAt(topic).title }]
+      : []),
+    { href: ru ? FAQ_INDEX_PATH : FAQ_INDEX.path, name: t(locale, 'All questions') },
+    { href: GLOSSARY_INDEX.path, name: ru ? GLOSSARY_TITLE_RU : GLOSSARY_INDEX.title },
   ]
   /*
    * 2–3 guides to read next, each with its own approved description as the reason (owner,
    * 2026-10-08), where every other guide used to be listed with none. `READ_NEXT` says which.
    */
-  const lead = buyerPageAt(READ_NEXT_PAGE[current])
+  const lead = (ru ? buyerPageRu : buyerPageAt)(READ_NEXT_PAGE[current])
   const readNext = [
     ...(lead ? [lead] : []),
     ...(READ_NEXT[current] ?? []).map((path) => {
-      const next = guideAt(path)
+      const next = ru ? guideAtRu(path) : guideAt(path)
       return { href: next.path, name: next.title, why: next.description }
     }),
-    { href: GUIDES_INDEX.path, name: 'All guides' },
+    { href: GUIDES_INDEX.path, name: t(locale, 'All guides') },
   ]
   return (
     <nav className="see-also" aria-labelledby="more-to-read">
       <p className="subhead" id="more-to-read">
-        More to read
+        {t(locale, 'More to read')}
       </p>
       <div className="see-also__groups">
-        <LinkGroup id="read-next" title="Read next" level="h3" links={readNext} />
-        <LinkGroup id="more-families" title="What we make" level="h3" links={buyerPages} />
-        <LinkGroup id="more-answers" title="Answers" level="h3" links={answers} />
+        <LinkGroup id="read-next" title={t(locale, 'Read next')} level="h3" links={readNext} />
+        <LinkGroup
+          id="more-families"
+          title={t(locale, 'What we make')}
+          level="h3"
+          links={buyerPages}
+        />
+        <LinkGroup id="more-answers" title={t(locale, 'Answers')} level="h3" links={answers} />
       </div>
     </nav>
   )
@@ -622,26 +702,32 @@ export function GuidePage({
   guide,
   cards = [],
   notice = null,
+  locale = 'en',
 }: {
   guide: Guide
   cards?: readonly ProductCard[]
   /** A refused template download's message (`templateNotice`), for the tech-pack guide's form. */
   notice?: TemplateNotice | null
+  /**
+   * The page's language (Russian section, 2026-11-15). A Russian page passes its Russian `guide`
+   * (same `path`, the English one) and `ru`; the component's own words follow.
+   */
+  locale?: Locale
 }) {
   // A headline with a very long word shrinks to fit it (`FitWords`); read before the markup so the
   // className stays one template literal (`headlineLeading.test.ts` reads it).
   const heroFit = fitSuffix(`${guide.heading} ${guide.headingAccent}`)
   return (
     <>
-      <JsonLd data={guideBreadcrumbJsonLd(guide)} />
+      <JsonLd data={guideBreadcrumbJsonLd(guide, locale)} />
       {/* Who wrote it and when its words last changed, as Article data (findability audit,
           2026-10-08); the same facts as the byline under the lede, from `bylines.ts`. */}
-      <JsonLd data={guideArticleJsonLd(guide)} />
+      <JsonLd data={guideArticleJsonLd(guide, locale)} />
 
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
-          <p className="label">[ Buyer guide ]</p>
+          <p className="label">{t(locale, '[ Buyer guide ]')}</p>
           {/* `hero-guide`: this headline never swaps fonts mid-visit (site.css, 2026-10-01).
               `display--long`: 36-46 characters, so a phone sets it with more air (base.css, VA-45). */}
           <h1 className={`display display--hero display--long hero-guide${heroFit}`}>
@@ -650,7 +736,7 @@ export function GuidePage({
             </FitWords>
           </h1>
           <p className="site-lede site-lede--guide">{guide.lede}</p>
-          <Byline path={guide.path} reviewed={guide.reviewed} />
+          <Byline path={guide.path} reviewed={guide.reviewed} locale={locale} />
         </div>
       </section>
 
@@ -668,7 +754,7 @@ export function GuidePage({
         )
         const garments =
           guide.garments?.after === section.heading ? (
-            <GuideGarmentsSection garments={guide.garments} cards={cards} />
+            <GuideGarmentsSection garments={guide.garments} cards={cards} locale={locale} />
           ) : null
         /*
          * A section with a whole photo (the owner's rule of 2026-11-05: a new picture is never cut and
@@ -678,10 +764,20 @@ export function GuidePage({
         if (section.stage) {
           return (
             <Fragment key={section.heading}>
-              <PhotoStage photo={wholePhoto(section.stage)}>
+              <PhotoStage
+                photo={
+                  locale === 'ru' ? ruPhoto(wholePhoto(section.stage)) : wholePhoto(section.stage)
+                }
+              >
                 {heading}
                 {section.blocks.map((block) => (
-                  <Block key={blockKey(block)} block={block} cards={cards} notice={notice} />
+                  <Block
+                    key={blockKey(block)}
+                    block={block}
+                    cards={cards}
+                    notice={notice}
+                    locale={locale}
+                  />
                 ))}
               </PhotoStage>
               {garments}
@@ -701,7 +797,7 @@ export function GuidePage({
                 <div className="site-container prose prose--guide" data-site-reveal>
                   {heading}
                 </div>
-                <OrderSteps />
+                <OrderSteps locale={locale} />
               </section>
               {garments}
             </Fragment>
@@ -718,14 +814,20 @@ export function GuidePage({
                         photo is fetched early: the rest are further down, where lazy is right.
                         Of the five guides with photos, the minimum-order and printing guides
                         start with one (guides.ts); the other three have theirs later. */}
-                    <SectionPhoto slug={section.photo} priority={index === 0} />
+                    <SectionPhoto slug={section.photo} priority={index === 0} locale={locale} />
                   </div>
                 ) : (
                   heading
                 )}
                 <div className="spread__body">
                   {section.blocks.map((block) => (
-                    <Block key={blockKey(block)} block={block} cards={cards} notice={notice} />
+                    <Block
+                      key={blockKey(block)}
+                      block={block}
+                      cards={cards}
+                      notice={notice}
+                      locale={locale}
+                    />
                   ))}
                 </div>
               </div>
@@ -735,12 +837,12 @@ export function GuidePage({
         )
       })}
 
-      {guide.sources ? <GuideSources sources={guide.sources} /> : null}
+      {guide.sources ? <GuideSources sources={guide.sources} locale={locale} /> : null}
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <SiteClosing />
-          <GuideLinks current={guide.path} />
+          <SiteClosing locale={locale} />
+          <GuideLinks current={guide.path} locale={locale} />
         </div>
       </section>
     </>

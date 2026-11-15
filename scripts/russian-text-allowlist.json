@@ -1,0 +1,2237 @@
+[
+  {
+    "tool": "grammar",
+    "word": " «\n",
+    "reason": "A template piece: the quotes enclose a ${…} value («Файл «${check.name}» пустой»), so the checker sees a space inside them."
+  },
+  {
+    "tool": "grammar",
+    "word": "аватаре",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "grammar",
+    "word": "авиа-",
+    "reason": "The first half of a shared-ending pair («водо- и маслоотталкивание», «авиа- или морской»), correct Russian."
+  },
+  {
+    "tool": "grammar",
+    "word": "авиакурьер",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Авиакурьер",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Авиакурьером",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "авиафрахт",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Авиафрахт",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "авиафрахтом",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "австралийско-новозеландский",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Беспористые",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "бесфторовые",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "бизнес-справочник",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Брендированная",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "брендировать",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Бундесману",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "в место",
+    "reason": "Two words on purpose: «в место, указанное…» (to the place named) and «по середине её диапазона» (at the middle of its range), not «вместо»/«посередине»."
+  },
+  {
+    "tool": "grammar",
+    "word": "веб-адресами",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "веб-адресом",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "велокомбинезон",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "велотрусы",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "велоформу",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "велошорты",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "видеоассистентов",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "видеозвонок",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "влагоотведение",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Влагоотводящая",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "влагоотводящие",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "влагоотводящими",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "влагопритягивающая",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "влагопритягивающие",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "влажно-тепловая",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "влажно-тепловую",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "водо-",
+    "reason": "The first half of a shared-ending pair («водо- и маслоотталкивание», «авиа- или морской»), correct Russian."
+  },
+  {
+    "tool": "grammar",
+    "word": "водоотталкивание",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Водоотталкивание",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "воротник-поло",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "воротник-стойка",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "воротником-поло",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "две-три",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "декатекс",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "децитекс",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Децитекс",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "децитексах",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "децитексы",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Додж",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "дозаказ",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "дозаказа",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "дозаказы",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "её продают: закон этого рынка решает, что она может содержать, что нужно доказать и что",
+    "reason": "Style advice (many pronouns in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "женщин-военнослужащих",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "запошивочных",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "застёжками-молниями",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "застёжки-липучки",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Застёжки-липучки",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "изделие-образец",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Изделие-образец",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "изделие-референс",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "изделий-референсов",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "изделия-референсы",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "изделиях",
+    "reason": "A template piece: the preposition is in the code around it («в ${PRIVACY_LINK_RU}», «При ${MINIMUM} изделиях»)."
+  },
+  {
+    "tool": "grammar",
+    "word": "изделиях-референсах",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "интерлок",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Интерлок",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "интернет-покупатели",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "интернет-преступления",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "кашкорсе",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Квасцово-хромовое",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "килотекс",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Клемсона",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "Клемсоне",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "Клемсонского",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "контент-команда",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Контент-команда",
+    "reason": "A hyphenated compound the checker’s dictionary lacks («контент-команда»), here capitalised at the start of a byline; reviewed 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Корнеллского",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "которого предназначены изделия, и любое экологическое заявление, которое",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "которое продаётся в США, указывают родовое название каждого волокна с его долей по массе, страну производства и название компании или RN — регистрационный номер, который",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "которой бьют, подкладочные слои под ней, которые",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "которой нужен пресс, и количество, от которого",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "котором его проводят, и результатом, которого",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "котором на ткань давят, пока она не лопнет; для тканых полотен — испытание на растяжение, при котором",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "которые можно повернуть в 3D, стоит присмотреться к молниям: на поло Terra Active Zip — молния с полуавтоматическим замком, который",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "которые стоит задать любой фабрике, и документы, которые",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "которые удерживаются ионными связями; хлопок — активными, которые",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "который их принял, стандарты — от органа по стандартизации, исследования — из опубликованной статьи, цифры — от организации, которая",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "который нужно подобрать, освещения, при котором",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "который M. Hateem Jamshaid выбирает среди выполненных заказов, документы по которым",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "которых есть контрольная точка, а страница о нас показывает команду, которая",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "которых основано наше финальное подтверждение, и фотографии, которые",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "которых спрашивают заказчики, говорит, что охватывает каждый из них, и описывает испытания, которые",
+    "reason": "Style advice (more than one relative clause in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "кредит-ноту",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "кроп-топ",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "кроп-топа",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "кроп-топе",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Кулирная",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "кулирной",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "кулиски",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "куртка-утилити",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "курток-худи",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "лабдип",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Лабдип",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "лабдипа",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "лабдипом",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Лабораторные выкраски",
+    "reason": "Correct: «Лабораторные выкраски» is nominative plural, adjective and noun agree."
+  },
+  {
+    "tool": "grammar",
+    "word": "леггинсов",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "grammar",
+    "word": "лиоцелл",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Лиоцелл",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "маслоотталкивание",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "маслоотталкивания",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "мерчендайзером",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Мерчендайзеры",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "микро-",
+    "reason": "The first half of a shared-ending pair («водо- и маслоотталкивание», «авиа- или морской»), correct Russian."
+  },
+  {
+    "tool": "grammar",
+    "word": "микроволокнах",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "микрограмма",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "миллитекс",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "многоигольные",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "grammar",
+    "word": "Многоигольные",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "grammar",
+    "word": "модакрила",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "модал",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Модал",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "модала",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Монгкута",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "Мы проверяем её раз в три месяца — с той же частотой, что и руководства о законах, — и у каждого источника ниже указана дата, когда мы его прочли, или его",
+    "reason": "Style advice (many pronouns in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "Мы храним их 2 года с момента нашего последнего контакта с вами и не пишем вам на почту, не отправляем сообщений и не звоним, если только вы не отметите пункт выше или не напишете нам",
+    "reason": "Style advice (many pronouns in one sentence). It is the legal notice where details are taken: each «мы/вам/вы» names who does what, which the meaning needs; reviewed 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "названной",
+    "reason": "Correct: «по названной вами редакции» has a dependent word («вами»), so -нн-."
+  },
+  {
+    "tool": "grammar",
+    "word": "нетекстильные",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Нетекстильные",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "ни",
+    "reason": "Correct: «какую бы вы ни указали» is a concessive clause, which takes «ни»."
+  },
+  {
+    "tool": "grammar",
+    "word": "нонилфенола",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Нортумберленда",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "образец-эталон",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Образец-эталон",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "образцу-эталону",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Оверлоки",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Оверлочная",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "оверлочного",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Оверлочные",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "оверлочный",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Оверлочный",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "оверлочным",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "оверлочными",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "однониточная",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Однониточная",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "окантователь",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Окантовочная",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Окантовочный",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "онлайн-запись",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Онлайн-запись",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "онлайн-карточках",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "онлайн-проверке",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Онлайн-реестр",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "основовязаном",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "отлёжка",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "паропроницанию",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "пер-",
+    "reason": "The first half of a shared-ending pair («водо- и маслоотталкивание», «авиа- или морской»), correct Russian."
+  },
+  {
+    "tool": "grammar",
+    "word": "петлительной",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "пиклбол",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "пиклбола",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "пиллинг",
+    "reason": "The textile term with double «л», as ГОСТ Р ИСО 12945-2 writes «пиллинг» and «пиллингуемость»."
+  },
+  {
+    "tool": "grammar",
+    "word": "пиллинга",
+    "reason": "The textile term with double «л», as ГОСТ Р ИСО 12945-2 writes «пиллинг» and «пиллингуемость»."
+  },
+  {
+    "tool": "grammar",
+    "word": "пиллинге",
+    "reason": "The textile term with double «л», as ГОСТ Р ИСО 12945-2 writes «пиллинг» and «пиллингуемость»."
+  },
+  {
+    "tool": "grammar",
+    "word": "пиллингу",
+    "reason": "The textile term with double «л», as ГОСТ Р ИСО 12945-2 writes «пиллинг» and «пиллингуемость»."
+  },
+  {
+    "tool": "grammar",
+    "word": "пиллингуется",
+    "reason": "The textile term with double «л», as ГОСТ Р ИСО 12945-2 writes «пиллинг» and «пиллингуемость»."
+  },
+  {
+    "tool": "grammar",
+    "word": "пиллингуются",
+    "reason": "The textile term with double «л», as ГОСТ Р ИСО 12945-2 writes «пиллинг» and «пиллингуемость»."
+  },
+  {
+    "tool": "grammar",
+    "word": "Плоскошовная",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "плоскошовной",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "плоскошовные",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "плоскошовных",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "пн",
+    "reason": "A standard abbreviation: weekday (пн, чт, пт), ЕС, ИИ, or the unit м²."
+  },
+  {
+    "tool": "grammar",
+    "word": "Пн",
+    "reason": "A standard abbreviation: weekday (пн, чт, пт), ЕС, ИИ, or the unit м²."
+  },
+  {
+    "tool": "grammar",
+    "word": "по большему",
+    "reason": "Preposition and adjective with the noun left out, not an adverb: «по принудительному [труду]», «по большему из двух весов»."
+  },
+  {
+    "tool": "grammar",
+    "word": "по принудительному",
+    "reason": "Preposition and adjective with the noun left out, not an adverb: «по принудительному [труду]», «по большему из двух весов»."
+  },
+  {
+    "tool": "grammar",
+    "word": "по середине",
+    "reason": "Two words on purpose: «в место, указанное…» (to the place named) and «по середине её диапазона» (at the middle of its range), not «вместо»/«посередине»."
+  },
+  {
+    "tool": "grammar",
+    "word": "по-портновски",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Подтрусники",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "полиолефин",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "полифторалкильные",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "полифторалкильных",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "полихлоропрен",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "полихлоропрена",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "полиэстеровой",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "полиэстеровые",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "полуступенями",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "поперечновязаном",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "предсерийном",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Предсерийный",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Пресс-кит",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "пресс-кнопками",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "применяется в том числе",
+    "reason": "Correct without commas: «в том числе» here means «также» and is not set off."
+  },
+  {
+    "tool": "grammar",
+    "word": "принта",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "grammar",
+    "word": "принта наша",
+    "reason": "Speller misplaced its offsets: the words it names are not in the text («стандарты», «программах», «по AQL»); the sentence was read and is correct."
+  },
+  {
+    "tool": "grammar",
+    "word": "принтов",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "grammar",
+    "word": "принту",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "grammar",
+    "word": "пт",
+    "reason": "A standard abbreviation: weekday (пн, чт, пт), ЕС, ИИ, or the unit м²."
+  },
+  {
+    "tool": "grammar",
+    "word": "пуговиц-заклёпок",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "пуговицы-заклёпки",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "пуллер",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "пуллером",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "пуллеры",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Пуллеры",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "распошив",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Распошив",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "распошивальная",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "распошивального",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "распошивальные",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "распошивальный",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "распошивальными",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "растамаживает",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "растамаживать",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "резиноподобный",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "рейон",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Рейон",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "рейона",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "рейоном",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "рибана",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Рибана",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Рипстоп",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "рипстопа",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "свитшоте",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "свитшотов",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "семьи-основателя",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Сиалкот",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "Сиалкота",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "Сиалкоте",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "сингл-джерси",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Синьцзяном",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "синьцзянскими",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "скачался",
+    "reason": "A correct Russian verb form («скачаться»), missing from the checker’s dictionary; the form’s refusal notice, reviewed 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "софтшелл",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Софтшелл",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "софтшелла",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "спецэффектные",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Спецэффектные",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "страйк-офф",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "страйк-оффу",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "стран-бенефициаров",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Строчка-закрепка",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "тайтсы",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Таможенно-пограничной",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Таможенно-пограничную",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "тейп",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Тейп",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термобелья",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термоклеевой",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термопрессом",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термопрессы",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Термопрессы",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термосклеен",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термосклеенного",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термосклеенные",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Термосклеенные",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термосклеены",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термосклеивают",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термосклеиваются",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термосклейка",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Термосклейка",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термосклейке",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термосклейки",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термосклейкой",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термотрансфер",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термотрансферная",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Термотрансферная",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "термотрансферные",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "техпакет",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Техпакет",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "техпакета",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "техпакетам",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "техпакете",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "техпакетом",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "техпакету",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "техпакеты",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "ткани-основе",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Тонбури",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "топ-бра",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "трекеры",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "уведомлении",
+    "reason": "A template piece: the preposition is in the code around it («в ${PRIVACY_LINK_RU}», «При ${MINIMUM} изделиях»)."
+  },
+  {
+    "tool": "grammar",
+    "word": "Ультрабыстрая",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "ультрабыстрой",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "утилити",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "филаментам",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "филаментов",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "филаменты",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "фитнес-организаций",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "флиса-шерпы",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "флисовая",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Флисовая",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "флэт",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "флэтлок",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Флэтлок",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "франко-борт",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "франко-перевозчик",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "френч-терри",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "фталата",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "фталатам",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "фталатах",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "фталатов",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "фталаты",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Фталаты",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "фторхимическую",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "футзала",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "худи",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Худи",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Цукубы",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "чек-листа",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "чт",
+    "reason": "A standard abbreviation: weekday (пн, чт, пт), ЕС, ИИ, or the unit м²."
+  },
+  {
+    "tool": "grammar",
+    "word": "шов помогают",
+    "reason": "Correct: the subject is «три вопроса» (plural), «Выбрать шов помогают три вопроса»."
+  },
+  {
+    "tool": "grammar",
+    "word": "шоурум",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Шоурум",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "штрихкодов",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "штрихкоды",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Штрихкоды",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "экодизайна",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "экодизайне",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "эластаном",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "Этоксилаты",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "grammar",
+    "word": "этом руководстве — что представляет собой каждая деталь, какие испытания запрашивать, какие правила безопасности касаются некоторых из них и что ставим мы",
+    "reason": "Style advice (many pronouns in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "c",
+    "reason": "The acceptance number c of a sampling plan, a Latin symbol beside n, as ISO 2859 and ANSI Z1.4 write it."
+  },
+  {
+    "tool": "speller",
+    "word": "Авиакурьером",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "большего",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "Бундесману",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "speller",
+    "word": "видеоассистентов",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "волокна",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "вшить",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "выдаёте",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "доступная",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "дтекс",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "ЕС",
+    "reason": "A standard abbreviation: weekday (пн, чт, пт), ЕС, ИИ, or the unit м²."
+  },
+  {
+    "tool": "speller",
+    "word": "заказу",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "Запросите",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "ИИ",
+    "reason": "A standard abbreviation: weekday (пн, чт, пт), ЕС, ИИ, or the unit м²."
+  },
+  {
+    "tool": "speller",
+    "word": "истирают",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "Кардный",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "Квасцово",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "Контролёр",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "Корнеллского",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "speller",
+    "word": "крашения",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "кроеными",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "лабдипа",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "леггинсы",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "Лекала",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "м²",
+    "reason": "A standard abbreviation: weekday (пн, чт, пт), ЕС, ИИ, or the unit м²."
+  },
+  {
+    "tool": "speller",
+    "word": "Мерчендайзинг",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "многоигольные",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "мягка",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "мячам",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "Нетекстильные",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "оно",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "осмотреть",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "отрезу",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "охрану",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "очные",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "паковках",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "Пачечная",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "пачечной",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "пестицидом",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "пиклбол",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "пиллинг",
+    "reason": "The textile term with double «л», as ГОСТ Р ИСО 12945-2 writes «пиллинг» and «пиллингуемость»."
+  },
+  {
+    "tool": "speller",
+    "word": "пиллинга",
+    "reason": "The textile term with double «л», as ГОСТ Р ИСО 12945-2 writes «пиллинг» and «пиллингуемость»."
+  },
+  {
+    "tool": "speller",
+    "word": "пиллинге",
+    "reason": "The textile term with double «л», as ГОСТ Р ИСО 12945-2 writes «пиллинг» and «пиллингуемость»."
+  },
+  {
+    "tool": "speller",
+    "word": "пиллингу",
+    "reason": "The textile term with double «л», as ГОСТ Р ИСО 12945-2 writes «пиллинг» and «пиллингуемость»."
+  },
+  {
+    "tool": "speller",
+    "word": "пиллингуются",
+    "reason": "The textile term with double «л», as ГОСТ Р ИСО 12945-2 writes «пиллинг» and «пиллингуемость»."
+  },
+  {
+    "tool": "speller",
+    "word": "по тому",
+    "reason": "Speller misplaced its offsets: the words it names are not in the text («стандарты», «программах», «по AQL»); the sentence was read and is correct."
+  },
+  {
+    "tool": "speller",
+    "word": "подают",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "пошлина",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "правило",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "принтов",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "пробу",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "программ, а",
+    "reason": "Speller misplaced its offsets: the words it names are not in the text («стандарты», «программах», «по AQL»); the sentence was read and is correct."
+  },
+  {
+    "tool": "speller",
+    "word": "проклеенная",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "прочна",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "пряжа",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "пряже",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "раскроим",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "раскроить",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "расход",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "редакцией",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "Рейон",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "роботы",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "руководства",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "Руководства",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "Сиалкоте",
+    "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "speller",
+    "word": "софтшелла",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "спланируем",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "сравнивало",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "стандарт у",
+    "reason": "Speller misplaced its offsets: the words it names are not in the text («стандарты», «программах», «по AQL»); the sentence was read and is correct."
+  },
+  {
+    "tool": "speller",
+    "word": "строит",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "сублимацию",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "текс",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "тексах",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "термосклеен",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "техпакет",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "Техпакет",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "техпакета",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "техпакете",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "техпакеты",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "уведомлении",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "ускорять",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "утилити",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "флэтлок",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "фтору.",
+    "reason": "Speller misplaced its offsets: the words it names are not in the text («стандарты», «программах», «по AQL»); the sentence was read and is correct."
+  },
+  {
+    "tool": "speller",
+    "word": "четвёртый",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "чт",
+    "reason": "A standard abbreviation: weekday (пн, чт, пт), ЕС, ИИ, or the unit м²."
+  },
+  {
+    "tool": "speller",
+    "word": "швам",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "швов",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "шерпы",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "шоурум",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "штрихкодов",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "штрихкоды",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "Штрихкоды",
+    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
+  },
+  {
+    "tool": "speller",
+    "word": "AATCC",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "amfori",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "AQL",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "ASQ",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "ASTM OS",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "ASTM SS",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "CIE",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "CLO",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "CMA",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "DDP",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "DTF",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "DTG",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "DURUS",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "eservices",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "eServices",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "FA",
+    "reason": "A Latin name kept as the English writes it: The FA, the Football Association."
+  },
+  {
+    "tool": "speller",
+    "word": "FIT",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "FreeSewing",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "FutureFit",
+    "reason": "A Latin name kept as the English writes it: The FA’s FutureFit table (a programme name)."
+  },
+  {
+    "tool": "speller",
+    "word": "Ghafuree",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "GRS",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "GSP",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "Hateem",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "HTS",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "PFAS",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "PostHog",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "pptx",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "RUN",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "secp",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "SECP",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "Sedex",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "SEDEX",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "SSa-2",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "WRAP ID",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "xlsx",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "Z1.4",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "ZPAC",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "ZPRJ",
+    "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  }
+]

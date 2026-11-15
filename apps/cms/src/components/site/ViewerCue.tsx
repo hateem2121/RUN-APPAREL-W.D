@@ -14,17 +14,19 @@
  * followed by U+FE0E so no platform draws it as an emoji. The copy rules count ↗ as a
  * pictograph, which is also why it never goes inside a heading.
  *
- * A server component with no props; `.viewer-cue` in site.css is its look.
+ * `.viewer-cue` in site.css is its look. `locale` (Russian section, 2026-11-15): on a Russian page
+ * the same caption in Russian; the 3D viewer it opens stays English, which the words say.
  */
 export const VIEWER_CUE_WORDS = 'Opens the 3D viewer'
+export const VIEWER_CUE_WORDS_RU = 'Открывает 3D-просмотр (на английском)'
 
 /** U+2197 NORTH EAST ARROW, then U+FE0E VARIATION SELECTOR-15 (text presentation). */
 export const VIEWER_CUE_ARROW = '\u{2197}\u{FE0E}'
 
-export function ViewerCue() {
+export function ViewerCue({ locale = 'en' }: { locale?: 'en' | 'ru' }) {
   return (
     <span className="viewer-cue">
-      {`${VIEWER_CUE_WORDS} `}
+      {`${locale === 'ru' ? VIEWER_CUE_WORDS_RU : VIEWER_CUE_WORDS} `}
       <span aria-hidden="true">{VIEWER_CUE_ARROW}</span>
     </span>
   )

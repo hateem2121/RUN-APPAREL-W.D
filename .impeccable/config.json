@@ -28,7 +28,7 @@
         "rule": "overused-font",
         "value": "instrument serif",
         "createdAt": "2026-10-04T18:31:58.693Z",
-        "reason": "Claude, 2026-10-04: the brand's accent face, not a default; docs/DESIGN.md §3 (The serif accent) and .claude/rules/cms-site.md name the one italic serif word per headline as the brand, which a generic-look rule must not remove"
+        "reason": "Brand font: 'Instrument Serif' is the Paper & Ink system's existing serif (packages/ui/src/tokens.css --font-serif); cyrillic.css only adds a Cyrillic face under that same family name. User confirmed the Cyrillic pairing (option B, Roboto Flex + Cormorant) on 2026-11-15."
       },
       {
         "rule": "broken-image",

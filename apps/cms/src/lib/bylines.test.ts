@@ -113,3 +113,19 @@ describe('bylines', () => {
     }
   })
 })
+
+/*
+ * A Russian page prints each byline role in Russian (the language audit of 2026-11-15 found
+ * «Production in-charge, RUN APPAREL» in English on 13 Russian guides). What would have to break:
+ * a role added in English with no Russian, or a person's name translated.
+ */
+describe('bylines on Russian pages', () => {
+  it('has Russian for every role and keeps a person’s name as written', () => {
+    for (const author of Object.values(AUTHORS)) {
+      const ru = authorName(author, 'ru')
+      if (author.kind === 'person') expect(ru).toBe(author.name)
+      else expect(ru, author.role).toMatch(/[А-яЁё]/)
+      expect(authorName(author)).toBe(author.kind === 'person' ? author.name : author.role)
+    }
+  })
+})

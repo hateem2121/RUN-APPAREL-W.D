@@ -8,7 +8,11 @@ import { FootEdgeBox } from './FootEdgeBox'
 import { JsonLd } from './JsonLd'
 import { Marquee } from './Marquee'
 import { ABOUT_PAGE } from '../../lib/aboutPages'
+import { ABOUT_PAGE_RU } from '../../lib/aboutPages.ru'
 import { CERTIFICATION_LINES, CERTIFICATION_PROMISE } from '../../lib/companyFacts'
+import { CERTIFICATION_LINES_RU, CERTIFICATION_PROMISE_RU } from '../../lib/companyFacts.ru'
+import { ABOUT_HERO_PHOTO_ALT_RU, ruPhoto } from '../../lib/factoryPhotos.ru'
+import type { Locale } from '../../lib/locale'
 import {
   ABOUT_HERO_PHOTO,
   ABOUT_PORTRAITS,
@@ -54,9 +58,11 @@ const TALL_SIZES = `${MOTION_LAYOUT} max(100vw, 80vh), 100vw`
 const WIDE_SIZES = `${MOTION_LAYOUT} max(100vw, 178vh), 100vw`
 const [wide1280, wide1920, wide2560] = ABOUT_HERO_PHOTO.widths.heroWide
 
-export function AboutPage() {
-  const page = ABOUT_PAGE
-  const trail = [{ name: 'About', path: page.path }]
+export function AboutPage({ locale = 'en' }: { locale?: Locale } = {}) {
+  // Russian section (2026-11-15): the same page, its words from aboutPages.ru.ts.
+  const ru = locale === 'ru'
+  const page = ru ? ABOUT_PAGE_RU : ABOUT_PAGE
+  const trail = [{ name: ru ? 'О компании' : 'About', path: page.path }]
   const { lead, links, close } = page.whatWeMake
   const linked = links.slice(0, -1)
   const last = links[links.length - 1]
@@ -64,7 +70,7 @@ export function AboutPage() {
   return (
     <>
       {/* First on the page: its script decides before anything below can paint. */}
-      <JsonLd data={aboutPageJsonLd(page)} />
+      <JsonLd data={aboutPageJsonLd(page, locale)} />
       <JsonLd data={breadcrumbTrailJsonLd(trail)} />
 
       {/*
@@ -121,7 +127,7 @@ export function AboutPage() {
               sizes={WIDE_SIZES}
               width={wide1280}
               height={Math.round(wide1280 / HERO_PHOTO.aspect.heroWide)}
-              alt={ABOUT_HERO_PHOTO.alt}
+              alt={ru ? ABOUT_HERO_PHOTO_ALT_RU : ABOUT_HERO_PHOTO.alt}
               loading="eager"
               fetchPriority="high"
               decoding="async"
@@ -129,7 +135,7 @@ export function AboutPage() {
           </picture>
           <div className="blueprint site-hero__grid" aria-hidden="true" />
           <div className="site-container">
-            <Breadcrumb trail={trail} />
+            <Breadcrumb trail={trail} locale={locale} />
             <h1 className="display display--hero about-hero__heading">
               <span className="about-hero__part">{page.hero.partLeft}</span>{' '}
               <span className="about-hero__part">
@@ -160,7 +166,7 @@ export function AboutPage() {
         <div className="site-container about-intro">
           <div className="about-intro__words">
             <p className="site-lede about-lead">{page.quickAnswer}</p>
-            <Byline path={page.path} />
+            <Byline path={page.path} locale={locale} />
             <p className="site-lede about-lead">
               {lead}{' '}
               {linked.map((link) => (
@@ -170,7 +176,7 @@ export function AboutPage() {
               ))}
               {last ? (
                 <>
-                  and <Link href={last.href}>{last.name}</Link>{' '}
+                  {ru ? 'и' : 'and'} <Link href={last.href}>{last.name}</Link>{' '}
                 </>
               ) : null}
               {close}
@@ -222,7 +228,7 @@ export function AboutPage() {
         {ABOUT_PORTRAITS.map((portrait) => (
           <PhotoStage
             key={portrait.slug}
-            photo={wholePhoto(portrait.slug)}
+            photo={ru ? ruPhoto(wholePhoto(portrait.slug)) : wholePhoto(portrait.slug)}
             copy="year"
             tone={portrait.yearTone}
           >
@@ -259,13 +265,13 @@ export function AboutPage() {
                 <div className="fact fact--label-first" key={fact.label}>
                   <dt className="fact__label">{fact.label}</dt>
                   <dd className="fact__value display display--section">
-                    <CountUp value={fact.value} />
+                    <CountUp value={fact.value} locale={locale} />
                   </dd>
                 </div>
               ) : (
                 <div className="fact" key={fact.label}>
                   <dt className="fact__value display display--section">
-                    <CountUp value={fact.value} />
+                    <CountUp value={fact.value} locale={locale} />
                   </dt>
                   <dd className="fact__label">{fact.label}</dd>
                 </div>
@@ -298,11 +304,13 @@ export function AboutPage() {
           <h2 className="display display--section">{page.certificates.heading}</h2>
           <div data-facts>
             <ul className="about-cert">
-              {CERTIFICATION_LINES.map((line) => (
+              {(ru ? CERTIFICATION_LINES_RU : CERTIFICATION_LINES).map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
-            <p className="about-cert__promise">{CERTIFICATION_PROMISE}</p>
+            <p className="about-cert__promise">
+              {ru ? CERTIFICATION_PROMISE_RU : CERTIFICATION_PROMISE}
+            </p>
           </div>
           {/* The link to the factory closes this section; it was a band of its own, one button in
               about 310px of paper (site check, impeccable I-04, 2026-10-26). */}
@@ -316,7 +324,7 @@ export function AboutPage() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <SiteClosing />
+          <SiteClosing locale={locale} />
         </div>
       </section>
     </>

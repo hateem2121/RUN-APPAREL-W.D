@@ -52,11 +52,20 @@ const withoutImports = (source: string) => {
   return kept.join('\n')
 }
 
-/** Source with imports, comments and spaces taken out, so none of them moves a date. */
+/**
+ * Source with imports, comments, spaces AND RUSSIAN taken out, so none of them moves a date. A
+ * component that draws both languages (2026-11-15) holds Russian strings beside the English; the
+ * English page's date is about its English words, and a Russian twin shows that same date.
+ */
+const CYRILLIC_LITERAL =
+  /'[^'\n]*[\u0400-\u04FF][^'\n]*'|"[^"\n]*[\u0400-\u04FF][^"\n]*"|`[^`]*[\u0400-\u04FF][^`]*`/g
+const CYRILLIC_TEXT = />[^<>{}]*[\u0400-\u04FF][^<>{}]*</g
 const stripped = (source: string) =>
   withoutImports(source)
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/(^|[\s;{}(),])\/\/[^\n]*/g, '$1')
+    .replace(CYRILLIC_LITERAL, "''")
+    .replace(CYRILLIC_TEXT, '><')
     .replace(/\s+/g, '')
 const code = (file: string) => stripped(readFileSync(file, 'utf8'))
 const pageCode = (folder: string) => code(join(APP, folder, 'page.tsx'))
@@ -68,6 +77,8 @@ const WORDS: Readonly<Record<string, string>> = {
   '/': sha({
     page: pageCode(''),
     parts: components(
+      // The page's markup, moved out of page.tsx on 2026-11-15 so /ru draws the same page.
+      'HomePage',
       'HomeHero',
       'AboutSection',
       'FactsBento',
@@ -79,7 +90,13 @@ const WORDS: Readonly<Record<string, string>> = {
   }),
   '/products': sha({
     page: pageCode('products'),
-    parts: components('FamilyGroup', 'FamilyChips', 'ProductsFilm', 'ProductCardItem'),
+    parts: components(
+      'ProductsPage',
+      'FamilyGroup',
+      'FamilyChips',
+      'ProductsFilm',
+      'ProductCardItem',
+    ),
     copy: [pageDescriptions.PRODUCTS_DESCRIPTION, FAMILIES, FAMILY_SOON],
   }),
   ...Object.fromEntries(
@@ -145,6 +162,7 @@ const WORDS: Readonly<Record<string, string>> = {
   }),
   '/contact': sha({
     page: pageCode('contact'),
+    parts: components('ContactPage'),
     form: inquiryForm,
     copy: pageDescriptions,
     steps: CONTACT_STEPS,
@@ -154,9 +172,11 @@ const WORDS: Readonly<Record<string, string>> = {
 }
 
 /** The paths the sitemap lists for the site's own pages (no garments, no posts). */
-const LISTED = sitemapFor('visible', 'https://example.test').map(
-  (entry) => entry.url.replace('https://example.test', '') || '/',
-)
+// The English pages. A Russian twin (2026-11-15) shows its English twin's date, by its English
+// path; `searchVisibility.test.ts` proves the sitemap's /ru list mirrors this one exactly.
+const LISTED = sitemapFor('visible', 'https://example.test')
+  .map((entry) => entry.url.replace('https://example.test', '') || '/')
+  .filter((path) => !/^\/ru(\/|$)/.test(path))
 
 describe('page dates', () => {
   if (process.env.PRINT_PAGE_WORDS) console.log(JSON.stringify(WORDS))

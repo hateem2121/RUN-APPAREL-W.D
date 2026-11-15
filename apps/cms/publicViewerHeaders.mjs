@@ -187,6 +187,32 @@ export const JOURNAL_PAGE_SOURCES = ['/journal', '/journal/:slug']
 /** The case studies (2026-10-07, PLAN.md E6): the hub and each one. As the Journal. */
 export const CASE_STUDY_PAGE_SOURCES = ['/case-studies', '/case-studies/:slug']
 
+/**
+ * The Russian section (owner's decision 2026-11-15; design in
+ * `docs/superpowers/specs/2026-11-15-russian-section-design.md`). `/ru` + the English path, the
+ * same rule as `ruPath` in `src/lib/locale.ts` (a .mjs cannot import TypeScript here; `locale.test.ts`
+ * pins the two equal). Every English page has a twin EXCEPT a single journal post or case study,
+ * whose words live in the database: the Russian hubs list the English posts (owner, same day).
+ * The same headers apply, so the script guard and the isolation headers cover Russian pages too.
+ */
+export const ruSourcePath = (source) => (source === '/' ? '/ru' : `/ru${source}`)
+
+export const RU_PAGE_SOURCES = [
+  '/',
+  '/products',
+  '/contact',
+  '/privacy',
+  '/terms',
+  ...FAMILY_PAGE_SOURCES,
+  ...GUIDE_PAGE_SOURCES,
+  ...POLICY_PAGE_SOURCES,
+  ...COMPANY_PAGE_SOURCES,
+  ...FAQ_PAGE_SOURCES,
+  ...GLOSSARY_PAGE_SOURCES,
+  '/journal',
+  '/case-studies',
+].map(ruSourcePath)
+
 export const PUBLIC_PAGE_SOURCES = [
   '/',
   '/products',
@@ -201,6 +227,7 @@ export const PUBLIC_PAGE_SOURCES = [
   ...GLOSSARY_PAGE_SOURCES,
   ...JOURNAL_PAGE_SOURCES,
   ...CASE_STUDY_PAGE_SOURCES,
+  ...RU_PAGE_SOURCES,
 ]
 
 /**

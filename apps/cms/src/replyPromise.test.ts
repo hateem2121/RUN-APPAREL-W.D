@@ -21,8 +21,8 @@ function walk(dir: string): string[] {
 }
 
 const PROMISES = [
-  'apps/cms/src/app/(frontend)/page.tsx',
-  'apps/cms/src/app/(frontend)/contact/page.tsx',
+  'apps/cms/src/components/site/HomePage.tsx',
+  'apps/cms/src/components/site/ContactPage.tsx',
   'apps/cms/src/app/(frontend)/privacy/page.tsx',
   'apps/cms/src/globals/SiteSettings.ts',
   // The footer's code default moved here from apps/cms/src/lib/projectPublic.ts on 2026-10-02

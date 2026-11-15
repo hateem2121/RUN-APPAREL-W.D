@@ -1,5 +1,7 @@
 import { IntentLink as Link } from './IntentLink'
 import { POLICIES, POLICIES_INDEX, POLICY_ACTION, type PolicyGroup } from '../../lib/policies'
+import type { Locale } from '../../lib/locale'
+import { POLICIES_INDEX_RU, POLICIES_RU, POLICY_ACTION_RU } from '../../lib/policies.ru'
 import { breadcrumbTrailJsonLd } from '../../lib/structuredData'
 import { Breadcrumb } from './Breadcrumb'
 import { JsonLd } from './JsonLd'
@@ -16,36 +18,48 @@ const GROUP_NAMES: Record<PolicyGroup, string> = {
 
 const GROUPS: readonly PolicyGroup[] = ['workplace', 'production']
 
-export function PolicyIndex() {
-  const trail = [{ name: 'Policies', path: POLICIES_INDEX.path }]
+/** The Russian page's words beside the English (2026-11-15). */
+const GROUP_NAMES_RU: Record<PolicyGroup, string> = {
+  workplace: 'Условия труда',
+  production: 'Производство',
+}
+
+export function PolicyIndex({ locale = 'en' }: { locale?: Locale } = {}) {
+  const ru = locale === 'ru'
+  const index = ru ? POLICIES_INDEX_RU : POLICIES_INDEX
+  const policies = ru ? POLICIES_RU : POLICIES
+  const trail = [{ name: ru ? 'Политики' : 'Policies', path: index.path }]
   return (
     <>
-      <JsonLd data={breadcrumbTrailJsonLd(trail)} />
+      <JsonLd data={breadcrumbTrailJsonLd(trail, locale)} />
 
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
-          <Breadcrumb trail={trail} />
-          <p className="label">[ Policies ]</p>
+          <Breadcrumb trail={trail} locale={locale} />
+          <p className="label">{ru ? '[ Политики ]' : '[ Policies ]'}</p>
           <h1 className="display display--hero hero-legal">
-            {POLICIES_INDEX.heading}{' '}
-            <span className="serif-accent">{POLICIES_INDEX.headingAccent}</span>
+            {index.heading} <span className="serif-accent">{index.headingAccent}</span>
           </h1>
-          <p className="site-lede">{POLICIES_INDEX.lede}</p>
+          <p className="site-lede">{index.lede}</p>
         </div>
       </section>
 
       {GROUPS.map((group) => (
         <section className="site-section" data-site-reveal key={group}>
           <div className="site-container prose prose--guide spread">
-            <h2 className="display display--section">{GROUP_NAMES[group]}</h2>
+            <h2 className="display display--section">
+              {(ru ? GROUP_NAMES_RU : GROUP_NAMES)[group]}
+            </h2>
             <div className="spread__body">
               <ul className="see-also__list">
-                {POLICIES.filter((policy) => policy.group === group).map((policy) => (
-                  <li key={policy.path}>
-                    <Link href={policy.path}>{policy.title}</Link>
-                  </li>
-                ))}
+                {policies
+                  .filter((policy) => policy.group === group)
+                  .map((policy) => (
+                    <li key={policy.path}>
+                      <Link href={policy.path}>{policy.title}</Link>
+                    </li>
+                  ))}
               </ul>
             </div>
           </div>
@@ -54,10 +68,10 @@ export function PolicyIndex() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container prose prose--guide spread">
-          <h2 className="display display--section">This website</h2>
+          <h2 className="display display--section">{ru ? 'Этот сайт' : 'This website'}</h2>
           <div className="spread__body">
             <ul className="see-also__list">
-              {POLICIES_INDEX.websiteLinks.map((link) => (
+              {index.websiteLinks.map((link) => (
                 <li key={link.href}>
                   <Link href={link.href}>{link.name}</Link>
                 </li>
@@ -69,16 +83,18 @@ export function PolicyIndex() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container prose prose--guide spread">
-          <h2 className="display display--section">Checked by others</h2>
+          <h2 className="display display--section">
+            {ru ? 'Проверено другими' : 'Checked by others'}
+          </h2>
           <div className="spread__body">
             {/* `data-facts`: certificate and registry names, which the reading-ease check skips as it
                 skips the home page's facts panel (owner, 2026-10-07; apps/cms/e2e/legibility.spec.ts). */}
-            {POLICIES_INDEX.standards.map((line) => (
+            {index.standards.map((line) => (
               <p key={line} data-facts>
                 {line}
               </p>
             ))}
-            <p>{POLICIES_INDEX.standardsPromise}</p>
+            <p>{index.standardsPromise}</p>
           </div>
         </div>
       </section>
@@ -87,7 +103,7 @@ export function PolicyIndex() {
         <div className="site-container">
           <div className="site-actions">
             <Link className="btn btn--ghost" href="/contact#inquiry">
-              {POLICY_ACTION}
+              {ru ? POLICY_ACTION_RU : POLICY_ACTION}
             </Link>
           </div>
         </div>

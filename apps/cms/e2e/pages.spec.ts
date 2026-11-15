@@ -1,4 +1,5 @@
 import {
+  RU_PAGE_SOURCES,
   COMPANY_PAGE_SOURCES,
   FAQ_PAGE_SOURCES,
   GLOSSARY_PAGE_SOURCES,
@@ -190,8 +191,10 @@ test.describe('every page renders real content', () => {
       }
 
       // The chrome the layout is responsible for.
-      // Products, Contact and — shown in the phone menu only — Guides (VA-37).
-      await expect(browser.locator('.notch__nav a')).toHaveCount(3)
+      // Products, Contact and — shown in the phone menu only — Guides (VA-37), plus one language
+      // link in the phone menu since the Russian section (2026-11-15).
+      await expect(browser.locator('.notch__nav a:not([hreflang])')).toHaveCount(3)
+      await expect(browser.locator('.notch__nav a[hreflang]')).toHaveCount(1)
       await expect(browser.locator('main#main')).toBeVisible()
       await expect(browser.locator('.site-footer')).toBeVisible()
 
@@ -664,7 +667,7 @@ test.describe('search visibility follows the committed switch: visible since lau
     })
   }
 
-  test('the sitemap lists the five site pages, the buyer pages and the company pages', async ({
+  test('the sitemap lists the five site pages, the buyer pages, the company pages and their Russian twins', async ({
     request,
   }) => {
     const response = await request.get('/sitemap.xml')
@@ -697,6 +700,8 @@ test.describe('search visibility follows the committed switch: visible since lau
         // The two CMS hubs, listed from day one (owner, 2026-10-07).
         '/journal',
         '/case-studies',
+        // Each page's Russian twin (2026-11-15); posts and case studies have none.
+        ...RU_PAGE_SOURCES,
       ].sort(),
     )
   })
@@ -790,8 +795,10 @@ test.describe('FA-P-09 — the empty gallery is a designed state, reached on pur
 
     // and the page is still a page: the jump bar, the header and the footer are all there
     await expect(page.locator('.filter-bar .filter-chip').first()).toBeVisible()
-    // Products, Contact and — shown in the phone menu only — Guides (VA-37).
-    await expect(page.locator('.notch__nav a')).toHaveCount(3)
+    // Products, Contact and — shown in the phone menu only — Guides (VA-37), plus one language
+    // link in the phone menu since the Russian section (2026-11-15).
+    await expect(page.locator('.notch__nav a:not([hreflang])')).toHaveCount(3)
+    await expect(page.locator('.notch__nav a[hreflang]')).toHaveCount(1)
     await expect(page.locator('.site-footer')).toBeVisible()
   })
 

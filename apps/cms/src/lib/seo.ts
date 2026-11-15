@@ -1,5 +1,6 @@
 import { GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import type { Metadata } from 'next'
+import { hasRussianTwin, type Locale, ruPath } from './locale'
 import { SHARE_IMAGE, shareCardFor, shareImageUrl } from './shareImages'
 
 /**
@@ -85,18 +86,31 @@ export function buildMetadata({
   title,
   description,
   path,
+  locale = 'en',
 }: {
   title: string
   description: string
-  /** Root-relative, leading slash, e.g. `/products`. */
+  /** Root-relative, leading slash, e.g. `/products`. ALWAYS the English path, for both languages. */
   path: string
+  /** `ru` for a page of the Russian section: its canonical becomes `/ru…` (lib/locale.ts). */
+  locale?: Locale
 }): Metadata {
-  const url = `${SITE_ORIGIN}${path === '/' ? '' : path}`
+  const at = (pagePath: string) => `${SITE_ORIGIN}${pagePath === '/' ? '' : pagePath}`
+  const url = at(locale === 'ru' ? ruPath(path) : path)
+  // The share picture is the English page's: one card per page type, whatever the language.
   const image = shareImage(path)
+  /*
+   * hreflang (Russian section, 2026-11-15). BOTH twins carry the same pair, as Google and Yandex
+   * require: a one-way pair is ignored. `x-default` is English, the site's language for everyone
+   * who is neither.
+   */
+  const languages = hasRussianTwin(path)
+    ? { en: at(path), ru: at(ruPath(path)), 'x-default': at(path) }
+    : undefined
   return {
     title,
     description,
-    alternates: { canonical: url },
+    alternates: languages ? { canonical: url, languages } : { canonical: url },
     openGraph: {
       type: 'website',
       siteName: SITE_NAME,
@@ -111,7 +125,10 @@ export function buildMetadata({
        * of what the page says. `docs/CUSTOMISATION-COPY-2026-09-04.md` logged it as open;
        * the marketing site was built after and inherited the value rather than resolving it.
        */
-      locale: 'en_US',
+      locale: locale === 'ru' ? 'ru_RU' : 'en_US',
+      // The other language, where there is one (ogp.me: `og:locale:alternate`, "other locales this
+      // page is available in"; the language audit of 2026-11-15 found it on no page).
+      ...(languages ? { alternateLocale: locale === 'ru' ? 'en_US' : 'ru_RU' } : {}),
       images: [image],
     },
     twitter: {

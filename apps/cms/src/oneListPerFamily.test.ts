@@ -82,7 +82,7 @@ describe('a family says "[ ask us ]" only with no page and no garment', () => {
   })
 
   it('both pages decide it the same way, and read the same words', () => {
-    for (const file of ['app/(frontend)/page.tsx', 'app/(frontend)/products/page.tsx']) {
+    for (const file of ['components/site/HomePage.tsx', 'components/site/ProductsPage.tsx']) {
       expect(code(file), file).toMatch(/familyIsSoon\(/)
     }
     // The products page draws its groups through FamilyGroup since 2026-10-11, so the words are there.
@@ -115,8 +115,12 @@ describe('the old filter addresses forward (polish S3)', () => {
   })
 
   it('the products page forwards every ?family= before it draws anything', () => {
+    // The gallery moved into ProductsPage.tsx (2026-11-15) so /ru/products draws it too; the
+    // forward is there, and it forwards a Russian address to the Russian page.
+    const gallery = code('components/site/ProductsPage.tsx')
+    expect(gallery).toMatch(/permanentRedirect\(\s*ru \? ruPath\(to\) : to\s*\)/)
+    expect(gallery).toMatch(/const to = familyFilterForward\(/)
     const page = code('app/(frontend)/products/page.tsx')
-    expect(page).toMatch(/permanentRedirect\(\s*familyFilterForward\(/)
     // The title no longer follows a filter: the page's metadata reads no search parameter.
     expect(page).toContain('export async function generateMetadata(): Promise<Metadata>')
   })

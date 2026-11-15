@@ -2,8 +2,11 @@ import { normalizeWhatsAppNumber } from '@run-apparel/shared'
 import { IntentLink as Link } from './IntentLink'
 import type { ProductCard, PublicSiteSettings } from '../../lib/content'
 import { FACTORY_PAGE } from '../../lib/aboutPages'
+import { FACTORY_PAGE_RU } from '../../lib/aboutPages.ru'
 import { wholePhoto } from '../../lib/factoryPhotos'
+import { ruPhoto } from '../../lib/factoryPhotos.ru'
 import { FAMILIES, familyPictures } from '../../lib/families'
+import { FAMILY_NAMES_RU, FAMILY_PHOTO_ALT_RU } from '../../lib/families.ru'
 import {
   FAMILY_PAGE_ACTION,
   type FamilyPage,
@@ -14,6 +17,10 @@ import {
   rangeGuidePaths,
 } from '../../lib/familyPages'
 import { guideAt } from '../../lib/guides'
+import { localHref } from '../../lib/i18n/localHref'
+import { guideAtRu } from '../../lib/i18n/ruNames'
+import { t } from '../../lib/i18n/ui'
+import { type Locale, ruPath } from '../../lib/locale'
 import { GARMENT_PAGES } from '../../lib/seo'
 import { breadcrumbJsonLd, faqJsonLd, productListJsonLd } from '../../lib/structuredData'
 import { FamilyHeroPicture } from './FamilyHeroPicture'
@@ -28,6 +35,7 @@ const BALL_PICTURE = {
   url: '/families/kaizen-orange-1200.webp',
   alt: 'The orange Kaizen soccer ball with the RUN crest.',
 }
+const BALL_PICTURE_RU = { ...BALL_PICTURE, alt: 'Оранжевый футбольный мяч Kaizen с эмблемой RUN.' }
 
 /**
  * A buyer page: one product family, written for the words a buyer searches (2026-09-30).
@@ -73,11 +81,22 @@ export function FamilyLanding({
   page,
   products,
   settings,
+  locale = 'en',
 }: {
   page: FamilyPage
   products: ProductCard[]
   settings: PublicSiteSettings
+  /**
+   * Russian section (2026-11-15): `page` is then the Russian page (familyPages.ru.ts) and every word
+   * this file writes itself is Russian; the garments' own CMS words stay English.
+   */
+  locale?: Locale
 }) {
+  const ru = locale === 'ru'
+  const guide = ru ? guideAtRu : guideAt
+  const orderGuide = ru ? guideAtRu(ORDER_GUIDE.path) : ORDER_GUIDE
+  const factoryPage = ru ? FACTORY_PAGE_RU : FACTORY_PAGE
+  const familyName = (name: string) => (ru ? (FAMILY_NAMES_RU[name] ?? name) : name)
   const family = familyOf(page)
   const line = page.productLine
   const garments = products.filter(
@@ -85,8 +104,19 @@ export function FamilyLanding({
       product.category === family.name && (!line || line.words.test(product.garmentType ?? '')),
   )
   // The ball's page opens on the ball, even in the minutes before its product is published.
+  const found =
+    line && garments.length === 0
+      ? ru
+        ? BALL_PICTURE_RU
+        : BALL_PICTURE
+      : (familyPictures(products)[family.slug] ?? null)
+  // The one family photo whose alt is written in code has a Russian twin; a product photo's alt is
+  // the CMS's, and stays English.
+  const ruAlt = ru ? FAMILY_PHOTO_ALT_RU[family.slug] : undefined
   const picture =
-    line && garments.length === 0 ? BALL_PICTURE : (familyPictures(products)[family.slug] ?? null)
+    found && ruAlt && found.alt === familyPictures([])[family.slug]?.alt
+      ? { ...found, alt: ruAlt }
+      : found
   const others = FAMILIES.filter(
     (entry) =>
       entry.slug !== family.slug && products.some((product) => product.category === entry.name),
@@ -95,17 +125,25 @@ export function FamilyLanding({
   // The order block's parts, drawn on paper or over a whole photo (2026-11-05).
   const orderHeading = <h2 className="display display--section">{page.stepsHeading}</h2>
   const orderSlug = orderPhotoSlug(page)
-  const orderPhoto = orderSlug ? wholePhoto(orderSlug) : null
+  const orderPhoto = orderSlug
+    ? ru
+      ? ruPhoto(wholePhoto(orderSlug))
+      : wholePhoto(orderSlug)
+    : null
   const orderButton = (
     <Link className="btn btn--ghost" href={ORDER_GUIDE.path}>
-      {family.slug === 'sports-accessories' ? 'How an order works' : ORDER_GUIDE.title}
+      {family.slug === 'sports-accessories'
+        ? t(locale, 'How an order works')
+        : ru
+          ? orderGuide.title
+          : ORDER_GUIDE.title}
     </Link>
   )
   const orderList = (
     <ul className="see-also__list">
       {/* Each guide with its own approved description as the reason to open it. */}
       {rangeGuidePaths(page)
-        .map(guideAt)
+        .map(guide)
         .map((guide) => (
           <li key={guide.path}>
             <Link href={guide.path}>{guide.title}</Link>
@@ -114,8 +152,8 @@ export function FamilyLanding({
         ))}
       {/* How every order is checked: the factory page, with its own approved description. */}
       <li>
-        <Link href={FACTORY_PAGE.path}>{FACTORY_PAGE.title}</Link>
-        <p className="see-also__why">{FACTORY_PAGE.description}</p>
+        <Link href={factoryPage.path}>{factoryPage.title}</Link>
+        <p className="see-also__why">{factoryPage.description}</p>
       </li>
     </ul>
   )
@@ -126,11 +164,11 @@ export function FamilyLanding({
       <p className="site-lede">{page.lede}</p>
       <div className="site-actions">
         <Link className="btn btn--primary" href="/contact#inquiry">
-          {FAMILY_PAGE_ACTION}
+          {ru ? t('ru', 'Start a conversation') : FAMILY_PAGE_ACTION}
         </Link>
         {garments.length > 0 ? (
           <a className="btn btn--ghost" href="#garments">
-            See products in 3D
+            {t(locale, 'See products in 3D')}
           </a>
         ) : null}
       </div>
@@ -139,10 +177,17 @@ export function FamilyLanding({
 
   return (
     <>
-      <JsonLd data={breadcrumbJsonLd(page)} />
-      <JsonLd data={faqJsonLd(page.questions)} />
+      <JsonLd data={breadcrumbJsonLd(page, locale)} />
+      <JsonLd data={faqJsonLd(page.questions, locale)} />
       {garments.length > 0 ? (
-        <JsonLd data={productListJsonLd(garments, `RUN APPAREL ${family.name} in 3D`)} />
+        <JsonLd
+          data={productListJsonLd(
+            garments,
+            ru
+              ? `RUN APPAREL: ${familyName(family.name)} в 3D`
+              : `RUN APPAREL ${family.name} in 3D`,
+          )}
+        />
       ) : null}
 
       <section className="site-hero">
@@ -175,7 +220,11 @@ export function FamilyLanding({
             {/* Each line is one link, heading and words together, so a tap on either opens it and
                 the target is the line's full height (`makesHref` says where it leads, and why). */}
             {page.makes.map((entry) => {
-              const href = makesHref(entry, garments, GARMENT_PAGES)
+              // A plain <a> (it can lead to a 3D garment page, another Worker), so it gets the
+              // Russian twin here, as IntentLink gives every other link: the language audit of
+              // 2026-11-15 found /ru/custom-sports-accessories-manufacturer linking the English ball page.
+              const found = makesHref(entry, garments, GARMENT_PAGES)
+              const href = found && locale === 'ru' ? localHref(found, ruPath('/')) : found
               const words = (
                 <>
                   <h3 className="product-card__name prose__heading">{entry.group}</h3>
@@ -199,15 +248,26 @@ export function FamilyLanding({
           <div className="site-container">
             <div className="section-head">
               <h2 className="display display--section">
-                See it before a sample <span className="serif-accent">is&nbsp;cut.</span>
+                {ru ? (
+                  <>
+                    Проверьте изделие <span className="serif-accent">до&nbsp;раскроя образца.</span>
+                  </>
+                ) : (
+                  <>
+                    See it before a sample <span className="serif-accent">is&nbsp;cut.</span>
+                  </>
+                )}
               </h2>
               <p className="site-lede">
                 {page.garmentsLede ??
-                  'Every garment below has its own 3D page. Turn it, zoom in and check the print, the fabric composition, the weight and the fit. Share the link with your team before anyone pays for a sample.'}
+                  t(
+                    locale,
+                    'Every garment below has its own 3D page. Turn it, zoom in and check the print, the fabric composition, the weight and the fit. Share the link with your team before anyone pays for a sample.',
+                  )}
               </p>
             </div>
             {/* On the Teamwear page, a button for each sport above the cards (polish S7). */}
-            <GarmentGrid family={family} garments={garments} />
+            <GarmentGrid family={family} garments={garments} locale={locale} />
           </div>
         </section>
       ) : null}
@@ -221,7 +281,7 @@ export function FamilyLanding({
         <>
           <PhotoStage photo={orderPhoto}>
             {orderHeading}
-            <p>{ORDER_GUIDE.description}</p>
+            <p>{ru ? orderGuide.description : ORDER_GUIDE.description}</p>
             <div className="site-actions">{orderButton}</div>
           </PhotoStage>
           <section className="site-section" data-site-reveal>
@@ -233,7 +293,7 @@ export function FamilyLanding({
           <div className="site-container prose spread">
             {orderHeading}
             <div className="spread__body">
-              <p>{ORDER_GUIDE.description}</p>
+              <p>{ru ? orderGuide.description : ORDER_GUIDE.description}</p>
               <div className="site-actions">{orderButton}</div>
               {orderList}
             </div>
@@ -249,11 +309,11 @@ export function FamilyLanding({
            * screen empty, which the owner asked to be found and fixed on every page.
            */}
           <div className="company-head">
-            <h2 className="display display--section">Questions buyers ask</h2>
+            <h2 className="display display--section">{t(locale, 'Questions buyers ask')}</h2>
             <div className="company-head__words">
               {/* PLAN.md Task 3.4: the site's FAQ, one link on (shown to the owner 2026-10-07). */}
               <Link className="faq-most__more" href="/faq">
-                More answers in the FAQ <span aria-hidden="true">→</span>
+                {t(locale, 'More answers in the FAQ')} <span aria-hidden="true">→</span>
               </Link>
             </div>
           </div>
@@ -276,15 +336,17 @@ export function FamilyLanding({
             <h2 className="display display--section">{page.closingHeading}</h2>
             <div className="section-head__words">
               <p className="site-lede">
-                Send the styles, quantities and specs you have. A sketch is enough to start. We
-                reply within 24 hours, and the quote is free and commits you to nothing.
+                {t(
+                  locale,
+                  'Send the styles, quantities and specs you have. A sketch is enough to start. We reply within 24 hours, and the quote is free and commits you to nothing.',
+                )}
               </p>
               <div className="site-actions">
                 <Link className="btn btn--primary" href="/contact#inquiry">
-                  {FAMILY_PAGE_ACTION}
+                  {ru ? t('ru', 'Start a conversation') : FAMILY_PAGE_ACTION}
                 </Link>
                 <a className="btn btn--ghost" href={`mailto:${settings.email}`}>
-                  Email {settings.email}
+                  {t(locale, 'Email')} {settings.email}
                 </a>
                 <a
                   className="btn btn--ghost"
@@ -299,16 +361,16 @@ export function FamilyLanding({
           {/* A "see also" group of its own, titled and set apart from the buttons above (polish M4). */}
           <nav className="see-also" aria-labelledby="other-ranges">
             <p className="subhead" id="other-ranges">
-              Other ranges
+              {t(locale, 'Other ranges')}
             </p>
             <div className="filter-bar">
               {others.map((entry) => (
                 <Link key={entry.slug} className="filter-chip" href={familyHref(entry)}>
-                  {entry.name}
+                  {familyName(entry.name)}
                 </Link>
               ))}
               <Link className="filter-chip" href="/products">
-                See products in 3D
+                {t(locale, 'See products in 3D')}
               </Link>
             </div>
           </nav>

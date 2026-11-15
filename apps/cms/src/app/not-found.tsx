@@ -144,6 +144,20 @@ export default function NotFound() {
                   {DEFAULT_SITE_SETTINGS.email}
                 </a>
               </p>
+              {/*
+                ⚠️ ONE 404 FOR BOTH LANGUAGES (Russian section, 2026-11-15). This root file cannot
+                tell /ru/x from /x (it reads no request), and a route-group 404 does not
+                server-render (the comment at the top), so a Russian visitor gets this line. It is
+                drawn in the device's font: importing cyrillic.css here made every English 404
+                download a Cyrillic face and stopped fontSwap.spec's control from reproducing its
+                jump (CI, PR #398), and the design keeps those faces off English pages.
+              */}
+              <p className="site-lede" lang="ru">
+                Страница не найдена. Русская версия сайта:{' '}
+                <a className="prose__link" href="/ru" hrefLang="ru">
+                  wear-run.com/ru
+                </a>
+              </p>
             </div>
           </section>
         </main>

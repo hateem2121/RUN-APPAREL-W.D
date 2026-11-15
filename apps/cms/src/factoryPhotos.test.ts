@@ -575,7 +575,7 @@ describe('phone heroes come in AVIF too', () => {
   it('both pages offer phones the AVIF before the WebP', () => {
     for (const page of [
       'src/components/site/HomeHero.tsx',
-      'src/app/(frontend)/contact/page.tsx',
+      'src/components/site/ContactPage.tsx',
     ]) {
       const tsx = readFileSync(join(import.meta.dirname, '..', page), 'utf8')
       const avif = tsx.indexOf('type="image/avif"')
@@ -661,7 +661,7 @@ describe('wide heroes come in AVIF too', () => {
   it('all three pages offer the wide AVIF after the phone sources and before the <img>', () => {
     for (const [page, src] of [
       ['src/components/site/HomeHero.tsx', 'heroPhotoSrc'],
-      ['src/app/(frontend)/contact/page.tsx', 'contactHeroSrc'],
+      ['src/components/site/ContactPage.tsx', 'contactHeroSrc'],
       ['src/components/site/AboutPage.tsx', 'aboutHeroSrc'],
     ] as const) {
       const tsx = readFileSync(join(import.meta.dirname, '..', page), 'utf8')

@@ -61,14 +61,29 @@ export const dynamic = 'force-dynamic'
  * the browser itself moves focus there, with scripting off as well.
  */
 // A 303 for a plain post; the address as data for the page's own upload (`lib/formResult.ts`).
-const back = (request: NextRequest, params: string, anchor: 'inquiry-done' | 'inquiry-problem') =>
-  formResult(request, new URL(`/contact${params}#${anchor}`, request.url))
-const sent = (request: NextRequest) => back(request, '?sent=1', 'inquiry-done')
-const refused = (request: NextRequest, params: string) => back(request, params, 'inquiry-problem')
+/**
+ * Back to the page the form was on (Russian section, 2026-11-15): a form sent from /ru/contact
+ * carries `lang=ru` and lands on /ru/contact, in Russian; anything else lands where it always has.
+ * A form that cannot even be read has no `lang` to give, so it lands on the English page.
+ */
+const back = (
+  request: NextRequest,
+  params: string,
+  anchor: 'inquiry-done' | 'inquiry-problem',
+  lang: 'en' | 'ru',
+) =>
+  formResult(
+    request,
+    new URL(`${lang === 'ru' ? '/ru/contact' : '/contact'}${params}#${anchor}`, request.url),
+  )
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let raw: Record<string, unknown> = {}
   let attached: unknown[] = []
+  const lang = (): 'en' | 'ru' => (raw.lang === 'ru' ? 'ru' : 'en')
+  const sent = (request: NextRequest) => back(request, '?sent=1', 'inquiry-done', lang())
+  const refused = (request: NextRequest, params: string) =>
+    back(request, params, 'inquiry-problem', lang())
   try {
     const form = await request.formData()
     raw = Object.fromEntries(form.entries())
@@ -168,6 +183,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const id = created.id
+  const withLanguage = <T extends object>(extras: T): T & { language?: 'ru' } =>
+    lang() === 'ru' ? { ...extras, language: 'ru' } : extras
   // The address the site shows, read AFTER the inquiry is stored so a settings outage can never
   // cost the inquiry; when it cannot be read, `inquiryRecipient` answers with the default.
   const recipient = async () => {
@@ -192,8 +209,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       replyTo: result.value.email,
       // The reference leads, so a thread and its admin row match at a glance (owner, 2026-11-10).
       subject: teamSubject(result.value, id),
-      text: formatInquiryEmail(result.value, receivedAt, extras),
-      html: teamEmailHtml({ value: result.value, id, receivedAt, extras }),
+      text: formatInquiryEmail(result.value, receivedAt, withLanguage(extras)),
+      html: teamEmailHtml({ value: result.value, id, receivedAt, extras: withLanguage(extras) }),
     }),
     adminUrl: inquiryAdminUrl(id),
     count: { event: 'inquiry_submitted', placement: 'site-contact-form' },

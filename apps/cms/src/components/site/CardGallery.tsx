@@ -14,6 +14,8 @@ import {
   stepColour,
 } from '../../lib/cardGallery'
 import { cardImage } from '../../lib/cardImage'
+import { RU_CARD_WORDS } from '../../lib/i18n/islandWords'
+import { useLocale } from '../../lib/i18n/uiClient'
 import type { CardColour } from '../../lib/projectPublic'
 import { ProductPoster } from './ProductPoster'
 import { ViewerCue } from './ViewerCue'
@@ -131,6 +133,8 @@ export function CardGallery({
   children: ReactNode
 }) {
   const [active, setActive] = useState(0)
+  // Russian section (2026-11-15): the page's language from its address; the names stay the CMS's.
+  const ru = useLocale() === 'ru'
   const [engaged, setEngaged] = useState(false)
   const strip = useRef<HTMLDivElement>(null)
   const [loaded, setLoaded] = useState<ReadonlySet<number>>(() => new Set([0]))
@@ -410,10 +414,12 @@ export function CardGallery({
                   index={slide === 0 ? index : undefined}
                 />
               ) : (
-                <span className="product-card__placeholder">[ 3D reference ]</span>
+                <span className="product-card__placeholder">
+                  {ru ? '[ 3D-модель ]' : '[ 3D reference ]'}
+                </span>
               )}
               <span className="visually-hidden">
-                <ViewerCue />
+                <ViewerCue locale={ru ? 'ru' : 'en'} />
               </span>
             </a>
           ))}
@@ -428,7 +434,9 @@ export function CardGallery({
             <button
               type="button"
               className="card-gallery__arrow card-gallery__arrow--prev"
-              aria-label={`Previous colour of ${productName}`}
+              aria-label={
+                ru ? RU_CARD_WORDS.previous(productName) : `Previous colour of ${productName}`
+              }
               onClick={(event) => step(-1, event.currentTarget)}
             >
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
@@ -445,7 +453,7 @@ export function CardGallery({
             <button
               type="button"
               className="card-gallery__arrow card-gallery__arrow--next"
-              aria-label={`Next colour of ${productName}`}
+              aria-label={ru ? RU_CARD_WORDS.next(productName) : `Next colour of ${productName}`}
               onClick={(event) => step(1, event.currentTarget)}
             >
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
@@ -471,7 +479,7 @@ export function CardGallery({
         <div
           className="card-gallery__dots"
           role="group"
-          aria-label={`${productName} colours`}
+          aria-label={ru ? RU_CARD_WORDS.colours(productName) : `${productName} colours`}
           onPointerEnter={engage}
           onFocus={engage}
         >
@@ -486,7 +494,7 @@ export function CardGallery({
                 key={colour.slug}
                 type="button"
                 className="card-gallery__dot"
-                aria-label={`Show ${colour.name}`}
+                aria-label={ru ? RU_CARD_WORDS.show(colour.name) : `Show ${colour.name}`}
                 aria-pressed={slide === active}
                 onClick={(event) => show(slide, event.currentTarget)}
                 // The colour itself, read by `.card-gallery__dot::before`; none, an empty ring.

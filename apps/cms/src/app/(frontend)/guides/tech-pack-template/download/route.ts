@@ -18,6 +18,7 @@ import {
   validateTemplateDownload,
 } from '../../../../../lib/templateDownload'
 import { checkTemplateDownloadRate } from '../../../../../lib/templateDownloadRate'
+import { ruPath } from '../../../../../lib/locale'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,8 +39,19 @@ export const dynamic = 'force-dynamic'
  * ⚠️ A FAILED SAVE GIVES NO FILE. The owner's condition was that every download is recorded; a
  * template handed out while the database was down would be a download nobody can see.
  */
-const refused = (request: NextRequest, params: string) =>
-  formResult(request, new URL(`${TEMPLATE_PAGE}${params}#${TEMPLATE_PROBLEM_ID}`, request.url))
+/**
+ * Back to the page the form was on: the Russian guide sends `lang=ru` (Russian section, 2026-11-15),
+ * as the contact form does, so a Russian visitor's notice is in Russian on the Russian page. A post
+ * that cannot be read at all has no fields to say so, and goes to the English page.
+ */
+const refused = (request: NextRequest, params: string, russian = false) =>
+  formResult(
+    request,
+    new URL(
+      `${russian ? ruPath(TEMPLATE_PAGE) : TEMPLATE_PAGE}${params}#${TEMPLATE_PROBLEM_ID}`,
+      request.url,
+    ),
+  )
 
 function theFile(): NextResponse {
   return new NextResponse(Buffer.from(techPackTemplate()), {
@@ -70,14 +82,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // A tripped honeypot gets what a person gets, so the bot learns nothing; nothing is stored or sent.
   if (isHoneypotTripped(raw)) return theFile()
 
+  const russian = raw.lang === 'ru'
   const result = validateTemplateDownload(raw)
   if (!result.ok) {
-    return refused(request, `?error=invalid&fields=${Object.keys(result.errors).join(',')}`)
+    return refused(
+      request,
+      `?error=invalid&fields=${Object.keys(result.errors).join(',')}`,
+      russian,
+    )
   }
 
   // Spent only by a download that passed every check (the contact form's rule, final review 2026-09-29).
   if (!checkTemplateDownloadRate(clientAddress(request), Date.now())) {
-    return refused(request, '?error=too-many')
+    return refused(request, '?error=too-many', russian)
   }
 
   const receivedAt = new Date()
@@ -106,7 +123,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     id = created.id
   } catch (err) {
     console.error('[template-download] could not be stored:', err)
-    return refused(request, '?error=storage')
+    return refused(request, '?error=storage', russian)
   }
 
   // The notice: inquiry@ (the address the site shows) and the owner. Never fails the download.
@@ -120,7 +137,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Reply answers the person who downloaded it, as the contact form's notice does.
     replyTo: value.email,
     subject: templateDownloadSubject(value),
-    text: formatTemplateDownloadEmail(value, receivedAt, adminUrl),
+    text: formatTemplateDownloadEmail(value, receivedAt, adminUrl, russian ? 'ru' : 'en'),
   })
   if (!outcome.notified)
     console.error('[template-download] stored but not notified:', outcome.notifyError)

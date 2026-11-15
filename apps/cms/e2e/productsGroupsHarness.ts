@@ -78,7 +78,12 @@ async function bundle(): Promise<string> {
     logLevel: 'error',
     root: CMS,
     oxc: { jsx: { runtime: 'automatic', development: false } },
-    resolve: { alias: { 'next/link': join(CMS, 'e2e', 'fixtures', 'nextLinkShim.tsx') } },
+    resolve: {
+      alias: {
+        'next/link': join(CMS, 'e2e', 'fixtures', 'nextLinkShim.tsx'),
+        'next/navigation': join(CMS, 'e2e', 'fixtures', 'nextNavigationShim.ts'),
+      },
+    },
     define: {
       'process.env.NODE_ENV': '"production"',
       // As in sportFilterHarness.ts: undefined, the cards' links fall back to the site's own origin.

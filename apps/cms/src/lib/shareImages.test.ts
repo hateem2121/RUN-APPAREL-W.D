@@ -64,8 +64,11 @@ function jpegSize(bytes: Uint8Array): { width: number; height: number } | null {
 /** The page types the owner named (Q11), each with a picture of its own. */
 // A `:slug` source is many pages, each a Journal post or case study sharing its own CMS picture
 // (`buildArticleMetadata`); only its hub has a card here.
+// English pages only: a Russian twin (2026-11-15) shares its English twin's picture, because
+// `buildMetadata` is always given the English path (`seo.test.ts`).
 const OWN_PICTURE = PUBLIC_PAGE_SOURCES.filter(
-  (path) => !['/privacy', '/terms'].includes(path) && !path.includes(':'),
+  (path) =>
+    !['/privacy', '/terms'].includes(path) && !path.includes(':') && !/^\/ru(\/|$)/.test(path),
 )
 
 const cardWords = (card: ShareCard) => [card.label, card.heading, card.accent].join(' ')
@@ -163,8 +166,10 @@ describe('each card carries its page’s own words', () => {
 
   // These words are written in the pages' markup, so the page's source is where to look.
   const SOURCES: [string, string][] = [
-    ['/products', join(FRONTEND, 'products', 'page.tsx')],
-    ['/contact', join(FRONTEND, 'contact', 'page.tsx')],
+    // The gallery's and the contact page's markup moved into components on 2026-11-15, so /ru
+    // draws the same pages; their words are read where they are.
+    ['/products', join(FRONTEND, '..', '..', 'components', 'site', 'ProductsPage.tsx')],
+    ['/contact', join(FRONTEND, '..', '..', 'components', 'site', 'ContactPage.tsx')],
     ['/guides', join(FRONTEND, 'guides', 'page.tsx')],
     ['/guides/garment-printing-methods', join(CMS, 'src', 'components', 'site', 'GuidePage.tsx')],
   ]

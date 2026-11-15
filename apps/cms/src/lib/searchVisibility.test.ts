@@ -71,7 +71,23 @@ describe('what the switch does', () => {
 
   it('hidden means an empty sitemap; visible lists the site pages on the given origin', () => {
     expect(sitemapFor('hidden', 'https://wear-run.com')).toEqual([])
-    expect(sitemapFor('visible', 'https://wear-run.com').map((e) => e.url)).toEqual([
+    /*
+     * The ENGLISH pages, pinned exactly. Since the Russian section (2026-11-15) every one of them
+     * is followed by its /ru twin; `russian` below proves the twins mirror this list one for one,
+     * so this pin still fails on a page added or dropped in either language.
+     */
+    const urls = sitemapFor('visible', 'https://wear-run.com').map((e) => e.url)
+    const isRussian = (url: string) => /^https:\/\/wear-run\.com\/ru(\/|$)/.test(url)
+    const english = urls.filter((url) => !isRussian(url))
+    const russian = urls.filter(isRussian)
+    expect(russian).toEqual(
+      english.map((url) =>
+        url === 'https://wear-run.com'
+          ? 'https://wear-run.com/ru'
+          : url.replace('https://wear-run.com/', 'https://wear-run.com/ru/'),
+      ),
+    )
+    expect(english).toEqual([
       'https://wear-run.com',
       'https://wear-run.com/products',
       'https://wear-run.com/custom-teamwear-manufacturer',
@@ -355,5 +371,53 @@ describe('the dated website pages', () => {
     const on = (path: string) => dated.find((entry) => entry.url === `https://wear-run.com${path}`)
     expect(on('/products')?.lastModified).toEqual(new Date(PAGE_DATES['/products']?.on ?? ''))
     expect(on('/journal')?.lastModified).toEqual(new Date(PAGE_DATES['/journal']?.on ?? ''))
+  })
+})
+
+describe('the Russian section in the sitemap (2026-11-15)', () => {
+  const origin = 'https://wear-run.com'
+  const garment = {
+    slug: 'rxps',
+    category: 'Teamwear & Uniforms',
+    defaultColourSlug: 'wine',
+    colours: [{ slug: 'wine' }],
+    updatedAt: '2026-11-01T00:00:00.000Z',
+  }
+  const visible = sitemapFor('visible', origin, [garment], {
+    posts: [{ path: '/journal/a-post', updatedAt: '2026-11-01T00:00:00.000Z' }],
+  })
+  const at = (url: string) => visible.find((entry) => entry.url === url)
+
+  it('lists every website page twice, the Russian one under /ru with the same pair', () => {
+    const pair = {
+      en: `${origin}/contact`,
+      ru: `${origin}/ru/contact`,
+      'x-default': `${origin}/contact`,
+    }
+    expect(at(`${origin}/contact`)?.alternates?.languages).toEqual(pair)
+    expect(at(`${origin}/ru/contact`)?.alternates?.languages).toEqual(pair)
+    expect(at(`${origin}/ru`)?.alternates?.languages).toMatchObject({
+      en: origin,
+      ru: `${origin}/ru`,
+    })
+    expect(at(`${origin}/ru/guides/aql-inspection`)).toBeDefined()
+    expect(at(`${origin}/ru/custom-teamwear-manufacturer`)).toBeDefined()
+    expect(at(`${origin}/ru/journal`)).toBeDefined()
+  })
+
+  it('gives a Russian page its English twin’s date', () => {
+    expect(at(`${origin}/ru/products`)?.lastModified).toEqual(
+      at(`${origin}/products`)?.lastModified,
+    )
+  })
+
+  it('gives no Russian twin to a post or a 3D garment page', () => {
+    expect(at(`${origin}/ru/journal/a-post`)).toBeUndefined()
+    expect(visible.some((entry) => entry.url.startsWith(`${origin}/ru/products/`))).toBe(false)
+    expect(at(`${origin}/products/rxps/wine`)?.alternates).toBeUndefined()
+  })
+
+  it('lists neither language while the site is hidden', () => {
+    expect(sitemapFor('hidden', origin, [garment])).toEqual([])
   })
 })

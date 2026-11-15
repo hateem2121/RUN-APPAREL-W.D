@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { useLocale } from '../../lib/i18n/uiClient'
 import { TURNSTILE_FIELD, TURNSTILE_SCRIPT, TURNSTILE_SITEKEY } from '../../lib/turnstile'
 
 /**
@@ -51,6 +52,7 @@ function loadScript(): Promise<TurnstileApi> {
 
 export function TurnstileOnInteract() {
   const slot = useRef<HTMLDivElement>(null)
+  const ru = useLocale() === 'ru'
 
   useEffect(() => {
     const el = slot.current
@@ -68,6 +70,9 @@ export function TurnstileOnInteract() {
         .then((api) =>
           api.render(el, {
             sitekey: TURNSTILE_SITEKEY,
+            // The widget in the page's language on /ru (Russian section); English pages pass
+            // nothing, as before, so Cloudflare keeps choosing from the browser.
+            ...(ru ? { language: 'ru' } : {}),
             'response-field-name': TURNSTILE_FIELD,
             callback: (value: string) => {
               token = value
@@ -107,7 +112,7 @@ export function TurnstileOnInteract() {
       form.removeEventListener('focusin', start)
       form.removeEventListener('submit', onSubmit, true)
     }
-  }, [])
+  }, [ru])
 
   return <div ref={slot} className="turnstile-slot" />
 }

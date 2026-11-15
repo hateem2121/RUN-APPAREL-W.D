@@ -44,15 +44,21 @@ const back = (
   request: NextRequest,
   params: string,
   anchor: 'application-done' | 'application-problem',
+  lang: 'en' | 'ru',
 ) =>
   // A 303 for a plain post; the address as data for the page's own upload (`lib/formResult.ts`).
-  formResult(request, new URL(`/careers${params}#${anchor}`, request.url))
-const sent = (request: NextRequest) => back(request, '?sent=1', 'application-done')
-const refused = (request: NextRequest, params: string) =>
-  back(request, params, 'application-problem')
+  // A form sent from /ru/careers carries `lang=ru` and lands back there (Russian section).
+  formResult(
+    request,
+    new URL(`${lang === 'ru' ? '/ru/careers' : '/careers'}${params}#${anchor}`, request.url),
+  )
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let raw: Record<string, unknown> = {}
+  const lang = (): 'en' | 'ru' => (raw.lang === 'ru' ? 'ru' : 'en')
+  const sent = (request: NextRequest) => back(request, '?sent=1', 'application-done', lang())
+  const refused = (request: NextRequest, params: string) =>
+    back(request, params, 'application-problem', lang())
   let attached: unknown[] = []
   try {
     const form = await request.formData()

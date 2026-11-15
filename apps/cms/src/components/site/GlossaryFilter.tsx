@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useId, useState } from 'react'
+import { RU_GLOSSARY_FILTER } from '../../lib/i18n/islandWords'
+import { useLocale } from '../../lib/i18n/uiClient'
 
 /**
  * The glossary's "Filter terms" box (PLAN.md D6). The page is complete without it: every term is
@@ -10,6 +12,8 @@ import { useEffect, useId, useState } from 'react'
  */
 export function GlossaryFilter({ total }: { total: number }) {
   const id = useId()
+  // Russian section (2026-11-15): the page's language from its address, no words as props.
+  const ru = useLocale() === 'ru'
   const [ready, setReady] = useState(false)
   const [query, setQuery] = useState('')
   const [shown, setShown] = useState(total)
@@ -34,7 +38,7 @@ export function GlossaryFilter({ total }: { total: number }) {
   return (
     <div className="glossary-filter">
       <label className="inquiry-form__label" htmlFor={id}>
-        Filter terms
+        {ru ? RU_GLOSSARY_FILTER.label : 'Filter terms'}
       </label>
       <input
         className="inquiry-form__input glossary-filter__input"
@@ -46,7 +50,7 @@ export function GlossaryFilter({ total }: { total: number }) {
         onChange={(event) => setQuery(event.currentTarget.value)}
       />
       <p className="glossary-filter__count" aria-live="polite">
-        {shown} of {total} terms
+        {ru ? RU_GLOSSARY_FILTER.count(shown, total) : `${shown} of ${total} terms`}
       </p>
     </div>
   )

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import type { CompanyPage, CompanySection } from '../../lib/companyPages'
 import { FACTORY_PHOTOS, type FactoryPhoto, factoryPhotoImage } from '../../lib/factoryPhotos'
+import { ruPhoto } from '../../lib/factoryPhotos.ru'
+import type { Locale } from '../../lib/locale'
 import { Breadcrumb } from './Breadcrumb'
 
 /**
@@ -58,6 +60,7 @@ export function SplitHero({
   photoSlug,
   action,
   byline,
+  locale = 'en',
 }: {
   page: CompanyPage
   trail: { name: string; path: string }[]
@@ -65,8 +68,10 @@ export function SplitHero({
   action?: ReactNode
   /** Who wrote the page and when (`Byline.tsx`), under the lede; careers has one, community not. */
   byline?: ReactNode
+  /** Russian section (2026-11-15): the breadcrumb and the photo's alt text in Russian. */
+  locale?: Locale
 }) {
-  const photo = factoryPhoto(photoSlug)
+  const photo = locale === 'ru' ? ruPhoto(factoryPhoto(photoSlug)) : factoryPhoto(photoSlug)
   const image = factoryPhotoImage(photo)
   const wide = photo.shape === 'wide'
   return (
@@ -74,7 +79,7 @@ export function SplitHero({
       <div className="blueprint site-hero__grid" aria-hidden="true" />
       <div className={`site-container split-hero${wide ? ' split-hero--wide' : ''}`}>
         <div className="split-hero__words">
-          <Breadcrumb trail={trail} />
+          <Breadcrumb trail={trail} locale={locale} />
           <p className="label">{page.eyebrow}</p>
           {/* `hero-legal`: this headline never swaps fonts mid-visit (site.css, 2026-10-01). */}
           {/* `display--long` where the headline runs long on a phone (base.css, VA-45): community's

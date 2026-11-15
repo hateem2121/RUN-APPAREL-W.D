@@ -1,5 +1,7 @@
 import { IntentLink as Link } from './IntentLink'
 import { ABOUT, type AboutPoint } from '../../lib/aboutCopy'
+import { ABOUT_RU, GROUND_ALT_RU } from '../../lib/aboutCopy.ru'
+import type { Locale } from '../../lib/locale'
 import { FACTORY_PHOTOS, factoryPhotoImage } from '../../lib/factoryPhotos'
 import { CountUp } from './CountUp'
 
@@ -28,7 +30,6 @@ import { CountUp } from './CountUp'
  * 390x844 and 1280x720). It was invisible while №01 was a paper section and appeared with D41.
  * The rise now moves the container of words and figures; the photo stays put and meets the hero.
  */
-const POINTS: readonly AboutPoint[] = ABOUT.points
 const GROUND = FACTORY_PHOTOS.find((photo) => photo.slug === 'solar-roof')
 
 /**
@@ -37,16 +38,20 @@ const GROUND = FACTORY_PHOTOS.find((photo) => photo.slug === 'solar-roof')
  */
 export const GROUND_ALT = 'The works from above, the roof covered in solar panels.'
 
-function Figure({ point }: { point: AboutPoint }) {
+function Figure({ point, locale }: { point: AboutPoint; locale: Locale }) {
   return (
     <>
       {point.prefix ? <span className="fact__prefix">{point.prefix} </span> : null}
-      {point.countUp ? <CountUp value={point.value} /> : point.value}
+      {point.countUp ? <CountUp value={point.value} locale={locale} /> : point.value}
     </>
   )
 }
 
-export function AboutSection() {
+export function AboutSection({ locale = 'en' }: { locale?: Locale } = {}) {
+  // Russian section (2026-11-15): the same block, its words from aboutCopy.ru.ts.
+  const ru = locale === 'ru'
+  const about = ru ? ABOUT_RU : ABOUT
+  const points: readonly AboutPoint[] = about.points
   const ground = GROUND ? factoryPhotoImage(GROUND) : null
   return (
     <section className="site-section about-ground">
@@ -60,7 +65,7 @@ export function AboutSection() {
             sizes="100vw"
             width={ground.width}
             height={ground.height}
-            alt={GROUND_ALT}
+            alt={ru ? GROUND_ALT_RU : GROUND_ALT}
             loading="lazy"
             decoding="async"
           />
@@ -68,34 +73,38 @@ export function AboutSection() {
       ) : null}
       <div className="site-container about" data-site-reveal>
         <div className="about__copy">
-          <p className="section-number">№01 · Who we are</p>
+          {ru ? (
+            <p className="section-number">№01 · Кто мы</p>
+          ) : (
+            <p className="section-number">№01 · Who we are</p>
+          )}
           <h2 className="display display--section">
-            {ABOUT.heading} <span className="serif-accent">{ABOUT.accent}</span>
+            {about.heading} <span className="serif-accent">{about.accent}</span>
           </h2>
-          <p className="site-lede">{ABOUT.lede}</p>
-          <p className="site-lede">{ABOUT.body}</p>
+          <p className="site-lede">{about.lede}</p>
+          <p className="site-lede">{about.body}</p>
           {/* The about page's way in (the about-factory build, 2026-10-09): a secondary link, the
               section keeping its one primary button ("Start a conversation" in the hero). Kept on
               the photo by the owner, 2026-10-16. */}
           <div className="site-actions">
             <Link className="btn btn--ghost" href="/about">
-              Our story <span aria-hidden="true">→</span>
+              {ru ? 'Наша история' : 'Our story'} <span aria-hidden="true">→</span>
             </Link>
           </div>
         </div>
         <dl className="about__points">
-          {POINTS.map((point) =>
+          {points.map((point) =>
             point.labelFirst ? (
               <div className="fact fact--label-first" key={point.label}>
                 <dt className="fact__label">{point.label}</dt>
                 <dd className="fact__value display display--section">
-                  <Figure point={point} />
+                  <Figure point={point} locale={locale} />
                 </dd>
               </div>
             ) : (
               <div className="fact" key={point.label}>
                 <dt className="fact__value display display--section">
-                  <Figure point={point} />
+                  <Figure point={point} locale={locale} />
                 </dt>
                 <dd className="fact__label">{point.label}</dd>
               </div>

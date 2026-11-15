@@ -1,6 +1,9 @@
 import { IntentLink as Link } from './IntentLink'
 import type { Family } from '../../lib/families'
+import { FAMILY_NAMES_RU } from '../../lib/families.ru'
 import { FAMILY_SOON, type FamilyPage } from '../../lib/familyPages'
+import { FAMILY_SOON_RU } from '../../lib/familyPages.ru'
+import type { Locale } from '../../lib/locale'
 import type { ProductCard } from '../../lib/projectPublic'
 import { ProductCardItem } from './ProductCardItem'
 
@@ -11,6 +14,8 @@ type FamilyGroupProps = {
   soon: boolean
   /** The first card's place on the whole page: the page's first card loads its picture first. */
   start: number
+  /** Russian section (2026-11-15): the family's name and the group's words in Russian. */
+  locale?: Locale
 }
 
 /**
@@ -22,7 +27,20 @@ type FamilyGroupProps = {
  * `e2e/productsGroupsHarness.ts` draws this component with the 19 live Teamwear garments and the
  * real stylesheets, and `e2e/productsGroups.spec.ts` measures it.
  */
-export function FamilyGroup({ entry, page, products, soon, start }: FamilyGroupProps) {
+export function FamilyGroup({
+  entry,
+  page,
+  products,
+  soon,
+  start,
+  locale = 'en',
+}: FamilyGroupProps) {
+  const name = locale === 'ru' ? (FAMILY_NAMES_RU[entry.name] ?? entry.name) : entry.name
+  // `FAMILY_SOON.label` and `FAMILY_SOON.ask` (the one-list test reads them here), or their Russian.
+  const soonWords =
+    locale === 'ru'
+      ? FAMILY_SOON_RU
+      : { label: FAMILY_SOON.label, ask: FAMILY_SOON.ask, href: FAMILY_SOON.href }
   return (
     <section id={entry.slug} className="gallery-group" aria-labelledby={`${entry.slug}-heading`}>
       <div className="gallery-group__head">
@@ -30,20 +48,20 @@ export function FamilyGroup({ entry, page, products, soon, start }: FamilyGroupP
         <h2 id={`${entry.slug}-heading`} className="display display--section gallery-group__title">
           {page ? (
             <Link className="gallery-group__link" href={page.path}>
-              {entry.name}
+              {name}
               {/* The no-break space keeps the arrow beside the last word. */}
               <span aria-hidden="true">&nbsp;&rarr;</span>
             </Link>
           ) : (
-            entry.name
+            name
           )}
         </h2>
         {soon ? (
           // No page and no garments yet: the owner's words for this family (Q21).
           <p className="gallery-group__soon">
-            <span className="label">{FAMILY_SOON.label}</span>
-            <Link className="gallery-group__ask" href={FAMILY_SOON.href}>
-              {FAMILY_SOON.ask}
+            <span className="label">{soonWords.label}</span>
+            <Link className="gallery-group__ask" href={soonWords.href}>
+              {soonWords.ask}
               <span aria-hidden="true">&rarr;</span>
             </Link>
           </p>
@@ -59,13 +77,20 @@ export function FamilyGroup({ entry, page, products, soon, start }: FamilyGroupP
               product={product}
               index={start + index}
               heading="h3"
+              locale={locale}
             />
           ))}
         </ul>
       ) : page ? (
         <p className="site-empty">
-          No 3D references in {entry.name} yet. The garments exist and the references are still
-          being built. Email us and we will send what we have.
+          {locale === 'ru' ? (
+            `В разделе «${name}» пока нет 3D-моделей. Сами изделия уже есть, а модели ещё готовятся. Напишите нам — пришлём то, что есть.`
+          ) : (
+            <>
+              No 3D references in {entry.name} yet. The garments exist and the references are still
+              being built. Email us and we will send what we have.
+            </>
+          )}
         </p>
       ) : null}
     </section>

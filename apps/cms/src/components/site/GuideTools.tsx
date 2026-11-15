@@ -16,6 +16,8 @@ import {
   MEASURES,
   type Measure,
 } from '../../lib/guideTools'
+import { BALL_WORDS_RU, ballOptionRu, CBM_WORDS_RU, GSM_WORDS_RU } from '../../lib/guideTools.ru'
+import { useLocale } from '../../lib/i18n/uiClient'
 
 /**
  * The guides' three small tools (C6, owner approved every word on 6 Nov 2026), each a block in the
@@ -26,6 +28,10 @@ import {
  * and countries are radios in a fieldset, drawn as the contact form's chips; the age group is a
  * native `select`; each result is an `<output>` (role `status`, so a screen reader hears it), and its
  * words wait about half a second after the last key so a number is not read out digit by digit.
+ *
+ * On a Russian guide (2026-11-15) the same tools in Russian: the page's language from its address
+ * (`useLocale`), the words from `guideTools.ru.ts`, and Russian figures ("5,3"; both "5,3" and "5.3"
+ * are read). The sums are the same functions, so the two languages cannot disagree.
  *
  * ⚠️ NOTHING IS SENT OR KEPT: no request, cookie or storage, and `ph-no-capture` keeps the block out of
  * session recordings (the draft's privacy rule; the site already masks every typed box).
@@ -109,26 +115,28 @@ function ToolFrame({
 }
 
 function GsmConverter() {
+  const locale = useLocale()
+  const GSM = locale === 'ru' ? GSM_WORDS_RU : GSM_WORDS
   const [unit, setUnit] = useState<GsmUnit>('gsm')
   const [typed, setTyped] = useState('')
-  const answer = convertWeight(typed, unit)
+  const answer = convertWeight(typed, unit, locale)
   const shown = useSettled(answer?.result ?? '')
-  const words = GSM_WORDS.units[unit]
+  const words = GSM.units[unit]
   return (
     <ToolFrame
       id="gsm-converter"
-      heading={GSM_WORDS.heading}
-      lead={GSM_WORDS.lead}
-      notes={[GSM_WORDS.rounding, GSM_WORDS.credit]}
+      heading={GSM.heading}
+      lead={GSM.lead}
+      notes={[GSM.rounding, GSM.credit]}
     >
       <Choices
         name="gsm-unit"
-        legend={GSM_WORDS.legend}
+        legend={GSM.legend}
         value={unit}
         onChange={setUnit}
         options={[
-          { value: 'gsm', label: GSM_WORDS.units.gsm.choice },
-          { value: 'oz', label: GSM_WORDS.units.oz.choice },
+          { value: 'gsm', label: GSM.units.gsm.choice },
+          { value: 'oz', label: GSM.units.oz.choice },
         ]}
       />
       <div className="inquiry-form__field">
@@ -161,34 +169,36 @@ function GsmConverter() {
 }
 
 function CbmCalculator() {
+  const locale = useLocale()
+  const CBM = locale === 'ru' ? CBM_WORDS_RU : CBM_WORDS
   const [unit, setUnit] = useState<CartonUnit>('cm')
   const [sizes, setSizes] = useState<Record<Measure, string>>({ length: '', width: '', height: '' })
   const [count, setCount] = useState('')
-  const answer = cartonVolume(sizes, count, unit)
+  const answer = cartonVolume(sizes, count, unit, locale)
   const shown = useSettled(answer.lines.join(' '))
   const wrongMeasure = (measure: Measure) => Boolean(answer.wrong?.includes(measure))
   return (
     <ToolFrame
       id="cbm-calculator"
-      heading={CBM_WORDS.heading}
-      lead={CBM_WORDS.lead}
-      notes={[CBM_WORDS.rounding, CBM_WORDS.closing, CBM_WORDS.credit]}
+      heading={CBM.heading}
+      lead={CBM.lead}
+      notes={[CBM.rounding, CBM.closing, CBM.credit]}
     >
       <Choices
         name="cbm-unit"
-        legend={CBM_WORDS.legend}
+        legend={CBM.legend}
         value={unit}
         onChange={setUnit}
         options={[
-          { value: 'cm', label: CBM_WORDS.units.cm },
-          { value: 'in', label: CBM_WORDS.units.in },
+          { value: 'cm', label: CBM.units.cm },
+          { value: 'in', label: CBM.units.in },
         ]}
       />
       <div className="guide-tool__measures">
         {MEASURES.map((measure) => (
           <div className="inquiry-form__field" key={measure}>
             <label className="inquiry-form__label" htmlFor={`cbm-${measure}`}>
-              {CBM_WORDS.measureLabel(measure, unit)}
+              {CBM.measureLabel(measure, unit)}
             </label>
             <input
               className="inquiry-form__input"
@@ -210,10 +220,10 @@ function CbmCalculator() {
       </p>
       <div className="inquiry-form__field">
         <label className="inquiry-form__label" htmlFor="cbm-count">
-          {CBM_WORDS.countLabel}
+          {CBM.countLabel}
         </label>
         <p className="guide-tool__hint" id="cbm-count-hint">
-          {CBM_WORDS.countHint}
+          {CBM.countHint}
         </p>
         <input
           className="inquiry-form__input"
@@ -238,19 +248,21 @@ function CbmCalculator() {
 }
 
 function BallSizeLookup() {
+  const locale = useLocale()
+  const BALL = locale === 'ru' ? BALL_WORDS_RU : BALL_WORDS
   const [country, setCountry] = useState<BallCountry>('england')
   const [group, setGroup] = useState('')
-  const shown = ballSize(country, group) ?? ''
+  const shown = ballSize(country, group, locale) ?? ''
   return (
     <ToolFrame
       id="ball-size-lookup"
-      heading={BALL_WORDS.heading}
-      lead={BALL_WORDS.lead}
-      notes={[BALL_WORDS.range, BALL_WORDS.credit]}
+      heading={BALL.heading}
+      lead={BALL.lead}
+      notes={[BALL.range, BALL.credit]}
     >
       <Choices
         name="ball-country"
-        legend={BALL_WORDS.legend}
+        legend={BALL.legend}
         value={country}
         onChange={(next) => {
           // A change of content, not of context: the list is rebuilt and the answer cleared.
@@ -258,13 +270,13 @@ function BallSizeLookup() {
           setGroup('')
         }}
         options={[
-          { value: 'england', label: BALL_WORDS.countries.england },
-          { value: 'us', label: BALL_WORDS.countries.us },
+          { value: 'england', label: BALL.countries.england },
+          { value: 'us', label: BALL.countries.us },
         ]}
       />
       <div className="inquiry-form__field">
         <label className="inquiry-form__label" htmlFor="ball-group">
-          {BALL_WORDS.listLabel[country]}
+          {BALL.listLabel[country]}
         </label>
         <select
           className="inquiry-form__input guide-tool__select"
@@ -272,10 +284,10 @@ function BallSizeLookup() {
           value={group}
           onChange={(event) => setGroup(event.target.value)}
         >
-          <option value="">{BALL_WORDS.firstLine}</option>
+          <option value="">{BALL.firstLine}</option>
           {BALL_SIZES[country].map((row) => (
             <option key={row.group} value={row.group}>
-              {row.group}
+              {locale === 'ru' ? ballOptionRu(row.group) : row.group}
             </option>
           ))}
         </select>

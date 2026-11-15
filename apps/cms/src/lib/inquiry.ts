@@ -187,7 +187,15 @@ export type InquiryEmailExtras = {
   filesError?: string
   /** The inquiry's own screen in the admin: files are opened there, never attached to mail. */
   adminUrl?: string
+  /**
+   * The form's language when it was not English (Russian section, 2026-11-15): the team then knows
+   * the buyer wrote from /ru/contact and may prefer an answer in Russian.
+   */
+  language?: 'ru'
 }
+
+/** How the team's email names a Russian form, in its text and its HTML alike. */
+export const RUSSIAN_FORM_LINE = 'Russian (/ru/contact)'
 
 export function formatInquiryEmail(
   value: InquiryInput,
@@ -208,6 +216,7 @@ export function formatInquiryEmail(
     `Email:   ${value.email}`,
     ...optional.filter(([, text]) => text).map(([label, text]) => `${label} ${text}`),
     `Sent:    ${receivedAt.toISOString()}`,
+    ...(extras.language === 'ru' ? [`Language: ${RUSSIAN_FORM_LINE}`] : []),
     ...(files.length > 0
       ? [`Files:   ${files.map((file) => `${file.name} (${file.size})`).join(', ')}`]
       : []),

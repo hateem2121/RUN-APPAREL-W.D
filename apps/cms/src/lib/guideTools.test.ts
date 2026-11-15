@@ -6,7 +6,9 @@ import {
   cartonVolume,
   convertWeight,
   GSM_WORDS,
+  measureError,
   readDecimal,
+  toolWords,
 } from './guideTools'
 
 /**
@@ -193,5 +195,80 @@ describe('reading a typed number', () => {
     for (const typed of ['1.2.3', '5,3.1', '.5', '5.', '1e3', '+5', '5 3']) {
       expect(readDecimal(typed), typed).toBeNull()
     }
+  })
+})
+
+/*
+ * The same tools on a Russian guide (Russian section, 2026-11-15; the language audit found all three
+ * drawing English there). What would have to break for these to fail: a Russian page shows an
+ * English word, a point for decimals or a comma for thousands, a wrong ending after a count of
+ * cartons, or a figure different from the English one for the same input.
+ */
+describe('in Russian', () => {
+  const NBSP = String.fromCharCode(0xa0)
+  it('converts with a decimal comma and the same figures as English', () => {
+    expect(convertWeight('180', 'gsm', 'ru')).toEqual({ result: '180 г/м² — это 5,31 oz/yd².' })
+    expect(convertWeight('5,3', 'oz', 'ru')).toEqual({ result: '5,3 oz/yd² — это 179,7 г/м².' })
+    expect(convertWeight('1000', 'oz', 'ru')).toEqual({
+      result: `1${NBSP}000 oz/yd² — это 33${NBSP}905,8 г/м².`,
+    })
+    expect(convertWeight('abc', 'gsm', 'ru')?.error).toBe(
+      'Введите плотность цифрами, например 180 или 5,3.',
+    )
+    expect(convertWeight('0', 'gsm', 'ru')?.error).toBe('Плотность ткани должна быть больше 0.')
+  })
+
+  it('works out cartons the same, with the right ending after the count', () => {
+    const ru = (count: string) =>
+      cartonVolume({ length: '60', width: '40', height: '40' }, count, 'cm', 'ru')
+    expect(ru('1').lines).toEqual(['Один короб: 0,096 м³ (CBM), или 3,39 куб. фута.'])
+    expect(ru('10').lines[1]).toBe('Итого за 10 коробов: 0,960 м³, или 33,90 куб. фута.')
+    expect(ru('2').lines[1]).toMatch(/^Итого за 2 короба:/)
+    expect(ru('21').lines[1]).toMatch(/^Итого за 21 короб:/)
+    expect(ru('22').lines[1]).toMatch(/^Итого за 22 короба:/)
+    expect(ru('111').lines[1]).toMatch(/^Итого за 111 коробов:/)
+    expect(ru('12345').lines[1]).toMatch(new RegExp(`^Итого за 12${NBSP}345 коробов:`))
+    expect(cartonVolume({ length: '1', width: '1', height: '1' }, '1', 'cm', 'ru').lines[0]).toBe(
+      'Один короб: менее 0,001 м³ (CBM), или менее 0,01 куб. фута.',
+    )
+  })
+
+  it('names every measurement in error in Russian, in one message', () => {
+    expect(measureError(['length'], 'ru')).toBe(
+      'Проверьте длину. Размеры — числа больше 0, например 60 или 40,5.',
+    )
+    expect(measureError(['length', 'width', 'height'], 'ru')).toMatch(
+      /^Проверьте длину, ширину и высоту\./,
+    )
+    expect(cartonVolume({ length: '', width: '', height: '' }, '0', 'cm', 'ru').countError).toBe(
+      'Количество коробов — целое число, не меньше 1.',
+    )
+  })
+
+  it('looks up the ball size in Russian from the same list', () => {
+    expect(ballSize('england', 'Under 9 (Year 4)', 'ru')).toBe(
+      'До 9 лет: размер 3 (таблица FutureFit The FA).',
+    )
+    expect(ballSize('us', '13 and under', 'ru')).toBe(
+      '13 лет и младше: размер 5 (US Youth Soccer, правило 303).',
+    )
+  })
+
+  it('has a Russian word for every English one, and no English left', () => {
+    for (const tool of ['gsm-converter', 'cbm-calculator', 'ball-size-lookup'] as const) {
+      const english = toolWords(tool)
+      const russian = toolWords(tool, 'ru')
+      expect(russian.length, tool).toBe(english.length)
+      for (const word of russian) expect(word, `${tool}: «${word}»`).toMatch(/[А-яЁё]/)
+    }
+  })
+
+  it('leaves English exactly as it was', () => {
+    expect(convertWeight('180', 'gsm')).toEqual({
+      result: '180 GSM is 5.31 ounces per square yard.',
+    })
+    expect(convertWeight('1000', 'oz')?.result).toBe(
+      '1,000 ounces per square yard is 33,905.8 GSM.',
+    )
   })
 })

@@ -104,7 +104,8 @@
       // Loaded by a path string, not an import: e2e/productsGroupsHarness.ts aliases
       // `next/link` to it for the harness build. `ignoreFiles` drops it from "unused files"
       // only, so it is still analysed for everything else (knip.dev configuration reference).
-      "ignoreFiles": ["e2e/fixtures/nextLinkShim.tsx"]
+      // nextNavigationShim.ts the same way, for next/navigation (Russian section, 2026-11-15).
+      "ignoreFiles": ["e2e/fixtures/nextLinkShim.tsx", "e2e/fixtures/nextNavigationShim.ts"]
     },
     "apps/viewer": {
       "entry": ["scripts/*.mjs"],

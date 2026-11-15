@@ -11,6 +11,7 @@ import {
   parseCssColour,
   ROUTES,
 } from '../../lib/globe'
+import { useLocale } from '../../lib/i18n/uiClient'
 import { webglAvailable } from '../../lib/webglAvailable'
 
 /**
@@ -319,6 +320,8 @@ export function ContactGlobe({
   /** The company's name as its Google listing carries it: the directions' destination. */
   name?: string
 }) {
+  // Russian section (2026-11-15): the page's language from its address, no words as props.
+  const ru = useLocale() === 'ru'
   const works = useMemo<LatLon | null>(() => parseCoordinates(coordinates), [coordinates])
   // The street on a line of its own, the town and country under it, as a letter is addressed.
   const [street, ...town] = address.split(', ')
@@ -389,7 +392,7 @@ export function ContactGlobe({
           href={directionsUrl(name, address)}
           rel="noopener"
         >
-          Get directions <span aria-hidden="true">↗</span>
+          {ru ? 'Как добраться' : 'Get directions'} <span aria-hidden="true">↗</span>
         </a>
       </div>
       {live ? (

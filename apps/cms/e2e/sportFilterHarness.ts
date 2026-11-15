@@ -27,6 +27,10 @@ let cached: Promise<string> | null = null
 async function bundle(): Promise<string> {
   const result = await build({
     configFile: false,
+    // Islands read their language from next/navigation (fixtures/nextNavigationShim.ts says why).
+    resolve: {
+      alias: { 'next/navigation': join(CMS, 'e2e', 'fixtures', 'nextNavigationShim.ts') },
+    },
     logLevel: 'error',
     root: CMS,
     oxc: { jsx: { runtime: 'automatic', development: false } },

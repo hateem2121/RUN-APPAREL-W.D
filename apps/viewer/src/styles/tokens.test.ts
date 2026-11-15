@@ -1798,6 +1798,27 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and IBM Plex Mono for lab
    * imports, so they are the brand, not a third family — and the check below holds them to that.
    */
   const NO_SWAP_COPIES = ['Archivo Optional', 'Instrument Serif Optional']
+  /*
+   * The Russian section's Cyrillic companions (packages/ui/src/cyrillic.css, owner's choice
+   * 2026-11-15): Archivo and Instrument Serif have no Cyrillic, so Roboto Flex and Cormorant are
+   * declared UNDER the brand's family names. Allowed only with these two committed files and a
+   * `unicode-range` inside the Cyrillic block, so a companion can never draw a Latin letter and
+   * the brand faces stay the only ones an English page uses.
+   */
+  const CYRILLIC_COMPANIONS: Record<string, RegExp> = {
+    'Archivo Variable': /^\s*url\(\.\.\/fonts\/roboto-flex-cyrillic-wdth-100-125\.woff2\)/,
+    'Instrument Serif': /^\s*url\(\.\.\/fonts\/cormorant-italic-500-cyrillic\.woff2\)/,
+  }
+  /** True when every range in a `unicode-range` lies inside U+0400-U+052F (Cyrillic). */
+  const cyrillicOnly = (range: string) =>
+    range.trim() !== '' &&
+    range.split(',').every((part) => {
+      const found = part.trim().match(/^U\+([0-9A-F]+)(?:-([0-9A-F]+))?$/i)
+      if (!found?.[1]) return false
+      const low = Number.parseInt(found[1], 16)
+      const high = Number.parseInt(found[2] ?? found[1], 16)
+      return low >= 0x400 && high <= 0x52f && low <= high
+    })
   const SYSTEM = [
     'ui-monospace',
     'SF Mono',
@@ -1821,19 +1842,29 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and IBM Plex Mono for lab
       .map((family) => family.trim().replace(/^["']|["']$/g, ''))
       .filter(Boolean)
 
-  function standIns(): Map<string, string> {
-    const faces = new Map<string, string>()
+  /**
+   * Every @font-face block, each one kept. (A map by family kept only the LAST block of a name,
+   * so the Cyrillic companion hid Archivo's own blocks from this check; found 2026-11-15.)
+   */
+  function standIns(): { family: string; src: string; range: string }[] {
+    const faces: { family: string; src: string; range: string }[] = []
     for (const { source } of cssFiles()) {
       for (const block of source.matchAll(/@font-face\s*\{([^}]*)\}/g)) {
         const family = block[1]?.match(/font-family:\s*["']([^"']+)["']/)?.[1]
-        if (family) faces.set(family, block[1]?.match(/src:\s*([^;]+);/)?.[1] ?? '')
+        if (family)
+          faces.push({
+            family,
+            src: block[1]?.match(/src:\s*([^;]+);/)?.[1] ?? '',
+            range: block[1]?.match(/unicode-range:\s*([^;]+);/)?.[1] ?? '',
+          })
       }
     }
     return faces
   }
 
   it('every family in every font stack is a brand face, the system stack, or a local stand-in', () => {
-    const faces = standIns()
+    const blocks = standIns()
+    const faces = new Set(blocks.map((block) => block.family))
     expect(faces.size, 'no @font-face stand-in was found — the scan is broken').toBeGreaterThan(0)
     const offenders: string[] = []
     for (const { name, source } of cssFiles()) {
@@ -1858,7 +1889,16 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and IBM Plex Mono for lab
         }
       }
     }
-    for (const [family, src] of faces) {
+    for (const { family, src, range } of blocks) {
+      const companion = CYRILLIC_COMPANIONS[family]
+      if (companion?.test(src)) {
+        if (!cyrillicOnly(range)) {
+          offenders.push(
+            `@font-face "${family}" companion reaches outside Cyrillic (unicode-range "${range}")`,
+          )
+        }
+        continue
+      }
       const brandFiles = BRAND_FILES[family]
       if (brandFiles) {
         if (!brandFiles.test(src)) {

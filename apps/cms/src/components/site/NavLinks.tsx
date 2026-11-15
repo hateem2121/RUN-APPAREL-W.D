@@ -8,6 +8,7 @@ import {
   SITE_MENU_LINKS,
   SITE_NAV_LINKS,
 } from '@run-apparel/shared'
+import { isRussianPath, RU_MENU_LINKS, RU_NAV_LINKS } from '../../lib/i18n/islandWords'
 import { IntentLink as Link } from './IntentLink'
 import { LinkPending } from './LinkPending'
 import { usePathname } from 'next/navigation'
@@ -35,6 +36,10 @@ import { useEffect } from 'react'
  */
 export function NavLinks() {
   const pathname = usePathname()
+  // The Russian section's links (2026-11-15), chosen by the page's own address: no props here.
+  const [navLinks, menuLinks] = isRussianPath(pathname)
+    ? [RU_NAV_LINKS, RU_MENU_LINKS]
+    : [SITE_NAV_LINKS, SITE_MENU_LINKS]
 
   /*
    * ⚠️ A NEXT LINK DOES NOT CLOSE THE MENU. The header lives in the layout, which Next keeps
@@ -100,7 +105,7 @@ export function NavLinks() {
 
   return (
     <>
-      {SITE_NAV_LINKS.map(({ href, label }) => (
+      {navLinks.map(({ href, label }) => (
         <Link
           className="nav-link"
           key={href}
@@ -115,7 +120,7 @@ export function NavLinks() {
         </Link>
       ))}
       {/* In the phone menu only (VA-37): `nav-link--menu` is hidden in the wide bar (notch.css). */}
-      {SITE_MENU_LINKS.map(({ href, label }) => (
+      {menuLinks.map(({ href, label }) => (
         <Link
           className="nav-link nav-link--menu"
           key={href}

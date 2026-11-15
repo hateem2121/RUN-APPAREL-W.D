@@ -1,6 +1,10 @@
 import { IntentLink as Link } from './IntentLink'
 import { FACTS, WHAT_WE_ARE, WHAT_WE_MAKE } from '../../lib/companyFacts'
+import { WHAT_WE_ARE_RU, WHAT_WE_MAKE_RU } from '../../lib/companyFacts.ru'
 import { HERO_PHOTO, heroPhotoSrc } from '../../lib/factoryPhotos'
+import { HERO_PHOTO_ALT_RU } from '../../lib/factoryPhotos.ru'
+import { t } from '../../lib/i18n/ui'
+import type { Locale } from '../../lib/locale'
 
 /**
  * The home page's first screen, over the stitching floor (owner, 2026-09-29: "Factory photo").
@@ -27,7 +31,9 @@ import { HERO_PHOTO, heroPhotoSrc } from '../../lib/factoryPhotos'
  */
 const minimum = FACTS.find((fact) => fact.label.startsWith('Minimum'))?.value ?? ''
 
-export function HomeHero() {
+export function HomeHero({ locale = 'en' }: { locale?: Locale } = {}) {
+  // Russian section (2026-11-15): the same hero, the same figures, in Russian.
+  const ru = locale === 'ru'
   const [tall640, tall1080] = HERO_PHOTO.widths.heroTall
   const [wide1280, wide1920, wide2560] = HERO_PHOTO.widths.heroWide
   return (
@@ -64,7 +70,7 @@ export function HomeHero() {
           sizes="100vw"
           width={wide1280}
           height={Math.round(wide1280 / HERO_PHOTO.aspect.heroWide)}
-          alt={HERO_PHOTO.alt}
+          alt={ru ? HERO_PHOTO_ALT_RU : HERO_PHOTO.alt}
           loading="eager"
           fetchPriority="high"
           decoding="async"
@@ -77,25 +83,45 @@ export function HomeHero() {
           a phone can drop it and give the second half a line (site.css). The text, spaces
           included, is exactly what it was: `HomeHero.test.ts` holds it.
         */}
-        <p className="label">
-          [ Family-run since 1889<span className="label__dot"> · </span>
-          <span className="label__tail">Start from {minimum} pieces per style ]</span>
-        </p>
+        {ru ? (
+          <p className="label">
+            [ Семейное производство с 1889 года<span className="label__dot"> · </span>
+            <span className="label__tail">Заказ от {minimum} шт. на модель ]</span>
+          </p>
+        ) : (
+          <p className="label">
+            [ Family-run since 1889<span className="label__dot"> · </span>
+            <span className="label__tail">Start from {minimum} pieces per style ]</span>
+          </p>
+        )}
         {/* `hero-home`: stand-in faces sized to these words, so the font swap moves nothing (site.css). */}
-        <h1 className="display display--hero hero-home">
-          Made to order. <span className="serif-accent">Made&nbsp;properly.</span>
-        </h1>
+        {ru ? (
+          <h1 className="display display--hero hero-home">
+            Шьём на заказ. <span className="serif-accent">Шьём на совесть.</span>
+          </h1>
+        ) : (
+          <h1 className="display display--hero hero-home">
+            Made to order. <span className="serif-accent">Made&nbsp;properly.</span>
+          </h1>
+        )}
         {/* The definition every profile opens with (owner, 2026-10-11); `HomeHero.test.ts` holds it. */}
-        <p className="site-lede">
-          RUN APPAREL is a {WHAT_WE_ARE}: {WHAT_WE_MAKE}, made to order for the brands, teams and
-          organizations that never look back.
-        </p>
+        {ru ? (
+          <p className="site-lede">
+            RUN APPAREL — {WHAT_WE_ARE_RU}: {WHAT_WE_MAKE_RU} — на заказ для брендов, команд и
+            организаций, которые идут только вперёд.
+          </p>
+        ) : (
+          <p className="site-lede">
+            RUN APPAREL is a {WHAT_WE_ARE}: {WHAT_WE_MAKE}, made to order for the brands, teams and
+            organizations that never look back.
+          </p>
+        )}
         <div className="site-actions">
           <Link className="btn btn--primary" href="/contact#inquiry">
-            Start a conversation
+            {ru ? t('ru', 'Start a conversation') : 'Start a conversation'}
           </Link>
           <Link className="btn btn--ghost" href="/products">
-            See products in 3D
+            {ru ? t('ru', 'See products in 3D') : 'See products in 3D'}
           </Link>
         </div>
       </div>

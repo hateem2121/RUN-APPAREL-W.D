@@ -1,4 +1,4 @@
-import type { InquiryEmailExtras, InquiryInput } from './inquiry'
+import { type InquiryEmailExtras, type InquiryInput, RUSSIAN_FORM_LINE } from './inquiry'
 import { SUBJECTS } from './inquiryForm'
 
 /**
@@ -157,6 +157,7 @@ export function teamEmailHtml({ value, id, receivedAt, extras = {} }: TeamEmailI
       ['Country', value.country],
       ['Email', value.email],
       ['Phone', value.phone],
+      ['Language', extras.language === 'ru' ? RUSSIAN_FORM_LINE : ''],
     ] as [string, string][]
   ).filter(([, text]) => text)
   const files = extras.files ?? []

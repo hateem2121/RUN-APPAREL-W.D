@@ -114,8 +114,8 @@ function derivationErrors(face: StandInFace): string[] {
 const PAGE_FILES: Record<string, string> = {
   // The home hero moved into its own component on 2026-09-29 (the photo hero); same words.
   '/': './components/site/HomeHero.tsx',
-  '/products': './app/(frontend)/products/page.tsx',
-  '/contact': './app/(frontend)/contact/page.tsx',
+  '/products': './components/site/ProductsPage.tsx',
+  '/contact': './components/site/ContactPage.tsx',
 }
 
 interface Headline {
@@ -135,7 +135,11 @@ function calibratedHeadlines(script: string): Headline[] {
 
 /** The hero headline in a page's JSX, split the way the calibration script splits it. */
 function heroHeadline(tsx: string): { archivo: string; accent: string | null } | null {
-  const h1 = tsx.match(/<h1 className="display display--hero[^"]*">([\s\S]*?)<\/h1>/)?.[1]
+  // The ENGLISH headline: a page that also draws its Russian twin (2026-11-15) has a second <h1>,
+  // in Cyrillic, which these Latin stand-in faces were never sized for.
+  const h1 = [...tsx.matchAll(/<h1 className="display display--hero[^"]*">([\s\S]*?)<\/h1>/g)]
+    .map((match) => match[1] ?? '')
+    .find((text) => !/[\u0400-\u04FF]/.test(text))
   if (h1 === undefined) return null
   // `&nbsp;` is how the pages keep a headline's last two words together (TY-12); it renders as
   // a space, and the calibration table measures it as one.

@@ -1,6 +1,10 @@
 import type { CSSProperties } from 'react'
 import { FACTORY_PHOTOS, factoryPhotoImage, stepPhotoSrcSet } from '../../lib/factoryPhotos'
+import { t } from '../../lib/i18n/ui'
+import type { Locale } from '../../lib/locale'
+import { ruPhoto } from '../../lib/factoryPhotos.ru'
 import { ORDER_PHASES } from '../../lib/orderProcess'
+import { ORDER_PHASE_NAMES_RU, ORDER_PHASES_RU } from '../../lib/orderProcess.ru'
 import { OrderStagesList } from './OrderStagesList'
 
 /**
@@ -75,15 +79,21 @@ export const STEP_CROP_MEDIA = {
 const STEP_COUNT = ORDER_PHASES.reduce((sum, { steps }) => sum + steps.length, 0)
 
 /** Each stage with its steps' numbers, counted on from the stages before it (1–2, 3–4, …). */
-const STAGES = ORDER_PHASES.map((phase, stage) => {
-  const before = ORDER_PHASES.slice(0, stage).reduce((sum, { steps }) => sum + steps.length, 0)
-  return { ...phase, first: before + 1 }
-})
+function stagesOf(phases: typeof ORDER_PHASES) {
+  return phases.map((phase, stage) => {
+    const before = phases.slice(0, stage).reduce((sum, { steps }) => sum + steps.length, 0)
+    return { ...phase, first: before + 1 }
+  })
+}
 
-export function OrderSteps() {
+const STAGES = stagesOf(ORDER_PHASES)
+// The Russian section's steps (2026-11-15): the same stages, steps, actors and photos, in Russian.
+const STAGES_RU = stagesOf(ORDER_PHASES_RU)
+
+export function OrderSteps({ locale = 'en' }: { locale?: Locale } = {}) {
   return (
     <OrderStagesList>
-      {STAGES.map((phase, stage) => {
+      {(locale === 'ru' ? STAGES_RU : STAGES).map((phase, stage) => {
         const first = phase.first
         return (
           <li
@@ -96,7 +106,10 @@ export function OrderSteps() {
             <ol className="order-stage__steps" role="list" start={first}>
               {phase.steps.map((step, index) => {
                 const number = first + index
-                const photo = PHOTOS.get(step.photo)
+                // A Russian page reads the photo's Russian words (`ruPhoto`; the language audit of
+                // 2026-11-15 found these alts in English on /ru and the order guide).
+                const found = PHOTOS.get(step.photo)
+                const photo = found && locale === 'ru' ? ruPhoto(found) : found
                 const image = photo ? factoryPhotoImage(photo) : null
                 const [across, down] = photo?.focus ?? [50, 50]
                 const phoneSet = photo ? stepPhotoSrcSet(photo, 'phone') : null
@@ -119,7 +132,7 @@ export function OrderSteps() {
                       <div className="order-step">
                         {index === 0 ? (
                           // One string, so the markup holds the name whole ("Stage 1 · Talk"), not in three pieces.
-                          <p className="order-stage__name">{`Stage ${stage + 1} · ${phase.name}`}</p>
+                          <p className="order-stage__name">{`${t(locale, 'Stage')} ${stage + 1} · ${locale === 'ru' ? ORDER_PHASE_NAMES_RU[phase.name] : phase.name}`}</p>
                         ) : null}
                         <div className="order-step__top">
                           <span
@@ -133,13 +146,13 @@ export function OrderSteps() {
                            * pill's bare "You" or "We" told a screen reader nothing about whose turn.
                            */}
                           <span className="visually-hidden">
-                            {`Step ${number}, ${step.actor === 'You' ? 'your move' : 'our move'}`}
+                            {`${t(locale, 'Step')} ${number}, ${step.actor === 'You' ? t(locale, 'your move') : t(locale, 'our move')}`}
                           </span>
                           <span
                             className={`order-step__actor order-step__actor--${step.actor}`}
                             aria-hidden="true"
                           >
-                            {step.actor}
+                            {step.actor === 'You' ? t(locale, 'You') : t(locale, 'We')}
                           </span>
                         </div>
                         <div className="order-step__words">

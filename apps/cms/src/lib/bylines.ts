@@ -1,3 +1,6 @@
+import { AUTHOR_ROLES_RU } from './bylines.ru'
+import type { Locale } from './locale'
+
 /**
  * Who wrote a page, when it first went live, and when its words last changed (findability audit,
  * 2026-10-08).
@@ -354,6 +357,14 @@ export function bylineFor(path: string): Byline | undefined {
   return BYLINES[path]
 }
 
-/** The words the byline prints for its writer. */
-export const authorName = (author: Author): string =>
-  author.kind === 'person' ? author.name : author.role
+/**
+ * The words the byline prints for its writer. On a Russian page a role is in Russian
+ * (`bylines.ru.ts`, which throws at build for a role it lacks); a person's name stays as written.
+ */
+export const authorName = (author: Author, locale: Locale = 'en'): string => {
+  if (author.kind === 'person') return author.name
+  if (locale === 'en') return author.role
+  const role = AUTHOR_ROLES_RU[author.role]
+  if (!role) throw new Error(`bylines.ru.ts: no Russian for the byline role "${author.role}"`)
+  return role
+}

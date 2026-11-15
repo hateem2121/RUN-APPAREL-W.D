@@ -1,6 +1,9 @@
 import type { ProductCard } from '../../lib/content'
 import type { Family } from '../../lib/families'
+import type { Locale } from '../../lib/locale'
 import { type Sport, sportCounts, sportPlaces, sportsFor } from '../../lib/sports'
+import { SPORT_NAMES_RU } from '../../lib/sports.ru'
+import { t } from '../../lib/i18n/ui'
 import { ProductCardItem } from './ProductCardItem'
 import { TicketDismiss } from './TicketDismiss'
 
@@ -19,9 +22,11 @@ import { TicketDismiss } from './TicketDismiss'
 export function GarmentGrid({
   family,
   garments,
+  locale = 'en',
 }: {
   family: Family
   garments: readonly ProductCard[]
+  locale?: Locale
 }) {
   const sports = sportsFor(family)
   const places = sportPlaces(garments, sports)
@@ -37,6 +42,7 @@ export function GarmentGrid({
           index={index + 1}
           heading="h3"
           place={divided ? places[index] : undefined}
+          locale={locale}
         />
       ))}
     </ul>
@@ -51,7 +57,7 @@ export function GarmentGrid({
     )
   return (
     <div className="sport-scope">
-      <SportFilter counts={counts} total={garments.length} />
+      <SportFilter counts={counts} total={garments.length} locale={locale} />
       {grid}
       <TicketDismiss />
     </div>
@@ -62,9 +68,11 @@ export function GarmentGrid({
 function SportFilter({
   counts,
   total,
+  locale,
 }: {
   counts: ReadonlyArray<{ sport: Sport; count: number }>
   total: number
+  locale: Locale
 }) {
   const chip = (value: string, label: string, count: number) => (
     <label key={value} className="filter-chip sport-filter__chip">
@@ -81,10 +89,16 @@ function SportFilter({
   )
   return (
     <fieldset className="sport-filter">
-      <legend className="visually-hidden">Sport</legend>
+      <legend className="visually-hidden">{t(locale, 'Sport')}</legend>
       <div className="filter-bar filter-bar--scroll">
-        {chip('all', 'All', total)}
-        {counts.map(({ sport, count }) => chip(sport.key, sport.label, count))}
+        {chip('all', t(locale, 'All'), total)}
+        {counts.map(({ sport, count }) =>
+          chip(
+            sport.key,
+            locale === 'ru' ? (SPORT_NAMES_RU[sport.label] ?? sport.label) : sport.label,
+            count,
+          ),
+        )}
       </div>
     </fieldset>
   )

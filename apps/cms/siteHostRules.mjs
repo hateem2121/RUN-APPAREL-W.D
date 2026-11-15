@@ -7,6 +7,7 @@ import {
   GUIDE_PAGE_SOURCES,
   JOURNAL_PAGE_SOURCES,
   POLICY_PAGE_SOURCES,
+  RU_PAGE_SOURCES,
   sourceMatches,
 } from './publicViewerHeaders.mjs'
 import { escapeRegExp } from './regexEscape.mjs'
@@ -102,6 +103,8 @@ export const CMS_PUBLIC_PATHS = [
   // the admin host hands out (a preview from the CMS, say) reaches the site.
   ...JOURNAL_PAGE_SOURCES,
   ...CASE_STUDY_PAGE_SOURCES,
+  // The Russian section (2026-11-15): pages of the site, so the admin host hands them over too.
+  ...RU_PAGE_SOURCES,
 ]
 
 /**

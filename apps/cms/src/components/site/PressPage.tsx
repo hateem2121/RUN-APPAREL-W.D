@@ -1,5 +1,10 @@
 import { WHAT_WE_ARE } from '../../lib/companyFacts'
+import { WHAT_WE_ARE_RU } from '../../lib/companyFacts.ru'
 import { PRESS_PAGE } from '../../lib/companyPages'
+import { PRESS_PAGE_RU } from '../../lib/companyPages.ru'
+import { ruPhoto } from '../../lib/factoryPhotos.ru'
+import type { Locale } from '../../lib/locale'
+import { PRESS_FACTS_RU, PRESS_PHOTO_USAGE_RU } from '../../lib/press.ru'
 import { factoryPhotoImage } from '../../lib/factoryPhotos'
 import { formatPostDate } from '../../lib/journal'
 import type { JournalPostView } from '../../lib/journalPublic'
@@ -39,11 +44,15 @@ const PHOTO_SIZES = {
 export function PressPage({
   companyName,
   news,
+  locale = 'en',
 }: {
   companyName: string
   news: readonly JournalPostView[]
+  /** Russian section (2026-11-15): the same page in Russian; the news are English posts. */
+  locale?: Locale
 }) {
-  const page = PRESS_PAGE
+  const ru = locale === 'ru'
+  const page = ru ? PRESS_PAGE_RU : PRESS_PAGE
   const trail = [{ name: page.title, path: page.path }]
   const about = sectionIn(page, 'about')
   const facts = sectionIn(page, 'quick-facts')
@@ -51,18 +60,19 @@ export function PressPage({
   const newsSection = sectionIn(page, 'news')
   const contact = sectionIn(page, 'media-contact')
   const rows = [
-    { label: 'Legal name', value: companyName },
-    { label: 'Address', value: formatAddress() },
-    ...PRESS_FACTS,
+    { label: ru ? 'Юридическое название' : 'Legal name', value: companyName },
+    { label: ru ? 'Адрес' : 'Address', value: formatAddress() },
+    ...(ru ? PRESS_FACTS_RU : PRESS_FACTS),
   ]
 
   return (
     <>
-      <JsonLd data={breadcrumbTrailJsonLd(trail)} />
+      <JsonLd data={breadcrumbTrailJsonLd(trail, locale)} />
       <SplitHero
         page={page}
         trail={trail}
         photoSlug={PRESS_HERO_PHOTO}
+        locale={locale}
         action={
           // The section's own heading as the link's words: no new label.
           <a className="btn btn--ghost" href={`#${contact.id}`}>
@@ -77,7 +87,7 @@ export function PressPage({
             <Heading id={about.id}>{about.heading}</Heading>
             <div className="company-head__words">
               <p className="site-lede">
-                {companyName} is a {WHAT_WE_ARE}.
+                {ru ? `${companyName} — ${WHAT_WE_ARE_RU}.` : `${companyName} is a ${WHAT_WE_ARE}.`}
               </p>
               {sentences(about).map((text) => (
                 <p className="site-lede" key={text}>
@@ -118,11 +128,12 @@ export function PressPage({
           <div className="company-head">
             <Heading id={photos.id}>{photos.heading}</Heading>
             <div className="company-head__words">
-              <p className="site-lede">{PRESS_PHOTO_USAGE}</p>
+              <p className="site-lede">{ru ? PRESS_PHOTO_USAGE_RU : PRESS_PHOTO_USAGE}</p>
             </div>
           </div>
           <ul className="press-photos">
-            {PRESS_PHOTOS.map((photo) => {
+            {PRESS_PHOTOS.map((english) => {
+              const photo = ru ? ruPhoto(english) : english
               const file = pressPhotoDownload(photo)
               return (
                 <li
@@ -140,9 +151,9 @@ export function PressPage({
                     className="press-photos__download"
                     href={file.href}
                     download
-                    aria-label={`Download: ${photo.alt}`}
+                    aria-label={ru ? `Скачать: ${photo.alt}` : `Download: ${photo.alt}`}
                   >
-                    Download
+                    {ru ? 'Скачать' : 'Download'}
                   </a>
                 </li>
               )
@@ -159,7 +170,10 @@ export function PressPage({
               {news.map((post) => (
                 <li key={post.slug}>
                   <a href={post.path}>{post.title}</a>{' '}
-                  <time dateTime={post.publishedAt}>{formatPostDate(post.publishedAt)}</time>
+                  <time dateTime={post.publishedAt}>
+                    {formatPostDate(post.publishedAt, locale)}
+                  </time>
+                  {ru ? <span className="label"> на английском</span> : null}
                 </li>
               ))}
             </ul>
@@ -183,7 +197,7 @@ export function PressPage({
         </div>
       </section>
 
-      <CompanyClosing links={page.links} />
+      <CompanyClosing links={page.links} locale={locale} />
     </>
   )
 }

@@ -1,5 +1,7 @@
 import { IntentLink as Link } from './IntentLink'
 import type { Guide } from '../../lib/guides'
+import { t } from '../../lib/i18n/ui'
+import type { Locale } from '../../lib/locale'
 
 /**
  * One guide on the guides index: a card that is ONE link, named by the guide's title (visual
@@ -21,7 +23,7 @@ import type { Guide } from '../../lib/guides'
  * `aria-hidden` because the link already says where it goes, and a second spoken "Read this guide"
  * is exactly the repetition this card removes. No word here is new.
  */
-export function GuideCard({ guide }: { guide: Guide }) {
+export function GuideCard({ guide, locale = 'en' }: { guide: Guide; locale?: Locale }) {
   return (
     <li className="panel guide-card">
       <h2 className="product-card__name">
@@ -31,7 +33,7 @@ export function GuideCard({ guide }: { guide: Guide }) {
       </h2>
       <p className="product-card__desc">{guide.description}</p>
       <span className="guide-card__cue" aria-hidden="true">
-        Read this guide <b>→</b>
+        {t(locale, 'Read this guide')} <b>→</b>
       </span>
     </li>
   )

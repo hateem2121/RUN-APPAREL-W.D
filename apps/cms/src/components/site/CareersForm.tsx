@@ -1,6 +1,17 @@
 import { HONEYPOT_FIELD, MAX_LENGTHS, ROLE_OPTIONS, ROLE_OTHER } from '../../lib/application'
 import { careersNotice, PHONE_HELP, PRIVACY_LINE, SEND_APPLICATION } from '../../lib/careersForm'
+import {
+  CAREERS_LABELS_RU,
+  careersMessageRu,
+  PHONE_HELP_RU,
+  PRIVACY_LINE_RU,
+  PRIVACY_LINK_RU,
+  ROLE_LABELS_RU,
+  SEND_APPLICATION_RU,
+} from '../../lib/careersForm.ru'
 import { REQUIRED_KEY } from '../../lib/inquiryForm'
+import { REQUIRED_KEY_RU } from '../../lib/inquiryForm.ru'
+import type { Locale } from '../../lib/locale'
 import { ApplicationProblem, ApplicationReceived } from './ApplicationOutcome'
 import { CvPicker } from './CvPicker'
 import { InquiryFormEnhancer } from './InquiryFormEnhancer'
@@ -28,10 +39,17 @@ function Tick() {
  */
 export function CareersForm({
   query,
+  locale = 'en',
 }: {
   query: { sent?: string; error?: string; reason?: string }
+  /** Russian section (2026-11-15): the form's words in Russian; what it sends stays English. */
+  locale?: Locale
 }) {
-  const notice = careersNotice(query)
+  const ru = locale === 'ru'
+  const english = careersNotice(query)
+  const notice = english && ru ? { ...english, text: careersMessageRu(english.text) } : english
+  const requiredKey = ru ? REQUIRED_KEY_RU : REQUIRED_KEY
+  const L = ru ? CAREERS_LABELS_RU : null
   return (
     <>
       {notice?.kind === 'ok' ? (
@@ -49,17 +67,19 @@ export function CareersForm({
         hidden={notice?.kind === 'ok'}
       >
         <InquiryFormEnhancer form="careers" />
+        {/* Russian section (2026-11-15): the server answers a Russian form on /ru/careers. */}
+        {ru ? <input type="hidden" name="lang" value="ru" /> : null}
 
         <p className="inquiry-form__key">
-          {REQUIRED_KEY.split('*')[0]}
+          {requiredKey.split('*')[0]}
           <span className="inquiry-form__req">*</span>
-          {REQUIRED_KEY.split('*')[1]}
+          {requiredKey.split('*')[1]}
         </p>
 
         <div className="inquiry-form__pair">
           <div className="inquiry-form__field">
             <label className="inquiry-form__label" htmlFor="application-name">
-              Name{' '}
+              {L ? L.name : 'Name'}{' '}
               <span className="inquiry-form__req" aria-hidden="true">
                 *
               </span>
@@ -82,14 +102,14 @@ export function CareersForm({
 
           <div className="inquiry-form__field">
             <label className="inquiry-form__label" htmlFor="application-phone">
-              Phone{' '}
+              {L ? L.phone : 'Phone'}{' '}
               <span className="inquiry-form__req" aria-hidden="true">
                 *
               </span>
             </label>
             <div className="inquiry-form__phone">
               <label className="visually-hidden" htmlFor="application-phone-code">
-                Country code
+                {L ? L.countryCode : 'Country code'}
               </label>
               <input
                 className="inquiry-form__code"
@@ -117,7 +137,7 @@ export function CareersForm({
               />
             </div>
             <p className="inquiry-form__note" id="application-phone-note">
-              {PHONE_HELP}
+              {ru ? PHONE_HELP_RU : PHONE_HELP}
             </p>
             <p className="inquiry-form__error" id="application-phone-error" hidden />
           </div>
@@ -125,7 +145,7 @@ export function CareersForm({
 
         <div className="inquiry-form__field">
           <label className="inquiry-form__label" htmlFor="application-email">
-            Email
+            {L ? L.email : 'Email'}
           </label>
           <input
             className="inquiry-form__input"
@@ -148,7 +168,7 @@ export function CareersForm({
          */}
         <fieldset className="inquiry-form__subject">
           <legend className="inquiry-form__label">
-            What you do{' '}
+            {L ? L.whatYouDo : 'What you do'}{' '}
             <span className="inquiry-form__req" aria-hidden="true">
               *
             </span>
@@ -174,13 +194,13 @@ export function CareersForm({
                       }
                     : {})}
                 />
-                <span>{option.label}</span>
+                <span>{ru ? (ROLE_LABELS_RU[option.value] ?? option.label) : option.label}</span>
               </label>
             ))}
           </div>
           <div className="inquiry-form__own">
             <label className="inquiry-form__label" htmlFor="application-role-own">
-              What do you do?
+              {L ? L.whatDoYouDo : 'What do you do?'}
             </label>
             <input
               className="inquiry-form__input"
@@ -200,7 +220,7 @@ export function CareersForm({
 
         <div className="inquiry-form__field">
           <label className="inquiry-form__label" htmlFor="application-years">
-            Years of experience
+            {L ? L.years : 'Years of experience'}
           </label>
           <input
             className="inquiry-form__input"
@@ -216,7 +236,7 @@ export function CareersForm({
 
         <div className="inquiry-form__field">
           <label className="inquiry-form__label" htmlFor="application-note">
-            Anything else we should know
+            {L ? L.note : 'Anything else we should know'}
           </label>
           <textarea
             className="inquiry-form__input inquiry-form__textarea"
@@ -232,12 +252,21 @@ export function CareersForm({
         <div className="site-actions">
           {/* An agreed primary label (CT-08, `e2e/copy.spec.ts`; owner, F23, 2026-10-07). */}
           <button className="btn btn--primary" type="submit">
-            {SEND_APPLICATION}
+            {ru ? SEND_APPLICATION_RU : SEND_APPLICATION}
           </button>
         </div>
         <p className="inquiry-form__note">
-          {PRIVACY_LINE.replace(' See our privacy notice.', ' See our ')}
-          <a href="/privacy#job-applications">privacy notice</a>.
+          {ru ? (
+            <>
+              {PRIVACY_LINE_RU.replace(`${PRIVACY_LINK_RU}.`, '')}
+              <a href="/ru/privacy#job-applications">{PRIVACY_LINK_RU}</a>.
+            </>
+          ) : (
+            <>
+              {PRIVACY_LINE.replace(' See our privacy notice.', ' See our ')}
+              <a href="/privacy#job-applications">privacy notice</a>.
+            </>
+          )}
         </p>
 
         {/* The contact form's honeypot, word for word (contact/page.tsx says why each attribute). */}

@@ -39,8 +39,19 @@ function motionTokens(): { duration: number; easing: string } {
   }
 }
 
-export function CountUp({ value }: { value: string }) {
-  const parts = useMemo(() => parseFactValue(value), [value])
+export function CountUp({
+  value: english,
+  locale = 'en',
+}: {
+  value: string
+  /**
+   * Russian section (2026-11-15): the figure in Russian print, «100 000» (a comma is a decimal mark
+   * in Russian, so "100,000" would read as one hundred), and rolled in ru-RU grouping.
+   */
+  locale?: 'en' | 'ru'
+}) {
+  const value = locale === 'ru' ? english.replace(/(\d),(?=\d{3}\b)/g, '$1\u00a0') : english
+  const parts = useMemo(() => parseFactValue(english), [english])
   const ref = useRef<HTMLSpanElement>(null)
   const [shown, setShown] = useState<FactPart[] | null>(null)
   const [timing, setTiming] = useState({ duration: 1400, easing: 'ease-out' })
@@ -86,7 +97,7 @@ export function CountUp({ value }: { value: string }) {
               // biome-ignore lint/suspicious/noArrayIndexKey: the parts of one figure never reorder.
               key={index}
               value={part.n}
-              locales="en-US"
+              locales={locale === 'ru' ? 'ru-RU' : 'en-US'}
               format={{ useGrouping: true }}
               transformTiming={timing}
               spinTiming={timing}

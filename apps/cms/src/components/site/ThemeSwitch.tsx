@@ -2,6 +2,8 @@
 
 import { THEME_SWITCH_NAMES, THEME_SWITCH_WORDS } from '@run-apparel/shared'
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { isRussianPath, RU_THEME_NAMES, RU_THEME_WORDS } from '../../lib/i18n/islandWords'
 import { THEME_STORAGE_KEY } from '../../lib/themeBoot'
 import { PHONE_QUERY, THEME_COLOR } from '../../lib/themeColor'
 
@@ -86,19 +88,23 @@ function setTheme(theme: Theme) {
  * (e2e/headers.spec.ts); lib/themeBoot.ts only reads.
  */
 export function ThemeSwitch() {
+  // The Russian section's words (2026-11-15), chosen by the page's own address: no props here.
+  const russian = isRussianPath(usePathname())
+  const names = russian ? RU_THEME_NAMES : THEME_SWITCH_NAMES
+  const words = russian ? RU_THEME_WORDS : THEME_SWITCH_WORDS
   const [title, setTitle] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     const theme = appliedTheme()
-    setTitle(theme === 'dark' ? THEME_SWITCH_NAMES.toLight : THEME_SWITCH_NAMES.toDark)
+    setTitle(theme === 'dark' ? names.toLight : names.toDark)
     // A returning visitor's choice reaches the phone's browser bar too.
     if (storedTheme()) paintBrowserBar(theme)
-  }, [])
+  }, [names])
 
   const onClick = () => {
     const next: Theme = appliedTheme() === 'dark' ? 'light' : 'dark'
     setTheme(next)
-    setTitle(next === 'dark' ? THEME_SWITCH_NAMES.toLight : THEME_SWITCH_NAMES.toDark)
+    setTitle(next === 'dark' ? names.toLight : names.toDark)
   }
 
   return (
@@ -113,9 +119,9 @@ export function ThemeSwitch() {
           />
         </svg>
         <span className="theme-toggle__words" aria-hidden="true">
-          {THEME_SWITCH_WORDS.toDark}
+          {words.toDark}
         </span>
-        <span className="visually-hidden">{THEME_SWITCH_NAMES.toDark}</span>
+        <span className="visually-hidden">{names.toDark}</span>
       </span>
       <span className="theme-toggle__face theme-toggle__face--to-light">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -128,9 +134,9 @@ export function ThemeSwitch() {
           />
         </svg>
         <span className="theme-toggle__words" aria-hidden="true">
-          {THEME_SWITCH_WORDS.toLight}
+          {words.toLight}
         </span>
-        <span className="visually-hidden">{THEME_SWITCH_NAMES.toLight}</span>
+        <span className="visually-hidden">{names.toLight}</span>
       </span>
     </button>
   )

@@ -1,3 +1,4 @@
+import type { Locale } from '../../lib/locale'
 import { IntentLink as Link } from './IntentLink'
 
 /**
@@ -5,10 +6,18 @@ import { IntentLink as Link } from './IntentLink'
  * `breadcrumbTrailJsonLd` trail exactly (PLAN.md E4/G15): Home first, the page itself last.
  * The last step is text, not a link — it is where the reader stands.
  */
-export function Breadcrumb({ trail }: { trail: readonly { name: string; path: string }[] }) {
+export function Breadcrumb({
+  trail,
+  locale = 'en',
+}: {
+  trail: readonly { name: string; path: string }[]
+  /** Russian section (2026-11-15): «Главная» first; the links go to /ru by IntentLink. */
+  locale?: Locale
+}) {
+  const ru = locale === 'ru'
   return (
-    <nav className="crumbs" aria-label="Breadcrumb">
-      <Link href="/">Home</Link>
+    <nav className="crumbs" aria-label={ru ? 'Навигационная цепочка' : 'Breadcrumb'}>
+      <Link href="/">{ru ? 'Главная' : 'Home'}</Link>
       {trail.map((step, index) => (
         <span key={step.path}>
           {' '}

@@ -3,7 +3,10 @@ import {
   COMMUNITY_PAGE,
   COMMUNITY_WORKS_PHOTOS,
 } from '../../lib/companyPages'
+import { COMMUNITY_PAGE_RU } from '../../lib/companyPages.ru'
 import { factoryPhotoImage } from '../../lib/factoryPhotos'
+import { ruPhoto } from '../../lib/factoryPhotos.ru'
+import type { Locale } from '../../lib/locale'
 import { breadcrumbTrailJsonLd } from '../../lib/structuredData'
 import { CompanyClosing } from './CompanyPage'
 import { factoryPhoto, Heading, listOf, SplitHero, sectionIn, sentences } from './CompanyParts'
@@ -25,8 +28,10 @@ import { JsonLd } from './JsonLd'
 /** Each works photo: half the column from 900 px, the whole column below. */
 const WORKS_SIZES = '(max-width: 899px) calc(100vw - 40px), min(48vw, 736px)'
 
-export function CommunityPage() {
-  const page = COMMUNITY_PAGE
+export function CommunityPage({ locale = 'en' }: { locale?: Locale } = {}) {
+  // Russian section (2026-11-15): the same page, its words from companyPages.ru.ts.
+  const ru = locale === 'ru'
+  const page = ru ? COMMUNITY_PAGE_RU : COMMUNITY_PAGE
   const trail = [{ name: page.title, path: page.path }]
   const work = sectionIn(page, 'work')
   const pair = [sectionIn(page, 'hard-times'), sectionIn(page, 'buyers')]
@@ -34,8 +39,8 @@ export function CommunityPage() {
 
   return (
     <>
-      <JsonLd data={breadcrumbTrailJsonLd(trail)} />
-      <SplitHero page={page} trail={trail} photoSlug={COMMUNITY_HERO_PHOTO} />
+      <JsonLd data={breadcrumbTrailJsonLd(trail, locale)} />
+      <SplitHero page={page} trail={trail} photoSlug={COMMUNITY_HERO_PHOTO} locale={locale} />
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
@@ -88,7 +93,7 @@ export function CommunityPage() {
           </div>
           <div className="company-works">
             {COMMUNITY_WORKS_PHOTOS.map((slug) => {
-              const photo = factoryPhoto(slug)
+              const photo = ru ? ruPhoto(factoryPhoto(slug)) : factoryPhoto(slug)
               return (
                 <FactoryFigure
                   key={slug}
@@ -102,7 +107,7 @@ export function CommunityPage() {
         </div>
       </section>
 
-      <CompanyClosing links={page.links} />
+      <CompanyClosing links={page.links} locale={locale} />
     </>
   )
 }

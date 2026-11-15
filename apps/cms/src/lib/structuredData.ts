@@ -3,6 +3,7 @@ import { LEGAL_NAME, WHAT_WE_ARE, WHAT_WE_MAKE } from './companyFacts'
 import type { ProductCard, PublicSiteSettings } from './projectPublic'
 import { SITE_NAME, SITE_ORIGIN, GARMENT_PAGES } from './seo'
 import { bylineFor } from './bylines'
+import { type Locale, ruPath } from './locale'
 import { SHARE_IMAGE, shareCardFor, shareImageUrl } from './shareImages'
 
 /**
@@ -206,7 +207,23 @@ export function productListJsonLd(
  * cards, not from inside `/products`. A search result shows this trail in place of the raw
  * address.
  */
-export function breadcrumbJsonLd(page: { title: string; path: string }) {
+export function breadcrumbJsonLd(page: { title: string; path: string }, locale: Locale = 'en') {
+  // A Russian page's trail is Russian, on its /ru addresses (Russian section, 2026-11-15).
+  if (locale === 'ru') {
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Главная', item: `${SITE_ORIGIN}/ru` },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: page.title,
+          item: `${SITE_ORIGIN}${ruPath(page.path)}`,
+        },
+      ],
+    }
+  }
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -218,7 +235,27 @@ export function breadcrumbJsonLd(page: { title: string; path: string }) {
 }
 
 /** Where a guide sits: Home, then Guides, then the guide. */
-export function guideBreadcrumbJsonLd(guide: { title: string; path: string }) {
+export function guideBreadcrumbJsonLd(
+  guide: { title: string; path: string },
+  locale: Locale = 'en',
+) {
+  // A Russian guide's trail is Russian, on its /ru addresses (Russian section, 2026-11-15).
+  if (locale === 'ru') {
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Главная', item: `${SITE_ORIGIN}/ru` },
+        { '@type': 'ListItem', position: 2, name: 'Руководства', item: `${SITE_ORIGIN}/ru/guides` },
+        {
+          '@type': 'ListItem',
+          position: 3,
+          name: guide.title,
+          item: `${SITE_ORIGIN}${ruPath(guide.path)}`,
+        },
+      ],
+    }
+  }
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -235,7 +272,24 @@ export function guideBreadcrumbJsonLd(guide: { title: string; path: string }) {
  * Replaces nothing: `breadcrumbJsonLd` and `guideBreadcrumbJsonLd` stay for the pages that use
  * them. The trail must match the visible breadcrumb on the page.
  */
-export function breadcrumbTrailJsonLd(trail: ReadonlyArray<{ name: string; path: string }>) {
+export function breadcrumbTrailJsonLd(
+  trail: ReadonlyArray<{ name: string; path: string }>,
+  locale: Locale = 'en',
+) {
+  // A Russian trail starts at «Главная» and every step is on its /ru address (2026-11-15).
+  if (locale === 'ru') {
+    const ruSteps = [{ name: 'Главная', path: '/' }, ...trail]
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: ruSteps.map((step, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: step.name,
+        item: `${SITE_ORIGIN}${ruPath(step.path)}`,
+      })),
+    }
+  }
   const steps = [{ name: 'Home', path: '/' }, ...trail]
   return {
     '@context': 'https://schema.org',
@@ -258,10 +312,15 @@ export function breadcrumbTrailJsonLd(trail: ReadonlyArray<{ name: string; path:
  * this one (Google limited those in 2023); it is here because an AI answer is assembled
  * from exactly this shape.
  */
-export function faqJsonLd(questions: ReadonlyArray<{ question: string; answer: string }>) {
+export function faqJsonLd(
+  questions: ReadonlyArray<{ question: string; answer: string }>,
+  locale: Locale = 'en',
+) {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
+    // A Russian page says so (the language audit of 2026-11-15 found no inLanguage on it).
+    ...(locale === 'ru' ? { inLanguage: 'ru' } : {}),
     mainEntity: questions.map((entry) => ({
       '@type': 'Question',
       name: entry.question,
@@ -271,18 +330,29 @@ export function faqJsonLd(questions: ReadonlyArray<{ question: string; answer: s
 }
 
 /** The Journal as a blog: its newest posts by address (PLAN.md E2). */
-export function blogJsonLd(posts: ReadonlyArray<{ path: string; headline: string }>) {
+/**
+ * On the Russian hub (2026-11-15) the node is the Russian page: its own address and name, in
+ * Russian, listing the posts, which are English (`inLanguage: 'en'` on each). Until the language
+ * audit of that day the Russian hub described the English one.
+ */
+export function blogJsonLd(
+  posts: ReadonlyArray<{ path: string; headline: string }>,
+  ru?: { name: string },
+) {
+  const path = ru ? ruPath('/journal') : '/journal'
   return {
     '@context': 'https://schema.org',
     '@type': 'Blog',
-    '@id': `${SITE_ORIGIN}/journal#blog`,
-    name: 'RUN APPAREL Journal',
-    url: `${SITE_ORIGIN}/journal`,
+    '@id': `${SITE_ORIGIN}${path}#blog`,
+    name: ru ? ru.name : 'RUN APPAREL Journal',
+    url: `${SITE_ORIGIN}${path}`,
+    ...(ru ? { inLanguage: 'ru' } : {}),
     publisher: { '@id': `${SITE_ORIGIN}/#organization` },
     blogPost: posts.map((post) => ({
       '@type': 'BlogPosting',
       headline: post.headline,
       url: `${SITE_ORIGIN}${post.path}`,
+      ...(ru ? { inLanguage: 'en' } : {}),
     })),
   }
 }
@@ -361,10 +431,14 @@ export function articleJsonLd(article: ArticleInput) {
  * ("Merchandiser, RUN APPAREL") names no person, so that guide's author is the company itself.
  * The picture is the guide's own share card.
  */
-export function guideArticleJsonLd(guide: { path: string; title: string; description: string }) {
+export function guideArticleJsonLd(
+  guide: { path: string; title: string; description: string },
+  locale: Locale = 'en',
+) {
+  // The byline is the English path's; a Russian guide's own address is /ru… (2026-11-15).
   const byline = bylineFor(guide.path)
-  return articleJsonLd({
-    path: guide.path,
+  const article = articleJsonLd({
+    path: locale === 'ru' ? ruPath(guide.path) : guide.path,
     headline: guide.title,
     description: guide.description,
     image: {
@@ -383,34 +457,44 @@ export function guideArticleJsonLd(guide: { path: string; title: string; descrip
           }
         : null,
   })
+  // The Russian page says it is Russian (Russian section); the English data is unchanged.
+  return locale === 'ru' ? { ...article, inLanguage: 'ru' } : article
 }
 
 /**
  * The case-study hub once at least one is published (Part C): a CollectionPage of its articles.
  * With none, the hub carries `noindex` and no data at all (T5).
  */
-export function caseStudiesJsonLd(studies: ReadonlyArray<{ path: string; headline: string }>) {
+/** As `blogJsonLd`: on the Russian hub, the Russian page, listing English case studies. */
+export function caseStudiesJsonLd(
+  studies: ReadonlyArray<{ path: string; headline: string }>,
+  ru?: { name: string },
+) {
+  const path = ru ? ruPath('/case-studies') : '/case-studies'
   return {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
-    '@id': `${SITE_ORIGIN}/case-studies#page`,
-    url: `${SITE_ORIGIN}/case-studies`,
-    name: 'Case studies',
+    '@id': `${SITE_ORIGIN}${path}#page`,
+    url: `${SITE_ORIGIN}${path}`,
+    name: ru ? ru.name : 'Case studies',
+    ...(ru ? { inLanguage: 'ru' } : {}),
     publisher: { '@id': `${SITE_ORIGIN}/#organization` },
     hasPart: studies.map((study) => ({
       '@type': 'Article',
       headline: study.headline,
       url: `${SITE_ORIGIN}${study.path}`,
+      ...(ru ? { inLanguage: 'en' } : {}),
     })),
   }
 }
 
 /** The contact page, tied back to the organisation node rather than redescribing it. */
-export function contactPageJsonLd(settings: PublicSiteSettings) {
+export function contactPageJsonLd(settings: PublicSiteSettings, locale: Locale = 'en') {
   return {
     '@context': 'https://schema.org',
     '@type': 'ContactPage',
-    url: `${SITE_ORIGIN}/contact`,
+    url: `${SITE_ORIGIN}${locale === 'ru' ? ruPath('/contact') : '/contact'}`,
+    ...(locale === 'ru' ? { inLanguage: 'ru' } : {}),
     mainEntity: {
       '@id': `${SITE_ORIGIN}/#organization`,
       '@type': 'Organization',
@@ -428,14 +512,16 @@ export function contactPageJsonLd(settings: PublicSiteSettings) {
 export function definedTermSetJsonLd(
   set: { name: string; path: string },
   terms: ReadonlyArray<{ id: string; name: string; definition: string }>,
+  locale: Locale = 'en',
 ) {
-  const url = `${SITE_ORIGIN}${set.path}`
+  const url = `${SITE_ORIGIN}${locale === 'ru' ? ruPath(set.path) : set.path}`
   return {
     '@context': 'https://schema.org',
     '@type': 'DefinedTermSet',
     '@id': `${url}#terms`,
     name: set.name,
     url,
+    ...(locale === 'ru' ? { inLanguage: 'ru' } : {}),
     hasDefinedTerm: terms.map((term) => ({
       '@type': 'DefinedTerm',
       '@id': `${url}#${term.id}`,
@@ -456,8 +542,11 @@ export function definedTermSetJsonLd(
  */
 
 /** /about, as an `AboutPage` about the existing organization node. */
-export function aboutPageJsonLd(page: { title: string; description: string; path: string }) {
-  const url = `${SITE_ORIGIN}${page.path}`
+export function aboutPageJsonLd(
+  page: { title: string; description: string; path: string },
+  locale: Locale = 'en',
+) {
+  const url = `${SITE_ORIGIN}${locale === 'ru' ? ruPath(page.path) : page.path}`
   return {
     '@context': 'https://schema.org',
     '@type': 'AboutPage',
@@ -468,6 +557,7 @@ export function aboutPageJsonLd(page: { title: string; description: string; path
     about: { '@id': `${SITE_ORIGIN}/#organization` },
     mainEntity: { '@id': `${SITE_ORIGIN}/#organization` },
     isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+    ...(locale === 'ru' ? { inLanguage: 'ru' } : {}),
   }
 }
 
@@ -484,8 +574,9 @@ export type FactoryPagePhoto = {
 export function factoryPageJsonLd(
   page: { title: string; description: string; path: string },
   photos: readonly FactoryPagePhoto[],
+  locale: Locale = 'en',
 ) {
-  const url = `${SITE_ORIGIN}${page.path}`
+  const url = `${SITE_ORIGIN}${locale === 'ru' ? ruPath(page.path) : page.path}`
   const image = photos.map((photo) => ({
     '@type': 'ImageObject',
     url: `${SITE_ORIGIN}${photo.src}`,
@@ -503,6 +594,7 @@ export function factoryPageJsonLd(
     about: { '@id': `${SITE_ORIGIN}/#organization` },
     ...(image.length > 0 ? { primaryImageOfPage: image[0], image } : {}),
     isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+    ...(locale === 'ru' ? { inLanguage: 'ru' } : {}),
   }
 }
 

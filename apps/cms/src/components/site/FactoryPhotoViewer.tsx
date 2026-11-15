@@ -11,6 +11,8 @@ import {
   stepIndex,
   viewerTitle,
 } from '../../lib/photoViewer'
+import { RU_PHOTO_VIEWER } from '../../lib/i18n/islandWords'
+import { useLocale } from '../../lib/i18n/uiClient'
 
 /** One gallery photo as the viewer draws it; the page builds these from `factoryPhotos.ts`. */
 export type ViewerPhoto = {
@@ -42,6 +44,8 @@ export type ViewerPhoto = {
  * before or without any script, and never fights the page's vertical scroll.
  */
 export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] }) {
+  // Russian section (2026-11-15): the page's language from its address, no words as props.
+  const ru = useLocale() === 'ru'
   const count = photos.length
   const [open, setOpen] = useState(false)
   const [index, setIndex] = useState(0)
@@ -208,7 +212,10 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
             <p className="photo-viewer__count" aria-live="polite">
               {counterText(index, count)}
             </p>
-            <Dialog.Close className="photo-viewer__button" aria-label="Close the photo">
+            <Dialog.Close
+              className="photo-viewer__button"
+              aria-label={ru ? RU_PHOTO_VIEWER.close : 'Close the photo'}
+            >
               <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
                 <path
                   d="M3 3l10 10M13 3L3 13"
@@ -232,7 +239,7 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
             onTouchStart={takeOver}
             onWheel={takeOver}
             role="group"
-            aria-label="Factory photos"
+            aria-label={ru ? RU_PHOTO_VIEWER.photos : 'Factory photos'}
             // biome-ignore lint/a11y/noNoninteractiveTabindex: a scroll area must take focus so a keyboard can scroll it (WCAG 2.1.1)
             tabIndex={0}
           >
@@ -258,7 +265,7 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
             <button
               type="button"
               className="photo-viewer__button"
-              aria-label="Previous photo"
+              aria-label={ru ? RU_PHOTO_VIEWER.previous : 'Previous photo'}
               onClick={() => goTo(stepIndex(index, -1, count))}
             >
               <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
@@ -268,7 +275,7 @@ export function FactoryPhotoViewer({ photos }: { photos: readonly ViewerPhoto[] 
             <button
               type="button"
               className="photo-viewer__button"
-              aria-label="Next photo"
+              aria-label={ru ? RU_PHOTO_VIEWER.next : 'Next photo'}
               onClick={() => goTo(stepIndex(index, 1, count))}
             >
               <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">

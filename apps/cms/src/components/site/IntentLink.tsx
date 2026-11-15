@@ -1,7 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { type ComponentProps, type SyntheticEvent, useState } from 'react'
+import { localHref } from '../../lib/i18n/localHref'
 import { intentPrefetchProp, shouldPrefetchOnIntent } from '../../lib/intentPrefetch'
 
 type LinkProps = ComponentProps<typeof Link>
@@ -25,6 +27,9 @@ export function IntentLink({
   ...props
 }: LinkProps) {
   const [intent, setIntent] = useState(false)
+  // On a Russian page an internal link goes to its Russian twin (lib/i18n/localHref.ts, 2026-11-15).
+  const pathname = usePathname()
+  const href = typeof props.href === 'string' ? localHref(props.href, pathname) : props.href
 
   const shown = (event: SyntheticEvent<HTMLAnchorElement>) => {
     if (intent || prefetch === false) return
@@ -45,6 +50,7 @@ export function IntentLink({
   return (
     <Link
       {...props}
+      href={href}
       prefetch={intentPrefetchProp(intent, prefetch)}
       onPointerEnter={(event) => {
         onPointerEnter?.(event)

@@ -8,7 +8,11 @@ import { FactoryPhotoViewer, type ViewerPhoto } from './FactoryPhotoViewer'
 import { JsonLd } from './JsonLd'
 import { Marquee } from './Marquee'
 import { FACTORY_PAGE } from '../../lib/aboutPages'
+import { FACTORY_PAGE_RU } from '../../lib/aboutPages.ru'
+import { HERO_PHOTO_ALT_RU, ruPhoto } from '../../lib/factoryPhotos.ru'
+import type { Locale } from '../../lib/locale'
 import { POLICIES } from '../../lib/policies'
+import { POLICIES_RU } from '../../lib/policies.ru'
 import {
   FACTORY_PHOTO_ASPECT,
   factoryPhotoImage,
@@ -48,8 +52,8 @@ const [card640, card1080, card1600] = FACTORY_HERO_CARD.widths
 const CARD_SIZES = '(max-width: 899px) calc(100vw - 40px), min(40vw, 560px)'
 
 /** The photos the gallery shows, as the page's structured data names them (largest file). */
-function galleryJsonLdPhotos(): FactoryPagePhoto[] {
-  return GALLERY.map(({ largest, photo }) => ({ ...largest, alt: photo.alt }))
+function galleryJsonLdPhotos(gallery: typeof GALLERY): FactoryPagePhoto[] {
+  return gallery.map(({ largest, photo }) => ({ ...largest, alt: photo.alt }))
 }
 
 /**
@@ -77,14 +81,27 @@ const VIEWER_PHOTOS: ViewerPhoto[] = GALLERY.map(({ photo, largest }) => ({
   alt: photo.alt,
 }))
 
-export function FactoryPage() {
-  const page = FACTORY_PAGE
-  const trail = [{ name: 'Inside the factory', path: page.path }]
+export function FactoryPage({ locale = 'en' }: { locale?: Locale } = {}) {
+  // Russian section (2026-11-15): the same page, its words from aboutPages.ru.ts, and every photo's
+  // Russian alt text (the same files).
+  const ru = locale === 'ru'
+  const page = ru ? FACTORY_PAGE_RU : FACTORY_PAGE
+  const trail = [{ name: ru ? 'На производстве' : 'Inside the factory', path: page.path }]
+  const gallery = ru ? GALLERY.map((entry) => ({ ...entry, photo: ruPhoto(entry.photo) })) : GALLERY
+  const viewerPhotos = ru
+    ? gallery.map(({ photo, largest }) => ({
+        ...largest,
+        srcSet: factoryPhotoImage(photo).srcSet,
+        alt: photo.alt,
+      }))
+    : VIEWER_PHOTOS
+  const localPhoto = (slug: string) => (ru ? ruPhoto(factoryPhoto(slug)) : factoryPhoto(slug))
+  const policies = ru ? POLICIES_RU : POLICIES
 
   return (
     <>
-      <JsonLd data={factoryPageJsonLd(page, galleryJsonLdPhotos())} />
-      <JsonLd data={breadcrumbTrailJsonLd(trail)} />
+      <JsonLd data={factoryPageJsonLd(page, galleryJsonLdPhotos(gallery), locale)} />
+      <JsonLd data={breadcrumbTrailJsonLd(trail, locale)} />
 
       {/*
        * The editorial hero: the words in the column, the stitching floor beside them. The photo
@@ -95,13 +112,13 @@ export function FactoryPage() {
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container split-hero">
           <div className="split-hero__words">
-            <Breadcrumb trail={trail} />
+            <Breadcrumb trail={trail} locale={locale} />
             <p className="label">{page.label}</p>
             <h1 className="display display--hero hero-legal">
               {page.hero.heading} <span className="serif-accent">{page.hero.accent}</span>
             </h1>
             <p className="site-lede">{page.hero.subtitle}</p>
-            <Byline path={page.path} />
+            <Byline path={page.path} locale={locale} />
           </div>
           <figure className="split-hero__photo factory-hero">
             <picture>
@@ -135,7 +152,7 @@ export function FactoryPage() {
                 sizes={CARD_SIZES}
                 width={card640}
                 height={Math.round(card640 / FACTORY_HERO_CARD.aspect)}
-                alt={HERO_PHOTO.alt}
+                alt={ru ? HERO_PHOTO_ALT_RU : HERO_PHOTO.alt}
                 loading="eager"
                 fetchPriority="high"
                 decoding="async"
@@ -170,7 +187,7 @@ export function FactoryPage() {
                   <div className="factory-stage__photos">
                     {stage.photos.length > 0 ? (
                       stage.photos.map((slug) => {
-                        const photo = factoryPhoto(slug)
+                        const photo = localPhoto(slug)
                         return (
                           <FactoryFigure
                             key={slug}
@@ -196,7 +213,7 @@ export function FactoryPage() {
           </p>
           <div className="site-actions">
             {page.walkthrough.policyLinks.map((path) => {
-              const policy = POLICIES.find((entry) => entry.path === path)
+              const policy = policies.find((entry) => entry.path === path)
               if (!policy) return null
               return (
                 <Link className="btn btn--ghost" href={policy.path} key={policy.path}>
@@ -229,8 +246,8 @@ export function FactoryPage() {
                 <h3 className="factory-gallery__label">{set.label}</h3>
                 <div className="factory-gallery__photos">
                   {set.photos.map((slug) => {
-                    const at = GALLERY.findIndex((entry) => entry.slug === slug)
-                    const entry = GALLERY[at]
+                    const at = gallery.findIndex((entry) => entry.slug === slug)
+                    const entry = gallery[at]
                     if (!entry) return null
                     return (
                       // Without JavaScript, a link to the largest file; with it, the viewer.
@@ -253,7 +270,7 @@ export function FactoryPage() {
               </div>
             ))}
           </div>
-          <FactoryPhotoViewer photos={VIEWER_PHOTOS} />
+          <FactoryPhotoViewer photos={viewerPhotos} />
         </div>
       </section>
 
@@ -282,7 +299,7 @@ export function FactoryPage() {
           </div>
           <div className="factory-run__photo">
             {(() => {
-              const photo = factoryPhoto('solar-roof')
+              const photo = localPhoto('solar-roof')
               return (
                 <FactoryFigure
                   photo={photo}
@@ -297,7 +314,7 @@ export function FactoryPage() {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <SiteClosing />
+          <SiteClosing locale={locale} />
         </div>
       </section>
     </>

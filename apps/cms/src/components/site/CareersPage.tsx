@@ -7,7 +7,10 @@ import {
   CAREERS_PAGE,
   ROLE_GROUPS,
 } from '../../lib/companyPages'
+import { CAREER_PATH_RU, CAREERS_PAGE_RU, ROLE_GROUPS_RU } from '../../lib/companyPages.ru'
 import { factoryPhotoImage } from '../../lib/factoryPhotos'
+import { ruPhoto } from '../../lib/factoryPhotos.ru'
+import type { Locale } from '../../lib/locale'
 import { breadcrumbTrailJsonLd, formatAddress } from '../../lib/structuredData'
 import { Byline } from './Byline'
 import { CompanyClosing } from './CompanyPage'
@@ -39,8 +42,16 @@ const MOSAIC_SIZES = {
   single: '(max-width: 899px) calc(50vw - 26px), min(25vw, 368px)',
 } as const
 
-export function CareersPage({ applyForm }: { applyForm: ReactNode }) {
-  const page = CAREERS_PAGE
+export function CareersPage({
+  applyForm,
+  locale = 'en',
+}: {
+  applyForm: ReactNode
+  /** Russian section (2026-11-15): the same page, its words from companyPages.ru.ts. */
+  locale?: Locale
+}) {
+  const ru = locale === 'ru'
+  const page = ru ? CAREERS_PAGE_RU : CAREERS_PAGE
   const trail = [{ name: page.title, path: page.path }]
   const offer = sectionIn(page, 'what-we-offer')
   const training = sectionIn(page, 'training')
@@ -52,13 +63,14 @@ export function CareersPage({ applyForm }: { applyForm: ReactNode }) {
 
   return (
     <>
-      <JsonLd data={breadcrumbTrailJsonLd(trail)} />
+      <JsonLd data={breadcrumbTrailJsonLd(trail, locale)} />
 
       <SplitHero
         page={page}
         trail={trail}
         photoSlug={CAREERS_HERO_PHOTO}
-        byline={<Byline path={page.path} />}
+        byline={<Byline path={page.path} locale={locale} />}
+        locale={locale}
         action={
           // The section's own heading as the link's words: no new label.
           <a className="btn btn--ghost" href="#apply">
@@ -94,7 +106,7 @@ export function CareersPage({ applyForm }: { applyForm: ReactNode }) {
            * them. Hidden from screen readers, which have just read the same steps in the sentence.
            */}
           <ol className="career-path" aria-hidden="true">
-            {CAREER_PATH.map((step) => (
+            {(ru ? CAREER_PATH_RU : CAREER_PATH).map((step) => (
               <li className="career-path__step" key={step}>
                 <span className="career-path__name">{step}</span>
               </li>
@@ -114,7 +126,7 @@ export function CareersPage({ applyForm }: { applyForm: ReactNode }) {
             ))}
           </div>
           <div className="careers-roles__groups">
-            {ROLE_GROUPS.map((group) => (
+            {(ru ? ROLE_GROUPS_RU : ROLE_GROUPS).map((group) => (
               <div className="careers-roles__group" key={group.name}>
                 <h3 className="careers-roles__name">{group.name}</h3>
                 <ul className="careers-roles__list">
@@ -143,7 +155,8 @@ export function CareersPage({ applyForm }: { applyForm: ReactNode }) {
             ))}
             <div className="careers-apply__contacts">
               <p className="contact-block__value">
-                Write to us at <a href={`mailto:${APPLICATIONS_TO}`}>{APPLICATIONS_TO}</a>.
+                {ru ? 'Пишите нам на' : 'Write to us at'}{' '}
+                <a href={`mailto:${APPLICATIONS_TO}`}>{APPLICATIONS_TO}</a>.
               </p>
               <address className="contact-block__note">{formatAddress()}</address>
             </div>
@@ -166,7 +179,7 @@ export function CareersPage({ applyForm }: { applyForm: ReactNode }) {
           </div>
           <div className="careers-life__mosaic">
             {CAREERS_LIFE_PHOTOS.map((slug) => {
-              const photo = factoryPhoto(slug)
+              const photo = ru ? ruPhoto(factoryPhoto(slug)) : factoryPhoto(slug)
               return (
                 <FactoryFigure
                   key={slug}
@@ -180,7 +193,7 @@ export function CareersPage({ applyForm }: { applyForm: ReactNode }) {
         </div>
       </section>
 
-      <CompanyClosing links={page.links} />
+      <CompanyClosing links={page.links} locale={locale} />
     </>
   )
 }

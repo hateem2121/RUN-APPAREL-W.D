@@ -30,7 +30,47 @@ function useNow(): Date | null {
   return now
 }
 
-export function FooterClock({ hours }: { hours: FooterHours | null }) {
+/**
+ * The Russian section's clock words (2026-11-15). The shared `opensLabel` writes English
+ * ("Opens Mon 09:00 PKT"); `russianOpens` rewrites it, so the opening rule stays in one place.
+ */
+export type ClockWords = {
+  readonly clockCity: string
+  readonly openNow: string
+  readonly lang: 'en' | 'ru'
+}
+
+const DAY_RU: Readonly<Record<string, string>> = {
+  Mon: 'пн',
+  Tue: 'вт',
+  Wed: 'ср',
+  Thu: 'чт',
+  Fri: 'пт',
+  Sat: 'сб',
+  Sun: 'вс',
+}
+
+export function russianOpens(english: string): string {
+  const match = /^Opens (?:([A-Z][a-z]{2}) )?(\S+)(.*)$/.exec(english)
+  if (!match) return english
+  const [, day, time, rest] = match
+  return `Откроемся ${day ? `${DAY_RU[day] ?? day} ` : ''}в ${time}${rest}`
+}
+
+const ENGLISH_CLOCK: ClockWords = {
+  clockCity: SITE_FOOTER_WORDS.clockCity,
+  openNow: SITE_FOOTER_WORDS.openNow,
+  lang: 'en',
+}
+
+export function FooterClock({
+  hours,
+  words = ENGLISH_CLOCK,
+}: {
+  hours: FooterHours | null
+  words?: ClockWords
+}) {
+  const opens = (label: string) => (words.lang === 'ru' ? russianOpens(label) : label)
   const now = useNow()
   const open = now && hours ? isOpenAt(hours, now) : null
 
@@ -38,7 +78,7 @@ export function FooterClock({ hours }: { hours: FooterHours | null }) {
     <>
       <span className="footer-clock">
         <i aria-hidden="true" />
-        <span className="footer-clock__city">{SITE_FOOTER_WORDS.clockCity}</span>
+        <span className="footer-clock__city">{words.clockCity}</span>
         <span className="footer-clock__time">
           <span>{now ? worksClock(now) : '--:--'}</span>
           <small>{SITE_FOOTER_WORDS.clockZone}</small>
@@ -49,7 +89,7 @@ export function FooterClock({ hours }: { hours: FooterHours | null }) {
         // site's CSS so a state attribute can never hide the nav links again. This is a
         // status light, not a disclosure, and it does not need that name.
         <span className="footer-status" data-state={open ? 'open' : 'closed'}>
-          {open ? SITE_FOOTER_WORDS.openNow : opensLabel(hours, now)}
+          {open ? words.openNow : opens(opensLabel(hours, now))}
         </span>
       )}
     </>
@@ -68,7 +108,16 @@ export function FooterClock({ hours }: { hours: FooterHours | null }) {
  * day in Sialkot time from `now`, which is null until the client mounts, so the server render
  * and the first client render still draw no light and read no time.
  */
-export function WorksClockLine({ hours, label }: { hours: FooterHours | null; label: string }) {
+export function WorksClockLine({
+  hours,
+  label,
+  words = ENGLISH_CLOCK,
+}: {
+  hours: FooterHours | null
+  label: string
+  words?: ClockWords
+}) {
+  const opens = (text: string) => (words.lang === 'ru' ? russianOpens(text) : text)
   const now = useNow()
   const open = now && hours ? isOpenAt(hours, now) : null
   return (
@@ -84,8 +133,8 @@ export function WorksClockLine({ hours, label }: { hours: FooterHours | null; la
       {open === null || !hours || !now ? null : (
         <span>
           {open
-            ? SITE_FOOTER_WORDS.openNow
-            : opensLabel(hours, now).replace(` ${SITE_FOOTER_WORDS.clockZone}`, '')}
+            ? words.openNow
+            : opens(opensLabel(hours, now).replace(` ${SITE_FOOTER_WORDS.clockZone}`, ''))}
         </span>
       )}
     </p>

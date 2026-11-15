@@ -372,10 +372,37 @@ describe('XS-02 — one menu bar on both surfaces, styled once', () => {
       '<span className="visually-hidden">{THEME_SWITCH_NAMES.toDark}</span>',
       '<span className="visually-hidden">{THEME_SWITCH_NAMES.toLight}</span>',
     ]
-    for (const [host, source] of [
-      ['the site', site],
-      ['the viewer', viewer],
-    ] as const) {
+    /*
+     * THE RUSSIAN SECTION (2026-11-15) CHOOSES THE BAR'S WORDS BY LANGUAGE on the site only, so five
+     * markers there take a language-aware form. Each still names the SHARED constant for English:
+     * SITE_EQUIVALENT pairs the form with the clause that proves it, and lib/i18n/chrome.test.ts
+     * holds CHROME.en's words to those constants by identity. The markup markers are unchanged and
+     * still required on both hosts.
+     */
+    const SITE_EQUIVALENT: Readonly<Record<string, readonly string[]>> = {
+      'className="notch__nav" aria-label={SITE_NAV_LABEL}': [
+        'className="notch__nav" aria-label={chrome.navLabel}',
+      ],
+      '<span className="visually-hidden">{SITE_MENU_NAME}</span>': [
+        '<span className="visually-hidden">{chrome.menuName}</span>',
+      ],
+      'SITE_NAV_LINKS.map': ['navLinks.map', ': [SITE_NAV_LINKS, SITE_MENU_LINKS]'],
+      '<span className="visually-hidden">{THEME_SWITCH_NAMES.toDark}</span>': [
+        '<span className="visually-hidden">{names.toDark}</span>',
+        'russian ? RU_THEME_NAMES : THEME_SWITCH_NAMES',
+      ],
+      '<span className="visually-hidden">{THEME_SWITCH_NAMES.toLight}</span>': [
+        '<span className="visually-hidden">{names.toLight}</span>',
+        'russian ? RU_THEME_NAMES : THEME_SWITCH_NAMES',
+      ],
+    }
+    expect(
+      MARKERS.filter((marker) =>
+        (SITE_EQUIVALENT[marker] ?? [marker]).some((form) => !site.includes(form)),
+      ),
+      "the site's bar lost a shared marker",
+    ).toEqual([])
+    for (const [host, source] of [['the viewer', viewer]] as const) {
       expect(
         MARKERS.filter((marker) => !source.includes(marker)),
         `${host}'s bar lost a shared marker`,

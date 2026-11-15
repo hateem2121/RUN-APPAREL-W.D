@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { FamilyLanding } from './components/site/FamilyLanding'
 import { FAMILIES } from './lib/families'
 import { FAMILY_PAGES, makesHref } from './lib/familyPages'
+import { FAMILY_PAGES_RU } from './lib/familyPages.ru'
 import { EMPTY_FOOTER, type ProductCard, type PublicSiteSettings } from './lib/projectPublic'
 
 vi.mock('next/link', () => ({
@@ -143,5 +144,24 @@ describe('a line with nothing on the page to open stays words', () => {
   // NEGATIVE CONTROL: without `plain`, the same line would jump to the ball's card.
   it('sees a line that loses its plain mark', () => {
     expect(makesHref({ group: 'Bags', garments: 'Bags.' }, [ball], '/products')).toBe('#garments')
+  })
+})
+
+/*
+ * On a Russian buyer page a line that opens another site page opens its Russian twin (the language
+ * audit of 2026-11-15: /ru/custom-sports-accessories-manufacturer linked the ENGLISH ball page,
+ * because the line is a plain <a>, not IntentLink). A garment page has no twin and stays as it is.
+ */
+describe('a line on a Russian page opens the Russian page', () => {
+  it('the accessories page’s football line opens /ru/custom-soccer-ball-manufacturer', () => {
+    const page = FAMILY_PAGES_RU.find(
+      (entry) => entry.path === '/custom-sports-accessories-manufacturer',
+    )
+    if (!page) throw new Error('no Russian accessories page')
+    const html = renderToStaticMarkup(
+      createElement(FamilyLanding, { page, products: [], settings, locale: 'ru' }),
+    )
+    expect(html).toContain('href="/ru/custom-soccer-ball-manufacturer"')
+    expect(html).not.toMatch(/class="makes-link" href="\/custom-soccer-ball-manufacturer"/)
   })
 })

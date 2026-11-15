@@ -17,6 +17,8 @@ import {
 import { LIVE_RENDER } from '../../lib/render/liveRender'
 import { webglAvailable } from '../../lib/webglAvailable'
 import { KEEP_WHEEL_ATTRIBUTE } from './SmoothScroll'
+import { RU_PROOF_WORDS } from '../../lib/i18n/islandWords'
+import { useLocale } from '../../lib/i18n/uiClient'
 
 /**
  * №03's garment, turning in real 3D (owner, 2026-09-29: "Live 3D on scroll"; decision D24,
@@ -161,6 +163,8 @@ export function LiveGarment({
   /** Where the chosen dot is, read as the new colour lands, so the wipe opens from it. */
   from?: () => PickedFrom | null
 }) {
+  // Russian section (2026-11-15): the page's language from its address, no words as props.
+  const ru = useLocale() === 'ru'
   const [phase, setPhase] = useState<Phase>('waiting')
   // The visitor has touched, dragged or keyed the garment: it stops turning for good (F7).
   const [touched, setTouched] = useState(false)
@@ -439,7 +443,7 @@ export function LiveGarment({
               ref: attach,
               className: 'live-garment__model',
               src: model.url,
-              alt: `${label}, a 3D model you can turn`,
+              alt: ru ? RU_PROOF_WORDS.modelAlt(label) : `${label}, a 3D model you can turn`,
               'camera-controls': '',
               'camera-orbit': model.camera.orbit,
               'camera-target': model.camera.target,
@@ -483,7 +487,7 @@ export function LiveGarment({
         // screen readers as that one is: the model's own label already says it can be turned.
         <p className="live-garment__hint" aria-hidden="true">
           <svg viewBox="0 0 24 24" focusable="false">
-            <title>Turn</title>
+            <title>{ru ? RU_PROOF_WORDS.turn : 'Turn'}</title>
             <path
               d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3M19.5 12a7.5 7.5 0 0 1-12.8 5.3"
               fill="none"
@@ -500,12 +504,12 @@ export function LiveGarment({
               strokeLinejoin="round"
             />
           </svg>
-          Drag to turn
+          {ru ? RU_PROOF_WORDS.dragToTurn : 'Drag to turn'}
         </p>
       ) : null}
       {phase === 'offer' ? (
         <button type="button" className="btn btn--ghost live-garment__offer" onClick={start}>
-          Turn it in 3D
+          {ru ? RU_PROOF_WORDS.turnIn3d : 'Turn it in 3D'}
         </button>
       ) : null}
     </div>

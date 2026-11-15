@@ -29,6 +29,18 @@ export function garmentCount(count: number): string {
   return `${count.toLocaleString('en-US')} ${count === 1 ? 'garment' : 'garments'}`
 }
 
+const GARMENTS_RU: Record<string, string> = {
+  one: 'изделие',
+  few: 'изделия',
+  many: 'изделий',
+  other: 'изделия',
+}
+
+/** `garmentCount` in Russian (2026-11-15): «1 изделие», «3 изделия», «40 изделий». */
+export function garmentCountRu(count: number): string {
+  return `${count.toLocaleString('ru-RU')} ${GARMENTS_RU[new Intl.PluralRules('ru').select(count)] ?? 'изделий'}`
+}
+
 /** WCAG 2.2's relative luminance of a `#rrggbb` colour; `null` for anything else. */
 export function luminance(hex: string): number | null {
   const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim())

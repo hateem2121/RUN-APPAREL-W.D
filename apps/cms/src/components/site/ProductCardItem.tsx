@@ -1,5 +1,7 @@
 import { nameSegments } from '../../lib/cardName'
 import type { ProductCard } from '../../lib/content'
+import { FAMILY_NAMES_RU } from '../../lib/families.ru'
+import type { Locale } from '../../lib/locale'
 import { GARMENT_PAGES } from '../../lib/seo'
 import type { SportPlace } from '../../lib/sports'
 import { CardGallery } from './CardGallery'
@@ -41,12 +43,19 @@ export function ProductCardItem({
   index,
   heading: Heading = 'h2',
   place,
+  locale = 'en',
 }: {
   product: ProductCard
   index: number
   heading?: 'h2' | 'h3'
   place?: SportPlace
+  /** Russian section (2026-11-15): the family name and the cue in Russian; the CMS words stay. */
+  locale?: Locale
 }) {
+  const category =
+    locale === 'ru' && product.category
+      ? (FAMILY_NAMES_RU[product.category] ?? product.category)
+      : product.category
   return (
     <li
       className="product-card"
@@ -81,12 +90,12 @@ export function ProductCardItem({
                 group names every colour to a screen reader (CardGallery.tsx). */}
             <p className="product-card__meta">
               <span translate="no">{product.productCode}</span>
-              {product.category ? <span>· {product.category}</span> : null}
+              {category ? <span>· {category}</span> : null}
             </p>
             {product.shortDescription ? (
               <p className="product-card__desc">{product.shortDescription}</p>
             ) : null}
-            <ViewerCue />
+            <ViewerCue locale={locale} />
           </div>
         </div>
       </CardGallery>
