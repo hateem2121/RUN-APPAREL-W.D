@@ -4,7 +4,11 @@ import { batches, cyrillicStrings } from './check-russian-text.mjs'
 
 test('pulls only Cyrillic strings, from literals, templates and JSX text, with their lines', () => {
   const found = cyrillicStrings(
-    "const a = 'Образец'\nconst b = 'English only'\nconst c = `Срок ${x} недель`\nconst d = <p>Привет</p>\n",
+    // The scanned source holds a template placeholder; its $ is joined on so lint does not read it as
+    // a mistake in this test.
+    "const a = 'Образец'\nconst b = 'English only'\nconst c = `Срок " +
+      '$' +
+      '{x} недель`\nconst d = <p>Привет</p>\n',
   )
   assert.deepEqual(
     found.map((item) => [item.text, item.line]),

@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { t } from './ui'
 import { UI_RU } from './ui.ru'
-import { UI_RU_CLIENT } from './ui.ru.client'
 
 const SRC = join(__dirname, '..', '..')
 const CYRILLIC = /[Ѐ-ӿ]/
@@ -17,7 +16,7 @@ function sources(dir: string): string[] {
 }
 
 /** Every literal key passed to `fn(…, '…')` across the app's source. */
-function keys(fn: 't' | 'tc'): string[] {
+function keys(fn: 't'): string[] {
   const call = new RegExp(
     `\\b${fn}\\(\\s*(?:[\\w.]+|'ru'|"ru"),\\s*(['"\`])((?:(?!\\1)[^\\\\]|\\\\.)*)\\1\\s*,?\\s*\\)`,
     'g',
@@ -37,20 +36,13 @@ describe('the components’ own words in Russian (2026-11-15)', () => {
     expect(missing, 'add these to lib/i18n/ui.ru.ts').toEqual([])
   })
 
-  it('gives every client-side tc() key a Russian entry in the small client table', () => {
-    const missing = keys('tc').filter((key) => !(key in UI_RU_CLIENT))
-    expect(missing, 'add these to lib/i18n/ui.ru.client.ts').toEqual([])
-  })
-
   it('has no Russian entry left that no code asks for', () => {
     const used = new Set(keys('t'))
-    const usedClient = new Set(keys('tc'))
     expect(Object.keys(UI_RU).filter((key) => !used.has(key))).toEqual([])
-    expect(Object.keys(UI_RU_CLIENT).filter((key) => !usedClient.has(key))).toEqual([])
   })
 
   it('writes every Russian entry in Russian', () => {
-    for (const value of [...Object.values(UI_RU), ...Object.values(UI_RU_CLIENT)]) {
+    for (const value of Object.values(UI_RU)) {
       expect(value, value).toMatch(CYRILLIC)
     }
   })

@@ -1,13 +1,13 @@
 import { FACTS } from './companyFacts'
 import { LEAD_TIME_RU } from './faqs.ru'
-import type { OrderPhase, OrderStep } from './orderProcess'
+import type { OrderPhase } from './orderProcess'
 
 /**
  * Russian twin of `orderProcess.ts` (`ORDER_PHASES`): same shape, same order, same photos; translate
  * prose only.
  *
- * `name` and `actor` are typed keys (`'Talk'`, `'You'`…) and stay English; their Russian words are
- * `ORDER_PHASE_NAMES_RU` and `ORDER_ACTORS_RU`. The sample time is read from `FACTS` and the lead
+ * `name` and `actor` are typed keys (`'Talk'`, `'You'`…) and stay English; `name`'s Russian words are
+ * `ORDER_PHASE_NAMES_RU` (no page draws `actor`). The sample time is read from `FACTS` and the lead
  * time is `faqs.ru.ts`'s, whose figures come from `LEAD_TIME`, so no number is typed twice.
  */
 
@@ -20,12 +20,6 @@ export const ORDER_PHASE_NAMES_RU: Readonly<Record<OrderPhase['name'], string>> 
   Develop: 'Разработка',
   Make: 'Производство',
   Deliver: 'Доставка',
-}
-
-/** The words for each step's `actor`. */
-export const ORDER_ACTORS_RU: Readonly<Record<OrderStep['actor'], string>> = {
-  You: 'Вы',
-  We: 'Мы',
 }
 
 export const ORDER_PHASES_RU: readonly OrderPhase[] = [
