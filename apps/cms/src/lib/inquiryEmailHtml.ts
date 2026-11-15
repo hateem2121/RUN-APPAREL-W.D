@@ -238,10 +238,11 @@ export type BuyerReceipt = { subject: string; html: string; text: string }
 /** The receipt's moving header, served by the site (apps/cms/public/email/). */
 export const RECEIPT_GIF = `${SITE}/email/inquiry-received.gif`
 /**
- * The ink wordmark (owner, 2026-11-10), as a PNG because Gmail and Outlook do not draw SVG in mail.
- * Rendered at 3x (243 x 84) from the brand's own `run-apparel-wordmark-ink.svg` by Chromium, on
- * the panel's `surface` colour rather than transparent, so a dark-mode client never shows ink on a
- * dark ground. Shown 28px tall: above the brand's 24px minimum, with its clear space around it.
+ * The 2027 logo (owner, 2026-11-15: "use it everywhere"; the ink wordmark before it, 2026-11-10),
+ * as a PNG because Gmail and Outlook do not draw SVG in mail. Rendered at 3x (243 x 84) by sharp
+ * from the same vector as the site's `public/icon.svg`, cropped to the logo's own band, on the
+ * panel's `surface` colour rather than transparent, so a dark-mode client never shows ink on a dark
+ * ground. Shown 28px tall: above the brand's 24px minimum, with its clear space around it.
  */
 export const RECEIPT_LOGO = `${SITE}/email/run-apparel-wordmark.png`
 export const RECEIPT_GIF_ALT =
