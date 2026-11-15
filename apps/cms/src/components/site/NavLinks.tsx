@@ -33,7 +33,14 @@ import { useEffect } from 'react'
  * WHY NOT MIDDLEWARE, the other server-side route to a pathname: it would run on every
  * request to this Worker, including `/admin` and `/api/*`, to decorate two links.
  */
-export function NavLinks() {
+export function NavLinks({
+  navLinks = SITE_NAV_LINKS,
+  menuLinks = SITE_MENU_LINKS,
+}: {
+  /** The Russian section passes its /ru links (lib/i18n/chrome.ts); English keeps the shared ones. */
+  navLinks?: readonly { readonly href: string; readonly label: string }[]
+  menuLinks?: readonly { readonly href: string; readonly label: string }[]
+} = {}) {
   const pathname = usePathname()
 
   /*
@@ -100,7 +107,7 @@ export function NavLinks() {
 
   return (
     <>
-      {SITE_NAV_LINKS.map(({ href, label }) => (
+      {navLinks.map(({ href, label }) => (
         <Link
           className="nav-link"
           key={href}
@@ -115,7 +122,7 @@ export function NavLinks() {
         </Link>
       ))}
       {/* In the phone menu only (VA-37): `nav-link--menu` is hidden in the wide bar (notch.css). */}
-      {SITE_MENU_LINKS.map(({ href, label }) => (
+      {menuLinks.map(({ href, label }) => (
         <Link
           className="nav-link nav-link--menu"
           key={href}

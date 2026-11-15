@@ -17,11 +17,17 @@ import { IntentLink as Link } from './IntentLink'
  * is left alone and goes to `/privacy#cookies`, where the same choice is explained. It is an
  * `<a>` so the footer's own link styles and its 44px row apply with no new CSS.
  */
-export function ConsentLink() {
+export function ConsentLink({
+  label = CONSENT_COPY.change,
+  href = '/privacy#cookies',
+}: {
+  label?: string
+  href?: string
+} = {}) {
   return (
     <Link
       className="nav-link"
-      href="/privacy#cookies"
+      href={href}
       onClick={(event) => {
         // Not cancelled means no question was listening: let the link navigate.
         const answered = !document.dispatchEvent(
@@ -30,7 +36,7 @@ export function ConsentLink() {
         if (answered) event.preventDefault()
       }}
     >
-      {CONSENT_COPY.change}
+      {label}
     </Link>
   )
 }

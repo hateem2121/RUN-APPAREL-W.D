@@ -1,5 +1,7 @@
 import '@run-apparel/ui/archivo.css'
 import '@fontsource/instrument-serif/400-italic.css'
+// The Russian line below (Russian section, 2026-11-15): Cyrillic in the brand faces, fetched only here.
+import '@run-apparel/ui/cyrillic.css'
 // ORDER IS LOAD-BEARING — the same four-import cascade (frontend)/layout.tsx uses.
 import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
@@ -142,6 +144,17 @@ export default function NotFound() {
                 Or write to us directly:{' '}
                 <a className="prose__link" href={`mailto:${DEFAULT_SITE_SETTINGS.email}`}>
                   {DEFAULT_SITE_SETTINGS.email}
+                </a>
+              </p>
+              {/*
+                ⚠️ ONE 404 FOR BOTH LANGUAGES (Russian section, 2026-11-15). This root file cannot
+                tell /ru/x from /x (it reads no request), and a route-group 404 does not
+                server-render (the comment at the top), so a Russian visitor gets this line.
+              */}
+              <p className="site-lede" lang="ru">
+                Страница не найдена. Русская версия сайта:{' '}
+                <a className="prose__link" href="/ru" hrefLang="ru">
+                  wear-run.com/ru
                 </a>
               </p>
             </div>

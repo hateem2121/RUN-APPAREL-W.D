@@ -1,5 +1,7 @@
-import { SITE_MENU_ID, SITE_MENU_NAME, SITE_NAV_LABEL } from '@run-apparel/shared'
+import { SITE_MENU_ID } from '@run-apparel/shared'
+import { CHROME, type ChromeWords } from '../../lib/i18n/chrome'
 import { IntentLink as Link } from './IntentLink'
+import { LanguageLink } from './LanguageLink'
 import { NavLinks } from './NavLinks'
 import { ThemeSwitch } from './ThemeSwitch'
 
@@ -51,7 +53,14 @@ import { ThemeSwitch } from './ThemeSwitch'
  * carries exactly that, and this site's build (measured 2026-09-23) does too.
  * e2e/themeSwitch.spec.ts clicks the switch in the BUILT site and measures the page it paints.
  */
-export function SiteHeader({ wordmark }: { wordmark: string }) {
+export function SiteHeader({
+  wordmark,
+  chrome = CHROME.en,
+}: {
+  wordmark: string
+  /** The Russian section passes CHROME.ru (lib/i18n/chrome.ts); English keeps the shared words. */
+  chrome?: ChromeWords
+}) {
   return (
     <header className="notch-shell">
       {/* The phone's status area takes the bar's colour from this strip (notch.css, VA-50).
@@ -64,22 +73,23 @@ export function SiteHeader({ wordmark }: { wordmark: string }) {
         {/* `translate="no"` (polish X27, 2026-10-04): buyers abroad read with the browser's
             Translate, which could turn the name into "LAUF BEKLEIDUNG". The garment names and
             codes, the footer's mark and its legal line carry it too, on both apps. */}
-        <Link className="notch__wordmark" href="/" translate="no">
+        <Link className="notch__wordmark" href={chrome.home} translate="no">
           {wordmark}
         </Link>
 
-        <nav className="notch__nav" aria-label={SITE_NAV_LABEL}>
+        <nav className="notch__nav" aria-label={chrome.navLabel}>
           <button type="button" className="notch__menu-btn" popoverTarget={SITE_MENU_ID}>
             <span className="notch__icon" aria-hidden="true">
               <span className="notch__icon-line" />
               <span className="notch__icon-line" />
               <span className="notch__icon-line" />
             </span>
-            <span className="visually-hidden">{SITE_MENU_NAME}</span>
+            <span className="visually-hidden">{chrome.menuName}</span>
           </button>
           <div className="notch__menu" id={SITE_MENU_ID} popover="auto">
-            <NavLinks />
-            <ThemeSwitch />
+            <NavLinks navLinks={chrome.navLinks} menuLinks={chrome.menuLinks} />
+            <LanguageLink lang={chrome.lang} menu />
+            <ThemeSwitch names={chrome.themeNames} words={chrome.themeWords} />
           </div>
         </nav>
       </div>

@@ -85,12 +85,19 @@ function setTheme(theme: Theme) {
  * ⚠️ IT WRITES STORAGE ONLY WHEN PRESSED. A plain visit leaves nothing on the device
  * (e2e/headers.spec.ts); lib/themeBoot.ts only reads.
  */
-export function ThemeSwitch() {
+export function ThemeSwitch({
+  names = THEME_SWITCH_NAMES,
+  words = THEME_SWITCH_WORDS,
+}: {
+  /** The Russian section passes its own (lib/i18n/chrome.ts); English keeps the shared words. */
+  names?: { readonly toDark: string; readonly toLight: string }
+  words?: { readonly toDark: string; readonly toLight: string }
+} = {}) {
   const [title, setTitle] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     const theme = appliedTheme()
-    setTitle(theme === 'dark' ? THEME_SWITCH_NAMES.toLight : THEME_SWITCH_NAMES.toDark)
+    setTitle(theme === 'dark' ? names.toLight : names.toDark)
     // A returning visitor's choice reaches the phone's browser bar too.
     if (storedTheme()) paintBrowserBar(theme)
   }, [])
@@ -98,7 +105,7 @@ export function ThemeSwitch() {
   const onClick = () => {
     const next: Theme = appliedTheme() === 'dark' ? 'light' : 'dark'
     setTheme(next)
-    setTitle(next === 'dark' ? THEME_SWITCH_NAMES.toLight : THEME_SWITCH_NAMES.toDark)
+    setTitle(next === 'dark' ? names.toLight : names.toDark)
   }
 
   return (
@@ -113,9 +120,9 @@ export function ThemeSwitch() {
           />
         </svg>
         <span className="theme-toggle__words" aria-hidden="true">
-          {THEME_SWITCH_WORDS.toDark}
+          {words.toDark}
         </span>
-        <span className="visually-hidden">{THEME_SWITCH_NAMES.toDark}</span>
+        <span className="visually-hidden">{names.toDark}</span>
       </span>
       <span className="theme-toggle__face theme-toggle__face--to-light">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -128,9 +135,9 @@ export function ThemeSwitch() {
           />
         </svg>
         <span className="theme-toggle__words" aria-hidden="true">
-          {THEME_SWITCH_WORDS.toLight}
+          {words.toLight}
         </span>
-        <span className="visually-hidden">{THEME_SWITCH_NAMES.toLight}</span>
+        <span className="visually-hidden">{names.toLight}</span>
       </span>
     </button>
   )

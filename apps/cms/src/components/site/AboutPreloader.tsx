@@ -16,7 +16,12 @@ import { CurtainTiming } from './CurtainTiming'
  * sits above it (`--z-skip-link` beats `--z-preloader`). If the driver stalls, CSS lifts the curtain
  * on its own at the ceiling. suppressHydrationWarning: the driver writes these numbers before React.
  */
-export function AboutPreloader() {
+export function AboutPreloader({
+  loading = 'Loading',
+}: {
+  /** "Загрузка" in the Russian section (lib/i18n/chrome.ts). One text node, as before. */
+  loading?: string
+} = {}) {
   return (
     <>
       <script
@@ -33,7 +38,7 @@ export function AboutPreloader() {
               {FAMILY_SINCE}
             </span>
             <span className="preloader__meta mono">
-              Loading ·{' '}
+              {`${loading} ·`}{' '}
               <span className="preloader__pct" suppressHydrationWarning>
                 0%
               </span>

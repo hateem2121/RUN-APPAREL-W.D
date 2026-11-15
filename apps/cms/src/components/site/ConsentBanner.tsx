@@ -61,7 +61,16 @@ const cookieJar = (): CookieJar => ({
  *   - while the answer is Decline, every page load removes Google's cookies again, because
  *     one was measured outliving the click (see the effect below).
  */
-export function ConsentBanner() {
+export function ConsentBanner({
+  copy = CONSENT_COPY,
+  privacyHref = '/privacy#cookies',
+  label = 'Cookie choice',
+}: {
+  /** The Russian section passes its own words and /ru link (lib/i18n/chrome.ts). */
+  copy?: { readonly [K in keyof typeof CONSENT_COPY]: string }
+  privacyHref?: string
+  label?: string
+} = {}) {
   const [open, setOpen] = useState(false)
   const card = useRef<HTMLDivElement>(null)
   // Where focus was when the visitor asked for the question; null on a first visit.
@@ -190,17 +199,17 @@ export function ConsentBanner() {
   }
 
   return (
-    <section className="consent" aria-label="Cookie choice">
+    <section className="consent" aria-label={label}>
       <div className="consent__card" ref={card} tabIndex={-1}>
         <p className="consent__text">
-          {CONSENT_COPY.text} <Link href="/privacy#cookies">{CONSENT_COPY.more}</Link>
+          {copy.text} <Link href={privacyHref}>{copy.more}</Link>
         </p>
         <div className="consent__actions">
           <button type="button" className="btn btn--ghost" onClick={decline}>
-            {CONSENT_COPY.decline}
+            {copy.decline}
           </button>
           <button type="button" className="btn btn--ghost" onClick={accept}>
-            {CONSENT_COPY.accept}
+            {copy.accept}
           </button>
         </div>
       </div>

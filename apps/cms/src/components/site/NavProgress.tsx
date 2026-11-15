@@ -27,7 +27,7 @@ import {
  * line stays, because nothing may move (D8). A tap on a garment is a full page load, which never
  * reaches this, so a card's picture still grows into its page (MO3, owner, 31 Oct).
  */
-export function NavProgress() {
+export function NavProgress({ lang = 'en' }: { lang?: 'en' | 'ru' } = {}) {
   const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle')
   const timers = useRef<number[]>([])
   const weave = useRef<HTMLDivElement>(null)
@@ -61,7 +61,14 @@ export function NavProgress() {
           return pick
         }),
       )
-      setWords(to.pathname === '/' ? 'Loading Home…' : `Loading ${titleOf(to.pathname)}…`)
+      // The Russian section says only "Загрузка…": titleOf names a page from its English path.
+      setWords(
+        lang === 'ru'
+          ? 'Загрузка…'
+          : to.pathname === '/'
+            ? 'Loading Home…'
+            : `Loading ${titleOf(to.pathname)}…`,
+      )
       el.removeAttribute('data-weave')
       el.removeAttribute('data-rest')
       void el.offsetWidth

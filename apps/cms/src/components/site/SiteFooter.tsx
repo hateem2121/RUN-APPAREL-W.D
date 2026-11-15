@@ -5,18 +5,16 @@ import {
   markBox,
   marksFor,
   normalizeWhatsAppNumber,
-  SITE_FOOTER_COMPANY,
-  SITE_FOOTER_LEARN,
-  SITE_FOOTER_LINKS,
-  SITE_FOOTER_MADE,
-  SITE_FOOTER_WORDS,
   splitLastWord,
   standardsLines,
 } from '@run-apparel/shared'
 import { IntentLink as Link } from './IntentLink'
 import type { PublicSiteSettings } from '../../lib/projectPublic'
 import { formatAddress } from '../../lib/structuredData'
+import { CHROME, type ChromeWords } from '../../lib/i18n/chrome'
+import { ruFooter } from '../../lib/i18n/footerRu'
 import { ConsentLink } from './ConsentLink'
+import { LanguageLink } from './LanguageLink'
 import { FooterClock } from './FooterClock'
 import { FooterGlow } from './FooterGlow'
 import { FooterInView } from './FooterInView'
@@ -49,13 +47,22 @@ import { FooterWordmark } from './FooterWordmark'
  * browser suites hold the rendered footer to `siteFooterAriaSnapshot` — so a block added or
  * moved here must be added or moved there in the same change, or both suites fail.
  */
-export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
+export function SiteFooter({
+  settings,
+  chrome = CHROME.en,
+}: {
+  settings: PublicSiteSettings
+  /** The Russian section passes CHROME.ru (lib/i18n/chrome.ts); English keeps the shared words. */
+  chrome?: ChromeWords
+}) {
   const f = settings.footer
-  const q = splitLastWord(f.ctaQuestion)
+  // The CMS's own lines, in Russian where lib/i18n/footerRu.ts has them (it says why it falls back).
+  const say = chrome.lang === 'ru' ? ruFooter : (text: string) => text
+  const q = splitLastWord(say(f.ctaQuestion))
   const hours = f.capacity.hours
   const capacity = capacityLines(f.capacity)
   const marks = marksFor(f.certifications)
-  const words = SITE_FOOTER_WORDS
+  const words = chrome.footer
   /*
    * ⚠️ WITH BLANK CLAIMS THE FACTS AREA RENDERS ONLY CONTACT, "WHAT WE MAKE" AND THE CLIMATE
    * COMMITMENT, AND THAT IS THE CODE BEING RIGHT. (The live footer has all five, from the facts the owner supplied on
@@ -83,7 +90,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
   return (
     <footer className="site-footer">
       <FooterInView />
-      <FooterTab label={f.ctaLabel} email={settings.email} />
+      <FooterTab label={say(f.ctaLabel)} email={settings.email} />
 
       <div className="site-footer__slab">
         <FooterGlow />
@@ -113,11 +120,18 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
                 <em>{q.last}</em>
                 {q.tail}
               </h2>
-              <p className="footer-derisk">{f.ctaSubline}</p>
-              <p className="footer-dim">{f.ctaPromise}</p>
+              <p className="footer-derisk">{say(f.ctaSubline)}</p>
+              <p className="footer-dim">{say(f.ctaPromise)}</p>
             </div>
             <div className="footer-side">
-              <FooterClock hours={hours} />
+              <FooterClock
+                hours={hours}
+                words={
+                  chrome.lang === 'en'
+                    ? undefined
+                    : { clockCity: words.clockCity, openNow: words.openNow, lang: chrome.lang }
+                }
+              />
             </div>
           </div>
 
@@ -140,7 +154,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
                 </li>
                 <li className="footer-block__address">{formatAddress()}</li>
                 {f.worksCoordinates ? (
-                  <li className="footer-block__sub">{f.worksCoordinates}</li>
+                  <li className="footer-block__sub">{say(f.worksCoordinates)}</li>
                 ) : null}
               </ul>
             </div>
@@ -153,7 +167,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
             <div className="footer-block footer-block--made">
               <h3>{words.made}</h3>
               <ul>
-                {SITE_FOOTER_MADE.map((link) => (
+                {chrome.made.map((link) => (
                   <li key={link.href}>
                     <Link href={link.href}>{link.label}</Link>
                   </li>
@@ -163,11 +177,11 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
 
             {/* The company pages (2026-10-07): careers, community and the policies, LIVE links
                 only, drawn here and in the viewer's Footer in the same change (E5). */}
-            {SITE_FOOTER_COMPANY.length > 1 ? (
+            {chrome.company.length > 1 ? (
               <div className="footer-block footer-block--company">
                 <h3>{words.company}</h3>
                 <ul>
-                  {SITE_FOOTER_COMPANY.map((link) => (
+                  {chrome.company.map((link) => (
                     <li key={link.href}>
                       <Link href={link.href}>{link.label}</Link>
                     </li>
@@ -181,11 +195,11 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
                 group's class as well, for that group's print rule (off paper, footer.css): a selector
                 of its own there would grow the garment pages' stylesheet, which sits at its budget
                 (lighthouserc.json, raised 23 bytes for the Company group). */}
-            {SITE_FOOTER_LEARN.length > 1 ? (
+            {chrome.learn.length > 1 ? (
               <div className="footer-block footer-block--company footer-block--learn">
                 <h3>{words.learn}</h3>
                 <ul>
-                  {SITE_FOOTER_LEARN.map((link) => (
+                  {chrome.learn.map((link) => (
                     <li key={link.href}>
                       <Link href={link.href}>{link.label}</Link>
                     </li>
@@ -217,7 +231,7 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
                 <h3>{words.capacity}</h3>
                 <ul>
                   {capacity.map((line) => (
-                    <li key={line}>{line}</li>
+                    <li key={line}>{say(line)}</li>
                   ))}
                 </ul>
               </div>
@@ -253,9 +267,9 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
                  */}
                 {/* Entries with the same holder share a line (X23: two began "Suppliers:"). */}
                 {standardsLines(f.certifications).map((line) => (
-                  <li key={line}>{line}</li>
+                  <li key={line}>{say(line)}</li>
                 ))}
-                <li>{CLIMATE_COMMITMENT.line}</li>
+                <li>{say(CLIMATE_COMMITMENT.line)}</li>
               </ul>
             </div>
 
@@ -306,15 +320,20 @@ export function SiteFooter({ settings }: { settings: PublicSiteSettings }) {
               question, one click from every page, drawn by ConsentLink because it reopens the
               question in place.
             */}
-            {SITE_FOOTER_LINKS.map((link) =>
+            {chrome.footerLinks.map((link) =>
               link.consent ? (
-                <ConsentLink key={link.href} />
+                <ConsentLink
+                  key={link.href}
+                  {...(chrome.lang === 'en' ? {} : { label: link.label, href: link.href })}
+                />
               ) : (
                 <Link key={link.href} className="nav-link" href={link.href}>
                   {link.label}
                 </Link>
               ),
             )}
+            {/* The same page in the other language (Russian section, 2026-11-15). */}
+            <LanguageLink lang={chrome.lang} />
           </div>
         </div>
 
