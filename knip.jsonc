@@ -18,7 +18,9 @@
   // pages (document-pages.mjs); ffmpeg prepares the /products film from the owner's original
   // (build-products-film.mjs). chromedriver and safaridriver left this list on 2026-10-25: knip
   // reported both as no longer used once the phone scripts shared webdriver-client.mjs.
-  "ignoreBinaries": ["gs", "ffmpeg"],
+  // lychee is the weekly guide-source check's link checker: guide-sources.yml downloads the pinned binary,
+  // and its test runs the one on PATH when there is one (and says so when there is not).
+  "ignoreBinaries": ["gs", "ffmpeg", "lychee"],
   // infra/apex-404 (the private-PDF-link Worker) has no package.json, so Knip cannot make it a
   // workspace ("a workspace must have a package.json", knip.dev/features/monorepos-and-workspaces,
   // read 2026-10-25). It needs none: the "." workspace's default project glob already covers it,

@@ -27,6 +27,10 @@ workflows:
         - 'actions/setup-node@v7.1.0'
         - 'pnpm/action-setup@v6.1.0'
         - 'step-security/harden-runner@v2.22.4'
+    '.github/workflows/guide-sources.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-node@v7.1.0'
+        - 'step-security/harden-runner@v2.22.4'
     '.github/workflows/heartbeat.yml':
         - 'step-security/harden-runner@v2.22.4'
     '.github/workflows/lighthouse-live.yml':
