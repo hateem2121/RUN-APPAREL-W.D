@@ -30,9 +30,9 @@
  *
  * ⚠️ DO NOT PASS A `density` TO sharp (IM-09, 2026-09-24). This script used to render
  * at `density: 384` to get a clean raster from the OLD placeholder's tiny 32-unit
- * viewBox. The real mark's viewBox is 8671 units (`apps/cms/public/icon.svg`), and
- * sharp scales an SVG by density/72 — 384/72 * 8671 asks for a 46,245 pixel wide
- * raster and sharp refuses outright with "Input image exceeds pixel limit". The
+ * viewBox. The mark of that day had an 8671-unit viewBox (the 2027 mark of 2026-11-15
+ * has 1024), and sharp scales an SVG by density/72 — 384/72 * 8671 asked for a 46,245
+ * pixel wide raster and sharp refused outright with "Input image exceeds pixel limit". The
  * default renders it at its natural size, which downsamples cleanly; `gen-icons.mjs`
  * carries the same rule for the identical reason.
  */

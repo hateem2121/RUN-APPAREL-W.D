@@ -279,14 +279,20 @@ describe('the owner can replace the tab icon from the CMS', () => {
       expect(body.endsWith('-'), 'an XML comment body may not end with a hyphen').toBe(false)
     }
     /*
-     * The other half of the same fix. The ground is transparent by the owner's choice, so
-     * one fixed colour disappears against one of the two tab strips — the mark has to
-     * follow the theme. Verified in Chromium 2026-09-16: rgb(29,31,26) on light and
-     * rgb(205,243,69) on dark.
+     * The other half of the same fix: the mark must show on BOTH tab strips. Until
+     * 2026-11-15 the ground was transparent (owner, 2026-09-16), so the mark followed the
+     * theme with a media query. The 2027 mark (owner, 2026-11-15) carries its own opaque
+     * paper ground instead, so it reads the same on a light or a dark strip, and the guard is
+     * that the ground covers the whole square: a ground that shrank, or went missing, would
+     * leave ink letters on a dark strip, which is the invisible icon this test exists for.
+     * The colours are the owner's file's own (`icon.svg` explains each one).
      */
-    expect(svg).toMatch(/@media \(prefers-color-scheme: dark\)/)
-    expect(svg).toContain('#1d1f1a')
-    expect(svg).toContain('#cdf345')
+    const viewBox = /viewBox="0 0 (\d+) (\d+)"/.exec(svg)
+    expect(viewBox?.[1], 'the icon is square').toBe(viewBox?.[2])
+    expect(svg, 'an opaque ground covers the whole square').toContain(
+      `<rect width="${viewBox?.[1]}" height="${viewBox?.[2]}" fill="#f0eee9"/>`,
+    )
+    for (const colour of ['#cdf345', '#393d2b', '#dceb9d']) expect(svg).toContain(colour)
   })
 
   it('the two icons a browser asks for without being told exist as real files', () => {

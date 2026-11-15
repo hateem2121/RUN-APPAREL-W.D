@@ -19,9 +19,9 @@
  * was deleted in #221.) This mark is pure polygons and bezier paths with no text, so a
  * rasteriser cannot substitute anything. sharp is the smaller tool for the smaller job.
  *
- * ⚠️ DO NOT PASS A `density`. sharp scales an SVG by density/72, and this mark's viewBox is
- * 8671 units, so `gen-favicon.mjs`'s density of 384 asks for a 46,245 pixel wide raster and
- * sharp refuses outright with "Input image exceeds pixel limit". The default renders it at
+ * ⚠️ DO NOT PASS A `density`. sharp scales an SVG by density/72, and the mark of
+ * 2026-09-24 had an 8671-unit viewBox, so `gen-favicon.mjs`'s density of 384 asked for a 46,245
+ * pixel wide raster and sharp refused outright with "Input image exceeds pixel limit". The default renders it at
  * its natural size, which downsamples cleanly.
  *
  * ⚠️ NOT WIRED INTO ANY BUILD, deliberately, exactly as gen-share-images.mjs is not: the

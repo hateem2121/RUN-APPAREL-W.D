@@ -388,6 +388,16 @@ const NEAR_ON_PURPOSE: Record<string, Record<string, string>> = {
     '#a3a49b': 'the same incident: the old --muted at 55% over the page ground',
     '#4a4c46': 'arithmetic: 80% ink over a white wall, the worst case under the photo hero',
   },
+  'apps/viewer/index.html': {
+    '%23f0eee9': "the 2027 logo's own ground, measured off the owner's run-mark-1024.png (2026-11-15)",
+    '%23393d2b': "the 2027 logo's letters, from the same file",
+    '%23dceb9d': "the 2027 logo's outline, from the same file",
+  },
+  'apps/cms/src/publicSite.test.ts': {
+    '#f0eee9': "the 2027 logo's own ground, measured off the owner's run-mark-1024.png (2026-11-15)",
+    '#393d2b': "the 2027 logo's letters, from the same file",
+    '#dceb9d': "the 2027 logo's outline, from the same file",
+  },
   'apps/viewer/src/styles/tokens.test.ts': {
     '#63665b': 'negative controls plant the retired --muted',
     '#5f7414': 'negative controls plant the retired --volt-deep',
