@@ -2931,12 +2931,16 @@ export const GUIDES: readonly Guide[] = [
    */
   {
     path: '/guides/how-soccer-balls-are-made',
-    title: 'How Soccer Balls Are Made: Builds and Sizes',
+    // "Materials" (owner, 2026-11-15): searches for what a ball is MADE OF ranked 9–60 with no
+    // title word to match (Search Console, 18 Aug–14 Nov). 60 characters with the brand.
+    title: 'How Soccer Balls Are Made: Materials and Sizes',
     description:
       'Hand-stitched, machine-stitched, thermobonded and hybrid soccer balls: what each is made of, the ball size for each age, and what FIFA’s quality marks test.',
     heading: 'How a soccer ball is made,',
     headingAccent: 'panel by panel.',
-    lede: 'A soccer ball is built in one of four ways: stitched by hand, stitched by machine, thermobonded, or a hybrid of these. We make all four in Sialkot. This guide explains each build, the materials inside a ball, the size for each age, and what FIFA’s quality marks test.',
+    // The first sentence answers "how is a soccer ball made" outright, with the parts named in
+    // "What soccer balls are made of" below (owner, 2026-11-15); no fact here that section lacks.
+    lede: 'A soccer ball is a cover, backing layers and an air-filled bladder, joined in one of four ways: stitched by hand, stitched by machine, thermobonded, or a hybrid of these. We make all four in Sialkot. This guide explains each build, the materials inside a ball, the size for each age, and what FIFA’s quality marks test.',
     sections: [
       {
         heading: 'Four ways to build a ball',
@@ -2965,7 +2969,7 @@ export const GUIDES: readonly Guide[] = [
         ],
       },
       {
-        heading: 'What a ball is made of',
+        heading: 'What soccer balls are made of',
         blocks: [
           {
             kind: 'text',

@@ -3924,10 +3924,14 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
     path: '/guides/sportswear-compliance-by-market',
     title: 'Apparel Compliance: US, EU, UK and Canada',
     description:
-      'Laws on clothing and soccer balls in the US, EU, UK and Canada: chemicals, PFAS, children’s products, forced labor, environmental claims and textile EPR.',
+      'Clothing and soccer-ball regulations in the US, EU, UK and Canada: chemicals, PFAS, children’s products, forced labor, environmental claims and textile EPR.',
     heading: 'What the law asks of your order,',
     headingAccent: 'market by market.',
-    lede: 'The law where your garments are sold decides what they may contain, what they must prove and what your brand may claim about them. This guide sets out those rules for the US, EU, UK and Canada, each dated by the day we read it.',
+    // "Regulations" in the description and the first sentence (owner, 2026-11-15): "apparel
+    // regulations" and "clothing regulations" ranked 20–28 while the page never used the word near
+    // the top (Search Console, 18 Aug–14 Nov). The title stays: "apparel regulatory compliance"
+    // already ranked 13 against it.
+    lede: 'Clothing regulations depend on where your garments are sold: that market’s law decides what they may contain, what they must prove and what your brand may claim about them. This guide sets out those rules for the US, EU, UK and Canada, each dated by the day we read it.',
     sections: [
       {
         heading: 'Which rules reach a sportswear order in each market?',

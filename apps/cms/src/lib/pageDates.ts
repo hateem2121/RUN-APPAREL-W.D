@@ -97,6 +97,8 @@ const HELD_GUIDES = '2026-11-06T22:45:00+05:00'
  * (the Green Claims link's lost bracket; two papers whose DOIs failed, now at their journals' homes).
  */
 const SEO_PASS = '2026-11-15T04:02:43+05:00'
+/** The hubs list the ball and compliance guides' new search wording (owner, 2026-11-15; bylines.ts). */
+const SEARCH_WORDING = '2026-11-15T11:30:02+05:00'
 /** The solar share corrected to 83% (owner, 2026-11-11): the home page's About band and the policies index draw it. */
 const SOLAR_83 = '2026-11-10T19:10:00+00:00'
 
@@ -109,7 +111,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/custom-sports-accessories-manufacturer': page(ORDER_PHOTO, '8ac20e5aad55'),
   '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'b26b21c57af7'),
   '/private-label-casual-wear-manufacturer': page(WAVE_ONE, '6c189a2a18d2'),
-  '/guides': page(SEO_PASS, 'c0e59479a2a4'),
+  '/guides': page(SEARCH_WORDING, 'f2dfc64c0c7a'),
   '/policies': page(SOLAR_83, 'cc95deadb339'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
   '/press': page(WAVE_ONE, 'ae0578799d9e'),
@@ -120,7 +122,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/faq/fabrics-and-printing': page(LIBRARY, 'f8be1d9e562e'),
   '/faq/working-with-us': page(HELD_GUIDES, 'be588862d64c'),
   '/glossary': page(GLOSSARY_SEVEN, 'd4a7273a6965'),
-  '/journal': page(SEO_PASS, '4ab5a54e0d77'),
+  '/journal': page(SEARCH_WORDING, 'e36f777d44e9'),
   '/case-studies': page(SEO_PASS, 'd3d1ac26be0c'),
   // "What happens next" beside the form (owner, 2026-11-11). Before: the phone became required
   // (2026-11-10T22:50:33+05:00), the wide AVIF hero (2026-11-04T19:52:09+05:00), and the one phone

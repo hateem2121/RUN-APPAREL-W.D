@@ -157,6 +157,12 @@ const SEO_PASS = '2026-11-15T04:02:43+05:00'
  * source now goes to ISC's record of the same paper. Found by the post-deploy link check of #389.
  */
 const TRIMS_SOURCE = '2026-11-15T10:47:40+05:00'
+/**
+ * Two guides worded for what buyers search (owner, 2026-11-15): the ball guide's title, opening
+ * sentence and materials heading say what a ball is made of; the compliance guide's description and
+ * opening sentence say "regulations". Search Console, 18 Aug–14 Nov, set the words.
+ */
+const SEARCH_WORDING = '2026-11-15T11:30:02+05:00'
 /*
  * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
  * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". Its date is
@@ -222,8 +228,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-soccer-balls-are-made': byline(
     AUTHORS.production,
     WAVE_ONE,
-    TECH_PACK_AND_TOOLS,
-    '00aefc6b61b3',
+    SEARCH_WORDING,
+    'add41f648a9c',
   ),
   '/guides/how-we-write-our-guides': byline(
     AUTHORS.contentTeam,
@@ -260,8 +266,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/sportswear-compliance-by-market': byline(
     AUTHORS.merchandiser,
     LIBRARY,
-    SEO_PASS,
-    '88d6348c1857',
+    SEARCH_WORDING,
+    '2fef2d41a529',
   ),
   '/guides/apparel-manufacturing-machinery': byline(
     AUTHORS.production,
