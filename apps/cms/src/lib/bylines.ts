@@ -128,8 +128,6 @@ const SOLAR_83 = '2026-11-10T19:10:00+00:00'
  * and ball guides (C6): owner approved every word on 2026-11-06. The time the words were committed.
  */
 const TECH_PACK_AND_TOOLS = '2026-11-06T20:34:06+05:00'
-/** The vetting guide's SECP QR-code line, owner approved as written on 2026-11-07. */
-const SECP_QR_LINE = '2026-11-07T00:05:06+05:00'
 /*
  * The compliance guide's line that France's "tissage" includes knitting (owner approved, 2026-11-07),
  * and its sources without the drafting team's "†" (it meant "read through the web-fetch tool").
@@ -163,6 +161,13 @@ const TRIMS_SOURCE = '2026-11-15T10:47:40+05:00'
  * opening sentence say "regulations". Search Console, 18 Aug–14 Nov, set the words.
  */
 const SEARCH_WORDING = '2026-11-15T11:30:02+05:00'
+/**
+ * The vetting guide's note that SECP's eServices site may not open outside Pakistan (owner,
+ * 2026-11-15), after the weekly source check timed out on it from the US (issue #394). It replaces
+ * the guide's previous change date, its SECP QR-code line (owner approved as written,
+ * 2026-11-07T00:05:06+05:00).
+ */
+const SECP_ABROAD_NOTE = '2026-11-15T13:39:31+05:00'
 /*
  * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
  * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". Its date is
@@ -241,8 +246,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-to-vet-a-clothing-manufacturer': byline(
     AUTHORS.merchandiser,
     LIBRARY,
-    SECP_QR_LINE,
-    '61d050ce6a67',
+    SECP_ABROAD_NOTE,
+    '3da920f37d0e',
   ),
   '/guides/clothing-labels': byline(AUTHORS.merchandiser, LIBRARY, LIBRARY, '77895275599e'),
   '/guides/apparel-trims': byline(AUTHORS.production, LIBRARY, TRIMS_SOURCE, '2356141baad0'),
