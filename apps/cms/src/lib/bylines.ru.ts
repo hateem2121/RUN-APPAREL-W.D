@@ -5,7 +5,7 @@
  * as written (M. Hateem Jamshaid, in Latin letters, as on the Russian about page).
  */
 export const AUTHOR_ROLES_RU: Readonly<Record<string, string>> = {
-  'Merchandiser, RUN APPAREL': 'Мерчендайзер, RUN APPAREL',
+  'Merchandiser, RUN APPAREL': 'Мерчандайзер, RUN APPAREL',
   'Production in-charge, RUN APPAREL': 'Руководитель производства, RUN APPAREL',
   'HR, RUN APPAREL': 'Отдел кадров, RUN APPAREL',
   'Content Team, RUN APPAREL': 'Контент-команда RUN APPAREL',

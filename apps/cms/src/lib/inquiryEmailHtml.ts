@@ -1,4 +1,5 @@
 import { type InquiryEmailExtras, type InquiryInput, RUSSIAN_FORM_LINE } from './inquiry'
+import { RECEIPT_WORDS_RU } from './inquiryEmail.ru'
 import { SUBJECTS } from './inquiryForm'
 
 /**
@@ -92,9 +93,9 @@ const label = (text: string): string =>
   `<span style="font-family:${MONO};font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:${C.muted};">${esc(text)}</span>`
 
 /** The page around each email: paper ground, one 600px panel, a hidden preview line. */
-function frame(preview: string, inner: string): string {
+function frame(preview: string, inner: string, lang: 'en' | 'ru' = 'en'): string {
   return `<!doctype html>
-<html lang="en">
+<html lang="${lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -249,38 +250,95 @@ export const RECEIPT_GIF_ALT =
   'Inquiry received. Next, our team reads it. Then we reply within 24 hours.'
 
 /** A subject the form itself offers, or nothing: never words the sender typed (see top). */
-const offeredSubject = (subject: string): string | null =>
-  (SUBJECTS as readonly string[]).includes(subject) ? subject : null
+const offeredSubject = (subject: string): (typeof SUBJECTS)[number] | null =>
+  (SUBJECTS as readonly string[]).includes(subject) ? (subject as (typeof SUBJECTS)[number]) : null
+
+/**
+ * The receipt's words, one set per language (Russian section, 2026-11-15). The English set is the
+ * receipt as it was; `inquiryEmail.ru.ts` holds the Russian one, for an inquiry sent from
+ * /ru/contact. `gif: null` leaves the moving header out (it spells its steps in English).
+ */
+export type ReceiptWords = {
+  lang: 'en' | 'ru'
+  subject: (ref: string) => string
+  preview: (ref: string) => string
+  gif: { src: string; alt: string } | null
+  reference: string
+  /** The headline: plain words, then the one italic serif word. */
+  heading: readonly [string, string]
+  askedAbout: string
+  topic: (subject: (typeof SUBJECTS)[number]) => string
+  steps: readonly [string, string, string]
+  sooner: string
+  callUs: (phone: string) => string
+  whatsapp: string
+  range: string
+  rangePath: string
+  thanks: (ref: string) => string
+  textHeading: string
+  textSooner: (phone: string) => string
+  textRange: string
+  why: (ref: string) => string
+}
+
+export const RECEIPT_WORDS: ReceiptWords = {
+  lang: 'en',
+  subject: (ref) => `We have your inquiry — RUN APPAREL (${ref})`,
+  preview: (ref) => `We have your inquiry (${ref}). We reply within 24 hours.`,
+  gif: { src: RECEIPT_GIF, alt: RECEIPT_GIF_ALT },
+  reference: 'Your reference',
+  heading: ['What happens', 'next.'],
+  askedAbout: 'You asked about',
+  topic: (subject) => subject,
+  steps: [
+    'Our team in Sialkot reads your message and any files you sent.',
+    'We reply by email within 24 hours, often sooner, or call you on the number you gave.',
+    'Reply to this email to add anything: a sketch, a tech pack or a deadline.',
+  ],
+  sooner: 'Need us sooner?',
+  callUs: (phone) => `Call or WhatsApp ${phone}.`,
+  whatsapp: 'WhatsApp us',
+  range: 'See the range →',
+  rangePath: '/products',
+  thanks: (ref) => `Thank you. We have your inquiry (${ref}).`,
+  textHeading: 'What happens next',
+  textSooner: (phone) => `Need us sooner? Call or WhatsApp ${phone}, or reply to this email.`,
+  textRange: 'See the range',
+  why: (ref) =>
+    `You get this one email because you sent an inquiry on wear-run.com. Quote ${ref} if you write to us.`,
+}
 
 export function buyerReceipt({
   id,
   subject,
+  lang = 'en',
 }: {
   id: string | number
   subject: string
+  lang?: 'en' | 'ru'
 }): BuyerReceipt {
+  const words = lang === 'ru' ? RECEIPT_WORDS_RU : RECEIPT_WORDS
   const ref = inquiryReference(id)
-  const topic = offeredSubject(subject)
+  const offered = offeredSubject(subject)
+  const topic = offered ? words.topic(offered) : null
 
-  const steps: [string, string][] = [
-    ['№01', 'Our team in Sialkot reads your message and any files you sent.'],
-    ['№02', 'We reply by email within 24 hours, often sooner, or call you on the number you gave.'],
-    ['№03', 'Reply to this email to add anything: a sketch, a tech pack or a deadline.'],
-  ]
+  const steps: [string, string][] = words.steps.map((step, i) => [`№0${i + 1}`, step])
 
   const html = frame(
-    `We have your inquiry (${ref}). We reply within 24 hours.`,
+    words.preview(ref),
     [
       logoRow(),
-      `<tr><td style="padding:0;"><img src="${RECEIPT_GIF}" width="600" alt="${attr(RECEIPT_GIF_ALT)}" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></td></tr>`,
-      row(label(`[ Your reference ]  ${ref}`), '24px 28px 12px'),
+      words.gif
+        ? `<tr><td style="padding:0;"><img src="${words.gif.src}" width="600" alt="${attr(words.gif.alt)}" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></td></tr>`
+        : '',
+      row(label(`[ ${words.reference} ]  ${ref}`), '24px 28px 12px'),
       row(
-        `<h1 style="margin:0;font-family:${SANS};font-weight:900;font-size:30px;line-height:1.02;text-transform:uppercase;color:${C.ink};">What happens <span style="font-family:${SERIF};font-style:italic;font-weight:400;text-transform:none;color:${C.voltDeep};">next.</span></h1>`,
+        `<h1 style="margin:0;font-family:${SANS};font-weight:900;font-size:30px;line-height:1.02;text-transform:uppercase;color:${C.ink};">${esc(words.heading[0])} <span style="font-family:${SERIF};font-style:italic;font-weight:400;text-transform:none;color:${C.voltDeep};">${esc(words.heading[1])}</span></h1>`,
         '0 28px 16px',
       ),
       topic
         ? row(
-            `${label('You asked about')}<br><span style="display:inline-block;margin-top:6px;padding:6px 10px;border-radius:6px;background:${C.volt};color:${C.ink};font-family:${MONO};font-size:12px;letter-spacing:0.06em;">${esc(topic)}</span>`,
+            `${label(words.askedAbout)}<br><span style="display:inline-block;margin-top:6px;padding:6px 10px;border-radius:6px;background:${C.volt};color:${C.ink};font-family:${MONO};font-size:12px;letter-spacing:0.06em;">${esc(topic)}</span>`,
             '0 28px 18px',
           )
         : '',
@@ -293,28 +351,29 @@ export function buyerReceipt({
           .join('')}</table>`,
       ),
       row(
-        `${label('Need us sooner?')}<p style="margin:8px 0 12px;font-size:15px;line-height:1.5;">Call or WhatsApp ${OUR_PHONE}.</p>${button(`https://wa.me/${OUR_WHATSAPP}`, 'WhatsApp us', true)}${button(`${SITE}/products`, 'See the range →', false)}`,
+        `${label(words.sooner)}<p style="margin:8px 0 12px;font-size:15px;line-height:1.5;">${esc(words.callUs(OUR_PHONE))}</p>${button(`https://wa.me/${OUR_WHATSAPP}`, words.whatsapp, true)}${button(`${SITE}${words.rangePath}`, words.range, false)}`,
       ),
       row(
-        `<p style="margin:0;font-size:12px;line-height:1.5;color:${C.muted};">You get this one email because you sent an inquiry on wear-run.com. Quote ${ref} if you write to us.</p>`,
+        `<p style="margin:0;font-size:12px;line-height:1.5;color:${C.muted};">${esc(words.why(ref))}</p>`,
         '4px 28px 24px',
       ),
     ].join('\n'),
+    words.lang,
   )
 
   const text = [
-    `Thank you. We have your inquiry (${ref}).`,
-    ...(topic ? ['', `You asked about: ${topic}`] : []),
+    words.thanks(ref),
+    ...(topic ? ['', `${words.askedAbout}: ${topic}`] : []),
     '',
-    'What happens next',
+    words.textHeading,
     ...steps.map(([n, step]) => `${n}  ${step}`),
     '',
-    `Need us sooner? Call or WhatsApp ${OUR_PHONE}, or reply to this email.`,
-    `See the range: ${SITE}/products`,
+    words.textSooner(OUR_PHONE),
+    `${words.textRange}: ${SITE}${words.rangePath}`,
     '',
     'RUN APPAREL (PVT) LTD · 13 Km Daska Road, Sialkot 51040, Pakistan · wear-run.com',
-    `You get this one email because you sent an inquiry on wear-run.com. Quote ${ref} if you write to us.`,
+    words.why(ref),
   ].join('\n')
 
-  return { subject: `We have your inquiry — RUN APPAREL (${ref})`, html, text }
+  return { subject: words.subject(ref), html, text }
 }

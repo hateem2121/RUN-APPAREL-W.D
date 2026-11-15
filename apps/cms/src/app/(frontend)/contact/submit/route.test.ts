@@ -494,6 +494,19 @@ describe('a form sent from the Russian page (Russian section, 2026-11-15)', () =
     expect(rowsOf('inquiries')[0]?.[0].data).not.toHaveProperty('lang')
   })
 
+  it('sends a Russian buyer the Russian receipt, and an English buyer the English one', async () => {
+    await post({ ...GOOD, lang: 'ru' })
+    const russian = JSON.parse(fetchMock.mock.calls[1]?.[1].body as string)
+    expect(russian.to).toEqual(['amy@example.com'])
+    expect(russian.subject).toBe('Мы получили ваш запрос\u00a0— RUN APPAREL (RA-00007)')
+    expect(russian.html).toContain('<html lang="ru">')
+    fetchMock.mockClear()
+    await post(GOOD)
+    const english = JSON.parse(fetchMock.mock.calls[1]?.[1].body as string)
+    expect(english.subject).toBe('We have your inquiry — RUN APPAREL (RA-00007)')
+    expect(english.html).toContain('<html lang="en">')
+  })
+
   it('leaves an English form exactly as it was: no language line, the English page', async () => {
     const res = await post(GOOD)
     expect(where(res)).toBe('https://wear-run.com/contact?sent=1#inquiry-done')

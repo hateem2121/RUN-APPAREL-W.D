@@ -121,7 +121,7 @@ export const ABOUT_PAGE_RU: Widen<typeof ABOUT_PAGE> = {
     },
     cards: [
       {
-        title: 'Мерчендайзинг',
+        title: 'Мерчандайзинг',
         body: 'Один контакт — от технического задания (ТЗ, техпакета) до отгрузки.',
       },
       {
