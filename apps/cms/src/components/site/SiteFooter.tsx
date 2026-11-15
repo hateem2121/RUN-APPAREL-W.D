@@ -311,7 +311,9 @@ export function SiteFooter({
           */}
           <div className="footer-legal">
             <span translate="no">{settings.legalLine}</span>
-            <span>{settings.footerLine}</span>
+            {/* The CMS slogan is English: marked so on a Russian page (WCAG 3.1.2; the name and
+                the address beside it are proper names, which the criterion leaves unmarked). */}
+            <span lang={chrome.lang === 'ru' ? 'en' : undefined}>{settings.footerLine}</span>
             {/*
               The bottom row, in SITE_FOOTER_LINKS's order (each entry says why it is here): the
               privacy notice is a legal requirement — both surfaces process at least an IP address

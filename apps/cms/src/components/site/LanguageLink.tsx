@@ -13,8 +13,11 @@ import { enPathOf, hasRussianTwin, type Locale, ruPath } from '../../lib/locale'
  * (`<html lang>`), so the browser loads the other page whole either way; the router would only
  * prefetch a page the visitor has not asked for in a language they may not read.
  *
- * ⚠️ NOT IN THE WIDE BAR. Its one-row fit was measured for two links (docs/DESIGN.md, "The menu
- * bar"); `nav-link--menu` keeps this one to the open phone menu, like Guides.
+ * ⚠️ IN THE WIDE BAR ONLY WHERE IT FITS (2026-11-15, after the language audit: W3C asks for the
+ * switch "at or near the top of the page", and a desktop visitor saw none). The bar's one-row fit
+ * was measured for two links (docs/DESIGN.md, "The menu bar"), and that query is shared with the
+ * garment pages, so it is left alone: `nav-link--menu` keeps this link to the open phone menu as
+ * before, and site.css's `.nav-link--language` shows it inline from a width measured WITH it.
  *
  * `usePathname` answers during the server render too, so the link is right with scripting off. An
  * English page with no Russian twin (a single journal post) links to the Russian home instead.
@@ -37,7 +40,7 @@ export function LanguageLink({ menu = false }: { menu?: boolean }) {
   const other: Locale = lang === 'ru' ? 'en' : 'ru'
   return (
     <a
-      className={menu ? 'nav-link nav-link--menu' : 'nav-link'}
+      className={menu ? 'nav-link nav-link--menu nav-link--language' : 'nav-link'}
       href={twinOf(pathname, lang)}
       hrefLang={other}
       lang={other}

@@ -126,6 +126,9 @@ export function buildMetadata({
        * the marketing site was built after and inherited the value rather than resolving it.
        */
       locale: locale === 'ru' ? 'ru_RU' : 'en_US',
+      // The other language, where there is one (ogp.me: `og:locale:alternate`, "other locales this
+      // page is available in"; the language audit of 2026-11-15 found it on no page).
+      ...(languages ? { alternateLocale: locale === 'ru' ? 'en_US' : 'ru_RU' } : {}),
       images: [image],
     },
     twitter: {

@@ -8,14 +8,15 @@ import {
 } from '../../../packages/shared/src/siteBar'
 
 /**
- * The site's open phone menu is the garment pages' plus ONE link: the page in Russian, before the
- * switch (Russian section; owner, 2026-11-15, kept it in the phone menu). The garment pages have no
- * Russian twin, so the shared template (packages/shared/src/siteBar.ts) leaves it out and this is the
- * one named difference. The wide and closed bars are the shared template unchanged.
+ * The site's bar is the garment pages' plus ONE link: the page in Russian, before the switch, in
+ * the open phone menu (owner, 2026-11-15) and in the wide bar where it fits (site.css,
+ * `.nav-link--language`, measured; at this test's 1280px and default text it does). The garment
+ * pages have no Russian twin, so the shared template (packages/shared/src/siteBar.ts) leaves it out
+ * and this is the one named difference. The closed phone bar is the shared template unchanged.
  */
 function siteBarSnapshot(state: Parameters<typeof siteBarAriaSnapshot>[0], wordmark: string) {
   const template = siteBarAriaSnapshot(state, wordmark)
-  if (state !== 'phone-open') return template
+  if (state === 'phone-closed') return template
   const lines = template.split('\n')
   const theSwitch = lines.pop() ?? ''
   return [

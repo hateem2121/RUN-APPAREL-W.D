@@ -33,5 +33,11 @@ export default async function TechPackTemplatePage({
 }: {
   searchParams: Promise<{ error?: string }>
 }) {
-  return <GuidePage locale="ru" guide={guideAt(PATH)} notice={templateNotice(await searchParams)} />
+  return (
+    <GuidePage
+      locale="ru"
+      guide={guideAt(PATH)}
+      notice={templateNotice(await searchParams, 'ru')}
+    />
+  )
 }

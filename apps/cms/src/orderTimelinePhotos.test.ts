@@ -421,3 +421,18 @@ describe('the cards, in the stylesheet (D42)', () => {
     expect(SITE_CSS).not.toMatch(/order-step-shade|--order-steps/)
   })
 })
+
+/*
+ * The Russian steps' photos speak Russian (the language audit of 2026-11-15 found these alts in
+ * English on /ru and the order guide): every picture's alt is its Russian words in
+ * factoryPhotos.ru.ts, never the English one.
+ */
+describe('the order steps on a Russian page', () => {
+  it('describe every photo in Russian', () => {
+    const html = renderToStaticMarkup(OrderSteps({ locale: 'ru' }))
+    const alts = [...html.matchAll(/<img[^>]*\salt="([^"]*)"/g)].map((match) => match[1] ?? '')
+    expect(alts.length).toBeGreaterThan(0)
+    for (const alt of alts) expect(alt, alt).toMatch(/[А-яЁё]/)
+    for (const photo of FACTORY_PHOTOS) expect(html, photo.slug).not.toContain(`alt="${photo.alt}"`)
+  })
+})

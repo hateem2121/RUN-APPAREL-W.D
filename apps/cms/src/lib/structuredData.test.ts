@@ -16,7 +16,9 @@ import {
   breadcrumbTrailJsonLd,
   caseStudiesJsonLd,
   contactPageJsonLd,
+  definedTermSetJsonLd,
   factoryPageJsonLd,
+  faqJsonLd,
   formatAddress,
   guideArticleJsonLd,
   organizationJsonLd,
@@ -615,5 +617,43 @@ describe('the about and factory pages’ structured data', () => {
     }
     // CONTROL: a founding date in the block is caught, not passed.
     expect(JSON.stringify({ foundingDate: '1889' })).toContain('foundingDate')
+  })
+})
+
+/*
+ * The language each node is in (the language audit of 2026-11-15): Russian FAQ pages and the
+ * glossary said nothing, and the Russian journal and case-study hubs described the ENGLISH hub (its
+ * address and name). What would have to break: a Russian node without `inLanguage: 'ru'`, a Russian
+ * hub pointing at /journal, or an English post listed as Russian.
+ */
+describe('structured data on Russian pages names its language', () => {
+  it('FAQ pages and the glossary', () => {
+    expect(faqJsonLd([{ question: 'В?', answer: 'О.' }], 'ru')).toMatchObject({ inLanguage: 'ru' })
+    expect(faqJsonLd([{ question: 'Q?', answer: 'A.' }])).not.toHaveProperty('inLanguage')
+    expect(definedTermSetJsonLd({ name: 'Глоссарий', path: '/glossary' }, [], 'ru')).toMatchObject({
+      inLanguage: 'ru',
+      url: 'https://wear-run.com/ru/glossary',
+    })
+  })
+
+  it('the Russian hubs are the Russian pages, listing English posts', () => {
+    const posts = [{ path: '/journal/made-properly', headline: 'Made properly' }]
+    const blog = blogJsonLd(posts, { name: 'Журнал' })
+    expect(blog).toMatchObject({
+      '@id': 'https://wear-run.com/ru/journal#blog',
+      url: 'https://wear-run.com/ru/journal',
+      name: 'Журнал',
+      inLanguage: 'ru',
+    })
+    expect(blog.blogPost[0]).toMatchObject({ inLanguage: 'en' })
+    const english = blogJsonLd(posts)
+    expect(english.url).toBe('https://wear-run.com/journal')
+    expect(english).not.toHaveProperty('inLanguage')
+    expect(english.blogPost[0]).not.toHaveProperty('inLanguage')
+    const studies = caseStudiesJsonLd([{ path: '/case-studies/x', headline: 'X' }], {
+      name: 'Кейсы',
+    })
+    expect(studies).toMatchObject({ url: 'https://wear-run.com/ru/case-studies', inLanguage: 'ru' })
+    expect(studies.hasPart[0]).toMatchObject({ inLanguage: 'en' })
   })
 })

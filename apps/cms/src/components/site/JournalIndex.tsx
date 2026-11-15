@@ -43,7 +43,10 @@ export function JournalIndex({
       <JsonLd data={breadcrumbTrailJsonLd(trail, locale)} />
       {posts.length > 0 ? (
         <JsonLd
-          data={blogJsonLd(posts.map((post) => ({ path: post.path, headline: post.title })))}
+          data={blogJsonLd(
+            posts.map((post) => ({ path: post.path, headline: post.title })),
+            ru ? { name: hub.title } : undefined,
+          )}
         />
       ) : null}
 
@@ -195,11 +198,21 @@ function JournalCard({
               : 'product-card__name journal-card__title'
           }
         >
-          <Link className="journal-card__link" href={post.path} hrefLang={ru ? 'en' : undefined}>
+          {/* The post is English: its title and summary say so on a Russian hub (WCAG 3.1.2). */}
+          <Link
+            className="journal-card__link"
+            href={post.path}
+            hrefLang={ru ? 'en' : undefined}
+            lang={ru ? 'en' : undefined}
+          >
             {post.title}
           </Link>
         </h2>
-        {post.description ? <p className="product-card__desc">{post.description}</p> : null}
+        {post.description ? (
+          <p className="product-card__desc" lang={ru ? 'en' : undefined}>
+            {post.description}
+          </p>
+        ) : null}
       </div>
     </li>
   )

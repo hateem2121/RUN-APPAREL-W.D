@@ -105,12 +105,12 @@ const SOLAR_83 = '2026-11-10T19:10:00+00:00'
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/': page(SOLAR_83, 'aab62fa19b12'),
   '/products': page(SITE_CHECK, '25fc3e27a881'),
-  '/custom-teamwear-manufacturer': page(WAVE_ONE, '6515f8a726d5'),
-  '/custom-activewear-manufacturer': page(WAVE_ONE, 'fabe9ef2ce26'),
-  '/custom-outerwear-manufacturer': page(WAVE_ONE, 'cc0bf77ceec1'),
-  '/custom-sports-accessories-manufacturer': page(ORDER_PHOTO, 'f6c708881383'),
-  '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, '1d5b0f18ef02'),
-  '/private-label-casual-wear-manufacturer': page(WAVE_ONE, '7daee31f7831'),
+  '/custom-teamwear-manufacturer': page(WAVE_ONE, '01f2facfe679'),
+  '/custom-activewear-manufacturer': page(WAVE_ONE, 'a8181462a86d'),
+  '/custom-outerwear-manufacturer': page(WAVE_ONE, '3270ebdbc454'),
+  '/custom-sports-accessories-manufacturer': page(ORDER_PHOTO, '1deddea4271e'),
+  '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'f3c5987771fd'),
+  '/private-label-casual-wear-manufacturer': page(WAVE_ONE, 'cedfe8245411'),
   '/guides': page(SEARCH_WORDING, '0b0fc05abcb9'),
   '/policies': page(SOLAR_83, '588f4d10159e'),
   '/community': page(SITE_CHECK, '36f3ce5c8098'),
@@ -122,8 +122,8 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/faq/fabrics-and-printing': page(LIBRARY, 'e7c9096ba401'),
   '/faq/working-with-us': page(HELD_GUIDES, '6b5741c6f236'),
   '/glossary': page(GLOSSARY_SEVEN, '5e8264b7c1fd'),
-  '/journal': page(SEARCH_WORDING, '35eadd5fae49'),
-  '/case-studies': page(SEO_PASS, 'f623048b7053'),
+  '/journal': page(SEARCH_WORDING, '6b06a10fe777'),
+  '/case-studies': page(SEO_PASS, '434c8c4e9671'),
   // "What happens next" beside the form (owner, 2026-11-11). Before: the phone became required
   // (2026-11-10T22:50:33+05:00), the wide AVIF hero (2026-11-04T19:52:09+05:00), and the one phone
   // number (2026-10-26T20:13:15+05:00).

@@ -312,10 +312,15 @@ export function breadcrumbTrailJsonLd(
  * this one (Google limited those in 2023); it is here because an AI answer is assembled
  * from exactly this shape.
  */
-export function faqJsonLd(questions: ReadonlyArray<{ question: string; answer: string }>) {
+export function faqJsonLd(
+  questions: ReadonlyArray<{ question: string; answer: string }>,
+  locale: Locale = 'en',
+) {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
+    // A Russian page says so (the language audit of 2026-11-15 found no inLanguage on it).
+    ...(locale === 'ru' ? { inLanguage: 'ru' } : {}),
     mainEntity: questions.map((entry) => ({
       '@type': 'Question',
       name: entry.question,
@@ -325,18 +330,29 @@ export function faqJsonLd(questions: ReadonlyArray<{ question: string; answer: s
 }
 
 /** The Journal as a blog: its newest posts by address (PLAN.md E2). */
-export function blogJsonLd(posts: ReadonlyArray<{ path: string; headline: string }>) {
+/**
+ * On the Russian hub (2026-11-15) the node is the Russian page: its own address and name, in
+ * Russian, listing the posts, which are English (`inLanguage: 'en'` on each). Until the language
+ * audit of that day the Russian hub described the English one.
+ */
+export function blogJsonLd(
+  posts: ReadonlyArray<{ path: string; headline: string }>,
+  ru?: { name: string },
+) {
+  const path = ru ? ruPath('/journal') : '/journal'
   return {
     '@context': 'https://schema.org',
     '@type': 'Blog',
-    '@id': `${SITE_ORIGIN}/journal#blog`,
-    name: 'RUN APPAREL Journal',
-    url: `${SITE_ORIGIN}/journal`,
+    '@id': `${SITE_ORIGIN}${path}#blog`,
+    name: ru ? ru.name : 'RUN APPAREL Journal',
+    url: `${SITE_ORIGIN}${path}`,
+    ...(ru ? { inLanguage: 'ru' } : {}),
     publisher: { '@id': `${SITE_ORIGIN}/#organization` },
     blogPost: posts.map((post) => ({
       '@type': 'BlogPosting',
       headline: post.headline,
       url: `${SITE_ORIGIN}${post.path}`,
+      ...(ru ? { inLanguage: 'en' } : {}),
     })),
   }
 }
@@ -449,18 +465,25 @@ export function guideArticleJsonLd(
  * The case-study hub once at least one is published (Part C): a CollectionPage of its articles.
  * With none, the hub carries `noindex` and no data at all (T5).
  */
-export function caseStudiesJsonLd(studies: ReadonlyArray<{ path: string; headline: string }>) {
+/** As `blogJsonLd`: on the Russian hub, the Russian page, listing English case studies. */
+export function caseStudiesJsonLd(
+  studies: ReadonlyArray<{ path: string; headline: string }>,
+  ru?: { name: string },
+) {
+  const path = ru ? ruPath('/case-studies') : '/case-studies'
   return {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
-    '@id': `${SITE_ORIGIN}/case-studies#page`,
-    url: `${SITE_ORIGIN}/case-studies`,
-    name: 'Case studies',
+    '@id': `${SITE_ORIGIN}${path}#page`,
+    url: `${SITE_ORIGIN}${path}`,
+    name: ru ? ru.name : 'Case studies',
+    ...(ru ? { inLanguage: 'ru' } : {}),
     publisher: { '@id': `${SITE_ORIGIN}/#organization` },
     hasPart: studies.map((study) => ({
       '@type': 'Article',
       headline: study.headline,
       url: `${SITE_ORIGIN}${study.path}`,
+      ...(ru ? { inLanguage: 'en' } : {}),
     })),
   }
 }
@@ -498,6 +521,7 @@ export function definedTermSetJsonLd(
     '@id': `${url}#terms`,
     name: set.name,
     url,
+    ...(locale === 'ru' ? { inLanguage: 'ru' } : {}),
     hasDefinedTerm: terms.map((term) => ({
       '@type': 'DefinedTerm',
       '@id': `${url}#${term.id}`,

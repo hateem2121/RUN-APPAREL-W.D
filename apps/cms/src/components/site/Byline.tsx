@@ -35,7 +35,7 @@ export function Byline({
     <dl className="page-byline">
       <div>
         <dt>{t(locale, 'Written by')}</dt>
-        <dd>{authorName(byline.author)}</dd>
+        <dd>{authorName(byline.author, locale)}</dd>
       </div>
       <div>
         <dt>

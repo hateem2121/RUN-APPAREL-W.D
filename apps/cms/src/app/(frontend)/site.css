@@ -9511,3 +9511,35 @@ html[data-preload="lifting"] .preloader__lockup {
   font-size: var(--text-mono-lg);
   color: var(--muted);
 }
+
+/*
+ * THE LANGUAGE LINK IN THE WIDE BAR (Russian section, 2026-11-15). W3C's language-switch advice
+ * puts it "at or near the top of the page"; until the language audit of that day a desktop visitor
+ * on an English page saw no way to the Russian one. The bar's inline query (notch.css,
+ * `184px + 14.9rem`) was fitted for the name, two links and the switch, and the garment pages share
+ * it, so it stays: below the width measured WITH this link, the link stays in the phone menu only
+ * (`nav-link--menu`), and the bar keeps its measured fit.
+ *
+ * Fitted 2026-11-15 on a fresh build, Chromium, the real text-size setting (CDP
+ * `Page.setFontSizes`, as textSize.spec.ts): the narrowest width at which the bar, WITH this link, is
+ * one row with nothing outside it and the name whole, binary-searched per root size.
+ *
+ *   root size              16-28    32    36    40    44    48    56
+ *   English page («Русский»)  720   792   866   940  1014  1087  1234
+ *   Russian page («English»)  720   814   890   966  1042  1118  1271
+ *
+ * The Russian bar is the wider (its links are longer) and follows `204.7px + 19.04rem` within 1px
+ * from 32 to 56, so the query is `208px + 19.1rem`: a few pixels early, never late (WebKit needs
+ * ~3px more than Chromium, notch.css). Below it the link waits in the phone menu.
+ *
+ * Here, not in notch.css, and on the website's own class only: the garment pages' bar has no
+ * language link, so this styles nothing the two hosts share (auditGuards.test.ts, XS-02, keeps the
+ * shared bar's look in notch.css). It beats notch.css's `.nav-link--menu { display: none }` by
+ * coming later at the same weight, and its width is always past the shared inline query, so it only
+ * ever applies where the bar is already inline.
+ */
+@media (width >= 720px) and (width >= calc(208px + 19.1rem)) {
+  .nav-link--language {
+    display: inline-flex;
+  }
+}

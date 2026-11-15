@@ -13,6 +13,10 @@ import {
   templateFieldError,
   UPDATES_VALUE,
 } from '../../lib/templateDownload'
+import { TEMPLATE_FORM_WORDS_RU } from '../../lib/templateDownload.ru'
+import { localHref } from '../../lib/i18n/localHref'
+import { useLocale } from '../../lib/i18n/uiClient'
+import { ruPath } from '../../lib/locale'
 
 /**
  * The free tech-pack template's download form (C1, owner approved 6 Nov 2026), in the guide's "The
@@ -28,6 +32,10 @@ import {
  * contact form, Q17). The updates box starts unticked and sends `yes` only when ticked: the route
  * records a yes from that value alone (owner: "record each yes").
  *
+ * On the Russian guide (2026-11-15) the same form in Russian (`templateDownload.ru.ts`): the page's
+ * language from its address (`useLocale`), a hidden `lang=ru` so the route sends a refusal back to
+ * the Russian page in Russian, and the privacy link to the Russian notice. The workbook is English.
+ *
  * ⚠️ THE LINE BESIDE THE BUTTON IS THE NOTICE THE LAW ASKS FOR WHERE THE DETAILS ARE TAKEN (GDPR
  * Art 13; the owner's approved words, 6 Nov 2026), with its link to the privacy page's section.
  */
@@ -35,7 +43,7 @@ const FIELDS = [
   {
     name: 'name',
     id: 'template-name',
-    label: TEMPLATE_FORM_WORDS.labels.name,
+    label: 'name',
     type: 'text',
     auto: 'name',
     max: MAX_LENGTHS.name,
@@ -44,7 +52,7 @@ const FIELDS = [
   {
     name: 'email',
     id: 'template-email',
-    label: TEMPLATE_FORM_WORDS.labels.email,
+    label: 'email',
     type: 'email',
     auto: 'email',
     max: MAX_LENGTHS.email,
@@ -53,7 +61,7 @@ const FIELDS = [
   {
     name: 'company',
     id: 'template-company',
-    label: TEMPLATE_FORM_WORDS.labels.company,
+    label: 'company',
     type: 'text',
     auto: 'organization',
     max: MAX_LENGTHS.company,
@@ -62,7 +70,7 @@ const FIELDS = [
   {
     name: 'country',
     id: 'template-country',
-    label: TEMPLATE_FORM_WORDS.labels.country,
+    label: 'country',
     type: 'text',
     auto: 'country-name',
     max: MAX_LENGTHS.country,
@@ -71,7 +79,7 @@ const FIELDS = [
   {
     name: 'jobTitle',
     id: 'template-job',
-    label: TEMPLATE_FORM_WORDS.labels.jobTitle,
+    label: 'jobTitle',
     type: 'text',
     auto: 'organization-title',
     max: MAX_LENGTHS.jobTitle,
@@ -80,7 +88,7 @@ const FIELDS = [
   {
     name: 'whatsapp',
     id: 'template-whatsapp',
-    label: TEMPLATE_FORM_WORDS.labels.whatsapp,
+    label: 'whatsapp',
     type: 'tel',
     auto: 'tel',
     max: MAX_LENGTHS.phone,
@@ -102,6 +110,8 @@ function Tick() {
 type Done = { href: string } | null
 
 export function TemplateDownload({ notice }: { notice: TemplateNotice | null }) {
+  const locale = useLocale()
+  const WORDS = locale === 'ru' ? TEMPLATE_FORM_WORDS_RU : TEMPLATE_FORM_WORDS
   const form = useRef<HTMLFormElement>(null)
   const problem = useRef<HTMLDivElement>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -143,7 +153,7 @@ export function TemplateDownload({ notice }: { notice: TemplateNotice | null }) 
     for (const field of FIELDS) {
       const input = element.elements.namedItem(field.name)
       if (!(input instanceof HTMLInputElement)) continue
-      const message = templateFieldError(field.name, input.validity)
+      const message = templateFieldError(field.name, input.validity, locale)
       if (message) found[field.name] = message
     }
     setErrors(found)
@@ -198,9 +208,7 @@ export function TemplateDownload({ notice }: { notice: TemplateNotice | null }) 
         onSubmit={onSubmit}
       >
         <p className="inquiry-form__key">
-          {TEMPLATE_FORM_WORDS.key[0]}{' '}
-          <span className="inquiry-form__req">{TEMPLATE_FORM_WORDS.key[1]}</span>{' '}
-          {TEMPLATE_FORM_WORDS.key[2]}
+          {WORDS.key[0]} <span className="inquiry-form__req">{WORDS.key[1]}</span> {WORDS.key[2]}
         </p>
 
         {PAIRS.map((pair) => (
@@ -231,7 +239,7 @@ export function TemplateDownload({ notice }: { notice: TemplateNotice | null }) 
               return (
                 <div className="inquiry-form__field" key={field.name}>
                   <label className="inquiry-form__label" htmlFor={field.id}>
-                    {field.label}
+                    {WORDS.labels[field.label]}
                     {field.needed ? (
                       <>
                         {' '}
@@ -262,19 +270,21 @@ export function TemplateDownload({ notice }: { notice: TemplateNotice | null }) 
 
         <div className="template-form__updates">
           <input id="template-updates" type="checkbox" name="updates" value={UPDATES_VALUE} />
-          <label htmlFor="template-updates">{TEMPLATE_FORM_WORDS.updates}</label>
+          <label htmlFor="template-updates">{WORDS.updates}</label>
         </div>
 
         <div className="site-actions">
           {/* One of the site's agreed primary labels (CT-08, `e2e/copy.spec.ts`). */}
           <button className="btn btn--primary" type="submit" disabled={busy} aria-busy={busy}>
-            {TEMPLATE_FORM_WORDS.button}
+            {WORDS.button}
           </button>
         </div>
 
         <p className="template-form__notice">
-          {TEMPLATE_FORM_WORDS.notice}{' '}
-          <a href="/privacy#template-downloads">{TEMPLATE_FORM_WORDS.privacyLink}</a>
+          {WORDS.notice}{' '}
+          <a href={localHref('/privacy#template-downloads', locale === 'ru' ? ruPath('/') : '/')}>
+            {WORDS.privacyLink}
+          </a>
         </p>
 
         <div className="inquiry-form__trap" aria-hidden="true">
@@ -287,19 +297,21 @@ export function TemplateDownload({ notice }: { notice: TemplateNotice | null }) 
             autoComplete="off"
           />
         </div>
+        {/* The route sends a Russian visitor's refusal back to the Russian page (download/route.ts). */}
+        {locale === 'ru' ? <input type="hidden" name="lang" value="ru" /> : null}
       </form>
 
       {/* A live region from the start, so the change is spoken (it is empty until there is news). */}
       <div className="template-download__status" role="status">
         {done ? (
           <p className="form-notice form-notice--ok">
-            {TEMPLATE_FORM_WORDS.downloading}{' '}
+            {WORDS.downloading}{' '}
             <a ref={again} href={done.href} download={TEMPLATE_FILE_NAME}>
-              {TEMPLATE_FORM_WORDS.again}
+              {WORDS.again}
             </a>
           </p>
         ) : failed ? (
-          <p className="form-notice form-notice--bad">{TEMPLATE_FORM_WORDS.failed}</p>
+          <p className="form-notice form-notice--bad">{WORDS.failed}</p>
         ) : null}
       </div>
     </div>

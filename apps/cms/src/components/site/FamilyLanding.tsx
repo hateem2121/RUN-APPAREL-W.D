@@ -17,9 +17,10 @@ import {
   rangeGuidePaths,
 } from '../../lib/familyPages'
 import { guideAt } from '../../lib/guides'
+import { localHref } from '../../lib/i18n/localHref'
 import { guideAtRu } from '../../lib/i18n/ruNames'
 import { t } from '../../lib/i18n/ui'
-import type { Locale } from '../../lib/locale'
+import { type Locale, ruPath } from '../../lib/locale'
 import { GARMENT_PAGES } from '../../lib/seo'
 import { breadcrumbJsonLd, faqJsonLd, productListJsonLd } from '../../lib/structuredData'
 import { FamilyHeroPicture } from './FamilyHeroPicture'
@@ -177,7 +178,7 @@ export function FamilyLanding({
   return (
     <>
       <JsonLd data={breadcrumbJsonLd(page, locale)} />
-      <JsonLd data={faqJsonLd(page.questions)} />
+      <JsonLd data={faqJsonLd(page.questions, locale)} />
       {garments.length > 0 ? (
         <JsonLd
           data={productListJsonLd(
@@ -219,7 +220,11 @@ export function FamilyLanding({
             {/* Each line is one link, heading and words together, so a tap on either opens it and
                 the target is the line's full height (`makesHref` says where it leads, and why). */}
             {page.makes.map((entry) => {
-              const href = makesHref(entry, garments, GARMENT_PAGES)
+              // A plain <a> (it can lead to a 3D garment page, another Worker), so it gets the
+              // Russian twin here, as IntentLink gives every other link: the language audit of
+              // 2026-11-15 found /ru/custom-sports-accessories-manufacturer linking the English ball page.
+              const found = makesHref(entry, garments, GARMENT_PAGES)
+              const href = found && locale === 'ru' ? localHref(found, ruPath('/')) : found
               const words = (
                 <>
                   <h3 className="product-card__name prose__heading">{entry.group}</h3>

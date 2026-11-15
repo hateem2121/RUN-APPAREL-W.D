@@ -40,6 +40,7 @@ export function CaseStudyIndex({
         <JsonLd
           data={caseStudiesJsonLd(
             studies.map((study) => ({ path: study.path, headline: study.title })),
+            locale === 'ru' ? { name: hub.title } : undefined,
           )}
         />
       ) : null}
@@ -170,11 +171,21 @@ function CaseStudyCard({
               : 'product-card__name journal-card__title'
           }
         >
-          <Link className="journal-card__link" href={study.path}>
+          {/* The case study is English: so its link, title and summary say on a Russian hub. */}
+          <Link
+            className="journal-card__link"
+            href={study.path}
+            hrefLang={locale === 'ru' ? 'en' : undefined}
+            lang={locale === 'ru' ? 'en' : undefined}
+          >
             {study.title}
           </Link>
         </h2>
-        {study.description ? <p className="product-card__desc">{study.description}</p> : null}
+        {study.description ? (
+          <p className="product-card__desc" lang={locale === 'ru' ? 'en' : undefined}>
+            {study.description}
+          </p>
+        ) : null}
       </div>
     </li>
   )

@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import { FACTORY_PHOTOS, factoryPhotoImage, stepPhotoSrcSet } from '../../lib/factoryPhotos'
 import { t } from '../../lib/i18n/ui'
 import type { Locale } from '../../lib/locale'
+import { ruPhoto } from '../../lib/factoryPhotos.ru'
 import { ORDER_PHASES } from '../../lib/orderProcess'
 import { ORDER_PHASE_NAMES_RU, ORDER_PHASES_RU } from '../../lib/orderProcess.ru'
 import { OrderStagesList } from './OrderStagesList'
@@ -105,7 +106,10 @@ export function OrderSteps({ locale = 'en' }: { locale?: Locale } = {}) {
             <ol className="order-stage__steps" role="list" start={first}>
               {phase.steps.map((step, index) => {
                 const number = first + index
-                const photo = PHOTOS.get(step.photo)
+                // A Russian page reads the photo's Russian words (`ruPhoto`; the language audit of
+                // 2026-11-15 found these alts in English on /ru and the order guide).
+                const found = PHOTOS.get(step.photo)
+                const photo = found && locale === 'ru' ? ruPhoto(found) : found
                 const image = photo ? factoryPhotoImage(photo) : null
                 const [across, down] = photo?.focus ?? [50, 50]
                 const phoneSet = photo ? stepPhotoSrcSet(photo, 'phone') : null

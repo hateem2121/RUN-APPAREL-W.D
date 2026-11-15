@@ -199,3 +199,47 @@ describe('a refused download', () => {
     })
   })
 })
+
+/*
+ * The Russian guide's form posts `lang=ru` (Russian section, 2026-11-15). What would have to break
+ * for these to fail: a Russian visitor's refusal landing on the English page, the team's email not
+ * saying the form was the Russian page's, or the English flow changing.
+ */
+describe('from the Russian guide', () => {
+  it('sends a refusal back to the Russian page, by the same code', async () => {
+    const res = await post({
+      name: '',
+      email: 'amy@clubco.example',
+      company: 'Club Co',
+      country: 'Canada',
+      lang: 'ru',
+    })
+    expect(where(res)).toBe(
+      'https://wear-run.com/ru/guides/tech-pack-template?error=invalid&fields=name#template-problem',
+    )
+    payload.create.mockRejectedValueOnce(new Error('D1 is down'))
+    expect(where(await post({ ...GOOD, lang: 'ru' }))).toBe(
+      'https://wear-run.com/ru/guides/tech-pack-template?error=storage#template-problem',
+    )
+  })
+
+  it('gives the same workbook and tells the team the form was the Russian page’s', async () => {
+    const res = await post({ ...GOOD, lang: 'ru' })
+    expect(await isTheFile(res)).toBe(true)
+    expect(emailBody().text).toContain('Language:  Russian (/ru/guides/tech-pack-template)')
+  })
+
+  it('leaves an English download exactly as it was', async () => {
+    await post()
+    expect(emailBody().text).not.toContain('Language:')
+    const res = await post({
+      name: '',
+      email: 'amy@clubco.example',
+      company: 'Club Co',
+      country: 'Canada',
+    })
+    expect(where(res)).toBe(
+      'https://wear-run.com/guides/tech-pack-template?error=invalid&fields=name#template-problem',
+    )
+  })
+})

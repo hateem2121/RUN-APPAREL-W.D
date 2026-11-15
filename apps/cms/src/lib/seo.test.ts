@@ -122,6 +122,16 @@ describe('buildMetadata in two languages (Russian section, 2026-11-15)', () => {
     expect(en.openGraph && 'locale' in en.openGraph && en.openGraph.locale).toBe('en_US')
   })
 
+  it('names the other language for link previews, only where there is one (og:locale:alternate)', () => {
+    const alternate = (m: typeof en) =>
+      m.openGraph && 'alternateLocale' in m.openGraph ? m.openGraph.alternateLocale : undefined
+    expect(alternate(ru)).toBe('en_US')
+    expect(alternate(en)).toBe('ru_RU')
+    // A single journal post has no Russian twin, so it claims none.
+    const post = buildMetadata({ title: 't', description: 'd', path: '/journal/made-properly' })
+    expect(alternate(post)).toBeUndefined()
+  })
+
   it('the Russian home is /ru, and its English twin the bare origin', () => {
     const home = buildMetadata({ title: 't', description: 'd', path: '/', locale: 'ru' })
     expect(home.alternates?.canonical).toBe(`${SITE_ORIGIN}/ru`)

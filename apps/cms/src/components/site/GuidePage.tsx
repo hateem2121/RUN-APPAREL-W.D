@@ -592,7 +592,14 @@ function GuideSources({ sources, locale }: { sources: readonly GuideSource[]; lo
           <ol className="see-also__list guide-sources">
             {sources.map((source) => (
               <li key={source.url}>
-                <a href={source.url} rel="noopener">
+                {/* WCAG 2.2, 3.1.2 Language of Parts: a cited work's English title on a Russian guide
+                    is marked English, so a screen reader reads it in English (the language audit of
+                    2026-11-15 found every one unmarked). A title with Cyrillic in it is Russian. */}
+                <a
+                  href={source.url}
+                  rel="noopener"
+                  lang={locale === 'ru' && !/[\u0400-\u04FF]/.test(source.name) ? 'en' : undefined}
+                >
                   {source.name}
                 </a>
                 <p className="see-also__why">

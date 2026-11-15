@@ -168,6 +168,7 @@ export function FaqTopicPage({ topic, locale = 'en' }: { topic: FaqTopic; locale
             question: entry.question,
             answer: faqVisibleAnswer(entry),
           })),
+          locale,
         )}
       />
       <FaqHero

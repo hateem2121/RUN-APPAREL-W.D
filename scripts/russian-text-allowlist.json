@@ -366,6 +366,11 @@
   },
   {
     "tool": "grammar",
+    "word": "Контент-команда",
+    "reason": "A hyphenated compound the checker’s dictionary lacks («контент-команда»), here capitalised at the start of a byline; reviewed 2026-11-15."
+  },
+  {
+    "tool": "grammar",
     "word": "Корнеллского",
     "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
   },
@@ -608,6 +613,11 @@
     "tool": "grammar",
     "word": "Мы проверяем её раз в три месяца — с той же частотой, что и руководства о законах, — и у каждого источника ниже указана дата, когда мы его прочли, или его",
     "reason": "Style advice (many pronouns in one sentence). The sentence is correct; both Russian reviews kept it."
+  },
+  {
+    "tool": "grammar",
+    "word": "Мы храним их 2 года с момента нашего последнего контакта с вами и не пишем вам на почту, не отправляем сообщений и не звоним, если только вы не отметите пункт выше или не напишете нам",
+    "reason": "Style advice (many pronouns in one sentence). It is the legal notice where details are taken: each «мы/вам/вы» names who does what, which the meaning needs; reviewed 2026-11-15."
   },
   {
     "tool": "grammar",
@@ -1123,6 +1133,11 @@
     "tool": "grammar",
     "word": "синьцзянскими",
     "reason": "A proper name in Russian (a university, city, region or person), spelled as Russian sources write it."
+  },
+  {
+    "tool": "grammar",
+    "word": "скачался",
+    "reason": "A correct Russian verb form («скачаться»), missing from the checker’s dictionary; the form’s refusal notice, reviewed 2026-11-15."
   },
   {
     "tool": "grammar",
@@ -2106,6 +2121,11 @@
   },
   {
     "tool": "speller",
+    "word": "FA",
+    "reason": "A Latin name kept as the English writes it: The FA, the Football Association."
+  },
+  {
+    "tool": "speller",
     "word": "FIT",
     "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
   },
@@ -2113,6 +2133,11 @@
     "tool": "speller",
     "word": "FreeSewing",
     "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "speller",
+    "word": "FutureFit",
+    "reason": "A Latin name kept as the English writes it: The FA’s FutureFit table (a programme name)."
   },
   {
     "tool": "speller",

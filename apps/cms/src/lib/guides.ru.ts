@@ -3,6 +3,7 @@ import { FACTS, LEAD_TIME, LEGAL_NAME } from './companyFacts'
 import { OWNER_FIGURES } from './faqs'
 import type { Guide } from './guides'
 import { BALL_SIZES, type BallCountry } from './guideTools'
+import { ballGroupRu } from './guideTools.ru'
 import { MAX_FILES } from './inquiryFiles'
 import { LIMIT } from './inquiryForm'
 
@@ -63,15 +64,6 @@ const WEIGHT_BAND_TEXT_RU = WEIGHT_BANDS.map((entry, index) => {
   if (!Number.isFinite(entry.below)) return `От ${from} и выше — ${band}.`
   return `От ${from} до ${entry.below} — ${band}.`
 }).join(' ')
-
-/** One age group of `BALL_SIZES` in Russian: "Under 7 (Year 2)" and "6 and under". */
-function ballGroupRu(group: string): string {
-  const under = group.match(/^Under (\d+)/)
-  if (under) return `до ${under[1]} лет`
-  const andUnder = group.match(/^(\d+) and under$/)
-  if (andUnder) return `${andUnder[1]} лет и младше`
-  throw new Error(`guides.ru.ts: no Russian words for the ball age group "${group}"`)
-}
 
 /** `ballSizeRange` (`guideTools.ts`) in Russian, from the same list, so table and tool agree. */
 function ballSizeRangeRu(country: BallCountry, size: 3 | 4 | 5): string {
