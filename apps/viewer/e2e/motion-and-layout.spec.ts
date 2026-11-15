@@ -4170,8 +4170,8 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
     page,
   }) => {
     test.slow()
-    // Recorded once per DRAWN FRAME from before the app runs, so neither moment can fall
-    // between two polls. ⚠️ Not a page.evaluate promise on the 'load' event: <model-viewer>
+    // Recorded from before the app runs, so neither moment can fall between two polls.
+    // ⚠️ Not a page.evaluate promise on the 'load' event: <model-viewer>
     // arrives by a dynamic import, so the element can be absent when that runs, and the
     // promise then never settles (it timed out that way on 2026-09-25).
     //
@@ -4193,11 +4193,20 @@ test.describe('the entrance and the idle cue keep their timing (MO-10, MO-12)', 
         },
         true,
       )
-      const tick = () => {
-        if (document.querySelector('.stage__hint') && log.hintAt < 0) log.hintAt = performance.now()
-        if (log.hintAt < 0) requestAnimationFrame(tick)
+      /*
+       * The cue's moment is when it ENTERS THE PAGE, read by a MutationObserver, not in the first
+       * frame drawn after it. A frame runs only before a repaint, and CI's software WebKit can paint
+       * nothing for seconds just as the 3D engine starts: main run 43688095997 (15 Nov 2026) had no
+       * frame from 1.9 s to 5.1 s, and model-viewer logged "rAF timed out in updateSource". The cue
+       * is put in by a timer and a React commit, neither of which waits for a frame, so a frame
+       * recorder dated it LATE by up to the length of the stall. Late is the direction that passes:
+       * a cue shown too soon, inside a stall, was dated at the stall's end and could still meet the
+       * floor below. Same recorder as MO-10 above and #400's opening-screen tests.
+       */
+      const seeCue = () => {
+        if (log.hintAt < 0 && document.querySelector('.stage__hint')) log.hintAt = performance.now()
       }
-      requestAnimationFrame(tick)
+      new MutationObserver(seeCue).observe(document, { subtree: true, childList: true })
     })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()

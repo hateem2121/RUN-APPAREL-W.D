@@ -41,8 +41,12 @@ describe('the approved garment types', () => {
    * The point of the whole change, measured on the real list: a title built from each
    * type names the garment, fits what a result shows, and keeps the type when it must
    * drop something. The longest live names are the ones that would push it out.
+   *
+   * On the MAIN colour's page, the one in the sitemap. Since 15 Nov 2026 (evening) another
+   * colour's page still over 60 without the brand loses the type and keeps its colour (owner;
+   * packages/shared/src/pageTitle.ts), so every colour page keeps a title of its own.
    */
-  it('each produce a title that still says the type when the brand has to go', () => {
+  it('each produce a main-colour title that still says the type when the brand has to go', () => {
     const names: Record<string, string> = {
       'r-kmj': 'THE KINETIC MATRIX JACKET',
       'r-wsa': 'WOMEN’S ATHLETIC TENNIS DRESS',
@@ -57,6 +61,7 @@ describe('the approved garment types', () => {
         garmentType: type,
         colour: 'Bottle Green / Mint',
         brand: PAGE_TITLE_BRAND,
+        isDefaultColour: true,
       })
       expect(title, slug).toContain(productName)
       // Either the type is in the title, or the name already says every word of it.

@@ -606,9 +606,10 @@ test.describe('generic keyboard, focus and naming sweeps on the product page', (
     await expect(page).toHaveTitle("Velocity Performance Tee — Men's Training Tee | RUN APPAREL")
     await page.goto('/n001/blush')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    // The fixture names this colour with two words on purpose (a wrap test elsewhere), so
-    // the title is matched on its shape: same name and type, and a colour that is not Wine.
-    await expect(page).toHaveTitle(/^Velocity Performance Tee — Men's Training Tee, (?!Wine$).+$/)
+    // The fixture names this colour "Pebble / Optic White" (a wrap test elsewhere), which makes the
+    // title 67 characters with the type: another colour's page still over 60 drops the TYPE and
+    // keeps its colour (owner, 15 Nov 2026 evening), so its title stays its own (AC-11).
+    await expect(page).toHaveTitle('Velocity Performance Tee — Pebble / Optic White')
   })
 
   test('AC-15: a repeated link name always goes to the same page', async ({ page }) => {

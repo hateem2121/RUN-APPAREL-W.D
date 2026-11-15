@@ -137,15 +137,15 @@ describe('buildPreview — title', () => {
    * code until then; the code moved to the front of the description (tested below).
    */
   it('is the page title without the brand, for a garment with a garment type', () => {
-    // Not the main colour: its 62-character title keeps the colour (the main colour's drops it,
-    // owner 2026-11-15, tested under "the page title search engines show").
+    // Not the main colour: its 54-character title keeps the colour and loses the brand (the rules
+    // for a longer one are tested under "the page title search engines show").
     const preview = build(
       payload({
-        product: { garmentType: "Women's Cycling Skinsuit" },
+        product: { garmentType: 'Cycling Skinsuit' },
         selectedColourway: colourway({ isDefault: false }),
       }),
     )
-    expect(preview.title).toBe("Velocity Performance Skinsuit — Women's Cycling Skinsuit, Wine")
+    expect(preview.title).toBe('Velocity Performance Skinsuit — Cycling Skinsuit, Wine')
     expect(preview.title).toBe(preview.pageTitle)
     expect(preview.title).not.toContain('RUN APPAREL')
     expect(preview.title).not.toContain('N001')
@@ -193,9 +193,10 @@ describe('buildPreview — the page title search engines show', () => {
     expect(preview.title).toBe(preview.pageTitle.replace(/ \| RUN APPAREL$/, ''))
   })
 
-  // 62 characters with its colour: the main colour's page loses the colour, another colour's page
-  // keeps it and loses the brand (owner, 2026-11-15).
-  it('drops the colour of a long title on the main colour’s page only', () => {
+  // 62 characters with its colour: the main colour's page loses the colour (owner, 2026-11-15);
+  // another colour's page, still over 60 without the brand, loses the type and keeps its colour
+  // (owner, 15 Nov evening), so the two titles stay different (AC-11).
+  it('drops the colour on the main colour’s page, the type on another', () => {
     const product = { garmentType: "Women's Cycling Skinsuit" }
     const main = build(payload({ product }))
     expect(main.pageTitle).toBe("Velocity Performance Skinsuit — Women's Cycling Skinsuit")
@@ -207,7 +208,9 @@ describe('buildPreview — the page title search engines show', () => {
         selectedColourway: colourway({ displayName: 'Blush', slug: 'blush', isDefault: false }),
       }),
     )
-    expect(other.pageTitle).toBe("Velocity Performance Skinsuit — Women's Cycling Skinsuit, Blush")
+    expect(other.pageTitle).toBe('Velocity Performance Skinsuit — Blush | RUN APPAREL')
+    expect(other.title).toBe('Velocity Performance Skinsuit — Blush')
+    expect(other.pageTitle).not.toBe(main.pageTitle)
   })
 
   it('keeps the code-led title, with the brand, for a garment with no type yet', () => {

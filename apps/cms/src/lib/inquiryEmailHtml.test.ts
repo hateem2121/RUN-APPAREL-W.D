@@ -188,3 +188,46 @@ describe('the buyer receipt', () => {
     expect(text).not.toMatch(/\$|USD|PKR|certified/i)
   })
 })
+
+/**
+ * The receipt in Russian (owner, 2026-11-15), for an inquiry sent from /ru/contact. Same promises,
+ * same bounds on what a stranger can put in it; no English picture.
+ */
+describe('the buyer receipt in Russian', () => {
+  it('speaks Russian, names the subject by its Russian label, and links the Russian range', () => {
+    const receipt = buyerReceipt({ id: 82, subject: 'Samples', lang: 'ru' })
+    expect(receipt.subject).toBe('Мы получили ваш запрос\u00a0— RUN APPAREL (RA-00082)')
+    expect(receipt.html).toContain('<html lang="ru">')
+    expect(receipt.html).toContain('>Образцы<')
+    expect(receipt.text).toContain('Тема запроса: Образцы')
+    expect(receipt.html).toContain('href="https://wear-run.com/ru/products"')
+    expect(receipt.text).toContain('https://wear-run.com/ru/products')
+  })
+
+  it('drops a subject the sender typed themselves, as the English one does', () => {
+    const advert = 'Дешёвые подписчики на spam.example'
+    const receipt = buyerReceipt({ id: 82, subject: advert, lang: 'ru' })
+    expect(receipt.html).not.toContain(advert)
+    expect(receipt.text).not.toContain(advert)
+  })
+
+  it('leaves out the moving header, whose picture spells English words', () => {
+    const { html } = buyerReceipt({ id: 1, subject: '', lang: 'ru' })
+    expect(html).toContain(`src="${RECEIPT_LOGO}"`)
+    expect(html).not.toContain(RECEIPT_GIF)
+  })
+
+  it('promises only what the Russian contact page says, with no English left in the words', () => {
+    const { html, text } = buyerReceipt({ id: 1, subject: 'Request a quote', lang: 'ru' })
+    expect(text).toContain('в течение 24\u00a0часов')
+    expect(text).toContain('+92 336 1777313')
+    expect(text).not.toMatch(/\$|USD|PKR|руб|сертифиц/i)
+    // Every English sentence of the English receipt is gone; only names, the address and links stay.
+    const english = buyerReceipt({ id: 1, subject: 'Request a quote' })
+    for (const line of english.text.split('\n').filter((l) => /[a-z]{4,} [a-z]{3,}/.test(l))) {
+      if (line.startsWith('RUN APPAREL (PVT) LTD')) continue
+      expect(text, line).not.toContain(line)
+    }
+    expect(html).toContain('Запросить расчёт стоимости')
+  })
+})

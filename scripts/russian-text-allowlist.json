@@ -546,16 +546,6 @@
   },
   {
     "tool": "grammar",
-    "word": "мерчендайзером",
-    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
-  },
-  {
-    "tool": "grammar",
-    "word": "Мерчендайзеры",
-    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
-  },
-  {
-    "tool": "grammar",
     "word": "микро-",
     "reason": "The first half of a shared-ending pair («водо- и маслоотталкивание», «авиа- или морской»), correct Russian."
   },
@@ -1706,11 +1696,6 @@
   },
   {
     "tool": "speller",
-    "word": "Мерчендайзинг",
-    "reason": "A textile, trade or customs term, or a hyphenated compound, that the checker's dictionary lacks; read in its sentence 2026-11-15."
-  },
-  {
-    "tool": "speller",
     "word": "многоигольные",
     "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-15); the checker flags it out of context."
   },
@@ -2233,5 +2218,55 @@
     "tool": "speller",
     "word": "ZPRJ",
     "reason": "A Latin name kept as the English writes it: a company, standard, certificate, file type or person."
+  },
+  {
+    "tool": "grammar",
+    "word": "(\n",
+    "reason": "A template piece: the brackets enclose a ${…} value («запрос (${ref})» in the receipt), so the checker sees a break after the opening bracket."
+  },
+  {
+    "tool": "grammar",
+    "word": "Мерчандайзер",
+    "reason": "The dictionary spelling: Русский орфографический словарь (ред. В. В. Лопатин, О. Е. Иванова) gives «мерчанда́йзер, -а», and Грамота.ру answers «Правильно: мерчандайзинг, мерчандайзер» (read on gramota.ru 2026-11-15). The checkers lack the word."
+  },
+  {
+    "tool": "grammar",
+    "word": "Мерчандайзеры",
+    "reason": "The dictionary spelling: Русский орфографический словарь (ред. В. В. Лопатин, О. Е. Иванова) gives «мерчанда́йзер, -а», and Грамота.ру answers «Правильно: мерчандайзинг, мерчандайзер» (read on gramota.ru 2026-11-15). The checkers lack the word."
+  },
+  {
+    "tool": "grammar",
+    "word": "Мерчандайзинг",
+    "reason": "The dictionary spelling: Русский орфографический словарь (ред. В. В. Лопатин, О. Е. Иванова) gives «мерчанда́йзер, -а», and Грамота.ру answers «Правильно: мерчандайзинг, мерчандайзер» (read on gramota.ru 2026-11-15). The checkers lack the word."
+  },
+  {
+    "tool": "grammar",
+    "word": "мерчандайзер",
+    "reason": "The dictionary spelling: Русский орфографический словарь (ред. В. В. Лопатин, О. Е. Иванова) gives «мерчанда́йзер, -а», and Грамота.ру answers «Правильно: мерчандайзинг, мерчандайзер» (read on gramota.ru 2026-11-15). The checkers lack the word."
+  },
+  {
+    "tool": "grammar",
+    "word": "мерчандайзером",
+    "reason": "The dictionary spelling: Русский орфографический словарь (ред. В. В. Лопатин, О. Е. Иванова) gives «мерчанда́йзер, -а», and Грамота.ру answers «Правильно: мерчандайзинг, мерчандайзер» (read on gramota.ru 2026-11-15). The checkers lack the word."
+  },
+  {
+    "tool": "grammar",
+    "word": "мерчандайзинг",
+    "reason": "The dictionary spelling: Русский орфографический словарь (ред. В. В. Лопатин, О. Е. Иванова) gives «мерчанда́йзер, -а», and Грамота.ру answers «Правильно: мерчандайзинг, мерчандайзер» (read on gramota.ru 2026-11-15). The checkers lack the word."
+  },
+  {
+    "tool": "speller",
+    "word": "Мерчандайзер",
+    "reason": "The dictionary spelling: Русский орфографический словарь (ред. В. В. Лопатин, О. Е. Иванова) gives «мерчанда́йзер, -а», and Грамота.ру answers «Правильно: мерчандайзинг, мерчандайзер» (read on gramota.ru 2026-11-15). The checkers lack the word."
+  },
+  {
+    "tool": "speller",
+    "word": "мерчандайзер",
+    "reason": "The dictionary spelling: Русский орфографический словарь (ред. В. В. Лопатин, О. Е. Иванова) gives «мерчанда́йзер, -а», and Грамота.ру answers «Правильно: мерчандайзинг, мерчандайзер» (read on gramota.ru 2026-11-15). The checkers lack the word."
+  },
+  {
+    "tool": "speller",
+    "word": "мерчандайзером",
+    "reason": "The dictionary spelling: Русский орфографический словарь (ред. В. В. Лопатин, О. Е. Иванова) gives «мерчанда́йзер, -а», and Грамота.ру answers «Правильно: мерчандайзинг, мерчандайзер» (read on gramota.ru 2026-11-15). The checkers lack the word."
   }
 ]

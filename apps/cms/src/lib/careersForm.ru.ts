@@ -103,7 +103,7 @@ export const ROLE_LABELS_RU: Readonly<Record<string, string>> = {
   Cutting: 'Раскрой',
   Printing: 'Печать',
   'Quality checking': 'Контроль качества',
-  'Merchandising and coordination': 'Мерчендайзинг и координация',
+  'Merchandising and coordination': 'Мерчандайзинг и координация',
   'Pattern making and design': 'Конструирование и дизайн',
   Administration: 'Администрирование',
   other: 'Другое',
