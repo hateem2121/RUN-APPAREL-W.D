@@ -66,6 +66,13 @@ const FONTS = {
   ),
 }
 
+/**
+ * The 2027 logo (owner, 2026-11-15: "use it everywhere"), the band the site's header draws, read
+ * from its committed file rather than restated: no background, in the colours the owner chose for
+ * dark grounds (the cards are ink). 48px tall in place of the 34px name in type.
+ */
+const LOGO = `data:image/svg+xml;base64,${readFileSync(join(CMS, 'public', 'run-mark-on-dark.svg')).toString('base64')}`
+
 /** The brand's three constants, read from the tokens rather than retyped. */
 const TOKENS = readFileSync(join(REPO, 'packages', 'ui', 'src', 'tokens.css'), 'utf8')
 function token(name) {
@@ -162,7 +169,7 @@ body{position:relative;overflow:hidden;background:${INK};color:${PAPER};font-fam
 h1{font-size:var(--size,104px);line-height:1;font-weight:800;font-stretch:122%;letter-spacing:-.02em;overflow-wrap:normal;word-break:normal}
 h1 em{font-family:Instrument,serif;font-style:italic;font-weight:400;font-stretch:100%;letter-spacing:0;color:${VOLT}}
 .foot{display:flex;justify-content:space-between;align-items:flex-end}
-.mark{font-size:34px;font-weight:800;font-stretch:122%;letter-spacing:-.01em}
+.mark{display:block;height:48px;width:auto}
 .host{font-family:Plex,monospace;font-size:22px;color:${PAPER}b3}
 .ball{position:absolute;top:50%;right:-10px;width:600px;height:600px;transform:translateY(-50%)}
 .tiles{position:absolute;top:${TILE.inset}px;right:${TILE.inset}px;display:grid;grid-template-columns:repeat(2,${TILE.width}px);grid-auto-rows:${TILE.height}px;gap:${TILE.gap}px}
@@ -173,7 +180,7 @@ ${await pictureMarkup(card, sharp)}
 <div class="words">
   <p class="label">${escapeHtml(card.label)}</p>
   <h1>${escapeHtml(headingText)}${accent}</h1>
-  <div class="foot"><span class="mark">RUN APPAREL</span><span class="host">${SHARE_IMAGE.host}</span></div>
+  <div class="foot"><img class="mark" src="${LOGO}" alt="RUN APPAREL"><span class="host">${SHARE_IMAGE.host}</span></div>
 </div>
 </body></html>`
 }

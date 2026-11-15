@@ -61,6 +61,10 @@ describe('the two apps never claim the same address', () => {
   const LEFT_TO_THE_WEBSITE = [
     'favicon.ico', // byte-identical in both apps, asserted below
     'apple-touch-icon.png', // byte-identical in both apps, asserted below
+    // The 2027 logo files (2026-11-15): the header's logo and the 96px tab icon, byte-identical too.
+    'favicon-96x96.png',
+    'run-mark.svg',
+    'run-mark-on-dark.svg',
     'robots.txt', // the website's own robots.txt speaks for the whole host
     'sitemap.xml', // the website's own sitemap
     'llms.txt', // the website's own llms.txt
@@ -77,7 +81,13 @@ describe('the two apps never claim the same address', () => {
   })
 
   it('serves the icons the website answers for garment pages byte-for-byte as the viewer would', () => {
-    for (const name of ['favicon.ico', 'apple-touch-icon.png']) {
+    for (const name of [
+      'favicon.ico',
+      'apple-touch-icon.png',
+      'favicon-96x96.png',
+      'run-mark.svg',
+      'run-mark-on-dark.svg',
+    ]) {
       expect(
         readFileSync(join(repo, 'apps/cms/public', name), 'base64'),
         `${name} differs between the apps, so garment pages on the website would show the website's`,

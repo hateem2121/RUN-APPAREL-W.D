@@ -12,7 +12,7 @@ import {
   holdPageWhileOpen,
   MENU_CLOSING_MS,
   markMenuClosing,
-  SITE_BAR_WORDMARK,
+  SITE_BAR_LOGO,
   SITE_MENU_ID,
   SITE_MENU_NAME,
   SITE_MENU_LINKS,
@@ -75,15 +75,10 @@ describe('the menu bar, once, for both hosts', () => {
     expect(SITE_MENU_ID).toMatch(/^[a-z][a-z-]*$/)
   })
 
-  it("pins the wordmark to the site's setting (TY-08, XS-01)", () => {
-    // The viewer set it 900 and 22% wider until 2026-09-24; "the one at wear-run.help"
-    // is what the owner chose, so the site's computed values are the contract.
-    expect(SITE_BAR_WORDMARK).toEqual({
-      fontWeight: '800',
-      fontStretch: '100%',
-      fontSize: '16px',
-      letterSpacing: '-0.32px',
-    })
+  it('pins the logo both bars draw (owner, 2026-11-15)', () => {
+    // The 2027 mark replaced the name in type; both hosts must draw the same file at the same
+    // size, which the two siteBar.spec.ts files check in a browser.
+    expect(SITE_BAR_LOGO).toEqual({ src: '/run-mark-on-dark.svg', width: 81, height: 28 })
   })
 })
 

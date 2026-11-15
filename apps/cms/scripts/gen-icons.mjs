@@ -74,20 +74,32 @@ function markup() {
   if (svg.includes('<!--') && /<!--[\s\S]*?--[\s\S]*?-->/.test(svg.replace(/-->/g, ''))) {
     throw new Error('gen-icons: icon.svg comment contains a double hyphen, which is invalid XML')
   }
-  return svg.replace(/@media[^{]*\{[\s\S]*?\}\s*\}/, '')
+  return svg
 }
+
+/** The light-tab picture: the dark-theme rules dropped. */
+const lightOf = (svg) => svg.replace(/@media[^{]*\{[\s\S]*?\}\s*\}/, '')
+/**
+ * The dark picture: the dark-theme rules UNWRAPPED, so they follow and win (2026-11-15). For the
+ * home-screen icon only: iOS fills a transparent touch icon with black, where the light picture's
+ * ink letters would vanish (not checked on a device here; the dark picture is legible either way).
+ */
+const darkOf = (svg) => svg.replace(/@media[^{]*\{([\s\S]*?\})\s*\}/, '$1')
 
 async function main() {
   const svg = markup()
-  const render = (size) =>
-    sharp(Buffer.from(svg, 'utf8'))
+  const render = (size, picture = lightOf(svg)) =>
+    sharp(Buffer.from(picture, 'utf8'))
       .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png({ compressionLevel: 9 })
       .toBuffer()
 
   const targets = [
     { name: 'favicon.ico', build: async () => icoFromPng(await render(32), 32) },
-    { name: 'apple-touch-icon.png', build: () => render(180) },
+    { name: 'apple-touch-icon.png', build: () => render(180, darkOf(svg)) },
+    // Google Search reads no SVG favicon and asks for one larger than 48px ("Define a favicon to
+    // show in search results", updated 2026-10-27), so it gets a 96px PNG (2026-11-15).
+    { name: 'favicon-96x96.png', build: () => render(96) },
   ]
 
   for (const { name, build } of targets) {
