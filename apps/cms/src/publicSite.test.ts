@@ -736,8 +736,8 @@ describe('the notch', () => {
     // for the button when even name + button do not fit. Range syntax, so the phone and wide
     // blocks are exact complements with no fractional gap between them.
     const flat = barCss().replace(/\s+/g, ' ')
-    expect(flat).toContain('@media (width < 720px), (width < calc(184px + 15.5rem))')
-    expect(flat).toContain('@media (width >= 720px) and (width >= calc(184px + 15.5rem))')
+    expect(flat).toContain('@media (width < 720px), (width < calc(186px + 16rem))')
+    expect(flat).toContain('@media (width >= 720px) and (width >= calc(186px + 16rem))')
     expect(flat).toContain('@media (width < calc(114px + 7.25rem))')
     // the old rule, fitted to two inline links, is gone
     expect(flat).not.toContain('calc(80px + 14.9rem)')

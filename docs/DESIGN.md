@@ -678,8 +678,8 @@ undocumented). A new one needs the same: the layout it rescues, measured.
 | `max-width: 430px` | `site.css` | the hero's buttons go full width, one per row |
 | `560px` | `site.css` | facts and the inquiry form's paired fields go to two columns; below it the product families are one column; from it the product grid has two columns and each card is an upright ticket that opens (polish D3b) |
 | `max-width: 559px` | `site.css` | on a phone each product card is a sideways ticket, one a row: a square picture on its left, 12px of text padding and narrower colour dots (polish M1), and `/products`' jump bar is one row that scrolls sideways (VA-42) |
-| `720px`, and `184px + 15.5rem` | `notch.css`, `footer.css`, `footer-prompt.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
-| `720px`, and `208px + 19.1rem` | `site.css` (website only) | the language link («Русский» / «English») joins the inline bar; below it, it stays in the phone menu. Measured with the link at ten text sizes (2026-11-15) |
+| `720px`, and `186px + 16rem` | `notch.css`, `footer.css`, `footer-prompt.css` | the bar's links come inline (both must hold, so large text keeps the menu button); the footer's tab and facts change shape |
+| `720px`, and `208px + 19.75rem` | `site.css` (website only) | the language link («Русский» / «English») joins the inline bar; below it, it stays in the phone menu. Measured with the link at ten text sizes (2026-11-15) |
 | `768px` | `footer.css`, `site.css` | the footer slab's columns; the contact page's address and globe sit side by side |
 | motion allowed | `site.css` | the order stages stack on every screen (D42; the owner, 2026-10-17); under reduced motion and on paper they are a plain list |
 | `900px` | `site.css`, `page.css` | the site's two-column sections (about, proof, each order stage's two steps side by side, D42), and each section's heading beside its words (`.section-head`, `.spread`, polish D1); "On this page" beside the privacy and terms text (`.legal`, polish X4); facts go to three columns; the garment page's two-column stage when the screen is sideways (`orientation: landscape`, polish F11), and the phone action bar is hidden with it |
@@ -1021,7 +1021,7 @@ two `e2e/siteBar.spec.ts` suites.
 
 | Width at the reader's text size | The bar |
 |---|---|
-| under 720px, or too narrow for the inline row (`184px + 15.5rem`, fitted to the Russian bar on 2026-11-15) | the name and the Speed Lines button; the menu drops below the bar |
+| under 720px, or too narrow for the inline row (`186px + 16rem`, fitted to the Russian bar in Chromium and Firefox on 2026-11-15) | the name and the Speed Lines button; the menu drops below the bar |
 | under `114px + 7.25rem` (very large text on a narrow phone) | the button moves to a second row under the name |
 | otherwise | the name, the links and the light/dark switch in one row |
 | any width, screen 500px tall or less | as above, but the bar rests at its condensed 52px (4px padding) rather than 60px; the controls stay 44px (2026-10-01) |
