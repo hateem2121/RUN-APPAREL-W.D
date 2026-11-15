@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFile, execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -256,4 +256,24 @@ test('END TO END with lychee against a local server: 404 and 500 reported; 403, 
   } finally {
     server.close()
   }
+})
+
+// The first live issue (#394, 2026-11-15) signed itself "guide-source-links.yml", a workflow that does
+// not exist (it is guide-sources.yml), and said "1 are accepted". Whoever reads the issue follows that
+// name to the workflow, so it must be a real file.
+test('the issue names the workflow that opens it, and counts in plain grammar', () => {
+  const verdict = {
+    total: 3,
+    blocked: [],
+    accepted: [{ url: 'https://accepted.example/x' }],
+    broken: [{ url: 'https://gone.example/x', reason: 'HTTP 404', guides: ['/guides/g'] }],
+  }
+  const body = issueBody(verdict, TODAY)
+  const named = body.match(/_Opened by ([\w.-]+\.yml)/)?.[1]
+  assert.ok(
+    named && existsSync(join(import.meta.dirname, '..', '.github', 'workflows', named)),
+    `the issue says it was opened by ${named}, which is not a workflow in .github/workflows`,
+  )
+  assert.match(body, /\b1 is accepted\b/)
+  assert.match(issueBody({ ...verdict, accepted: [{}, {}] }, TODAY), /\b2 are accepted\b/)
 })
