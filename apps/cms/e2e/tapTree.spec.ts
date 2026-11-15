@@ -11,6 +11,11 @@ type Request = Awaited<ReturnType<Page['waitForRequest']>>
  *
  * The click is a plain `element.click()`, never a hover: a hover would prefetch the page ahead
  * (IntentLink) and the tap would send no request at all.
+ *
+ * The language link («Русский», `hreflang`) is left out of both tests: it is a plain `<a>` to the
+ * other language's root layout, so the browser loads that page whole and sends no tree at all (CI,
+ * 2026-11-15, once the link showed in the wide bar: "/ru/faq: the tap sent no tree"). The warm-ups
+ * have nothing to keep for it. LanguageLink.tsx says why it is not an IntentLink.
  */
 test.skip(({ browserName }) => browserName !== 'chromium', 'measured in Chromium')
 
@@ -22,7 +27,7 @@ test('a settled tap from /faq sends the tree stateTreeFor builds', async ({ page
   // own tree instead (measured 27 Oct; kept correctly, never warmed).
   const paths: string[] = await page.evaluate(() => [
     ...new Set(
-      [...document.querySelectorAll<HTMLAnchorElement>('header a[href^="/"]')]
+      [...document.querySelectorAll<HTMLAnchorElement>('header a[href^="/"]:not([hreflang])')]
         .filter((a) => {
           const box = a.getBoundingClientRect()
           return box.width > 0 && box.height > 0 && box.bottom > 0 && box.top < innerHeight
@@ -75,7 +80,7 @@ test('a hover on /faq sends the tree intentTreeFor builds', async ({ page }) => 
   await expect(page.locator('h1')).toBeVisible()
   const paths: string[] = await page.evaluate(() => [
     ...new Set(
-      [...document.querySelectorAll<HTMLAnchorElement>('header a[href^="/"]')]
+      [...document.querySelectorAll<HTMLAnchorElement>('header a[href^="/"]:not([hreflang])')]
         .filter((a) => {
           const box = a.getBoundingClientRect()
           return box.width > 0 && box.height > 0 && box.bottom > 0 && box.top < innerHeight
