@@ -8,6 +8,10 @@
     {
       "host": "wcoomd.org",
       "reason": "Resets every lychee connection (os error 54) in two runs on 2026-11-15, while the same page loaded (HTTP 200, 11 s) for curl with a browser agent: it drops the checker's TLS fingerprint, not the page."
+    },
+    {
+      "host": "eservices.secp.gov.pk",
+      "reason": "Pakistan's company registry answers only from inside Pakistan: both pages timed out from GitHub's US runner (run 43694241031, issue #394), while from Pakistan the same day NameSearch.jsp answered 200 in 0.36 s with its real 'Search Company Name' page (2026-11-15)."
     }
   ],
   "knownBroken": [

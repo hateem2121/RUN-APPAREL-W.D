@@ -1,5 +1,5 @@
 /**
- * The logic behind guide-source-links.yml: which outside addresses the buyer guides cite, which
+ * The logic behind guide-sources.yml: which outside addresses the buyer guides cite, which
  * answers from them count as a real break, and the text of the one issue that reports them.
  *
  * WHY (15 Nov 2026). scripts/link-crawl-probe.mjs never follows a link to another site: it logs each
@@ -224,14 +224,14 @@ export function issueBody(verdict, today) {
     '',
     ...lines,
     '',
-    `Not counted: ${verdict.blocked.length} answered 403 or 429 (a site refusing robots, not a dead page), and ${verdict.accepted.length} are accepted as broken until a date in \`${CONFIG_FILE}\`.`,
+    `Not counted: ${verdict.blocked.length} answered 403 or 429 (a site refusing robots, not a dead page), and ${verdict.accepted.length} ${verdict.accepted.length === 1 ? 'is' : 'are'} accepted as broken until a date in \`${CONFIG_FILE}\`.`,
     '',
     'For each one: open it in a browser. If it loads, say so here (a site that blocks robots belongs in',
     `\`blockedHosts\` of \`${CONFIG_FILE}\` with a reason). If it is gone, replace the source in`,
     '`apps/cms/src/lib/guides.ts` or `guideLibrary.ts`; a source nobody can replace goes in `knownBroken` with a dated `until`.',
     'This issue closes itself on the next weekly run that finds nothing broken.',
     '',
-    '_Opened by guide-source-links.yml (weekly, Sundays)._',
+    '_Opened by guide-sources.yml (weekly, Sundays)._',
   ].join('\n')
 }
 
