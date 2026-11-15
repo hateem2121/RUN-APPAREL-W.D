@@ -60,18 +60,15 @@ export const THEME_SWITCH_WORDS = {
 } as const
 
 /**
- * The logo both bars draw at the start, since 2026-11-15 (owner: "use it everywhere"): the 2027
- * mark's band in its dark-ground colours (the owner's option 3: volt letters, faded blocks), with no
- * background, one file in each app's public/ with the same bytes. The bar is dark in both themes. Until
- * then this was the CMS name set in type, pinned here as weight, stretch, size and tracking
- * (audits TY-08 and XS-01: the viewer once set it 900 and 22% wider); the name now lives in the
- * picture's `alt`, so the link is still called by it. Both hosts' browser tests hold their bar to
- * this, and to the picture having loaded: a file missing on one host would leave an empty box.
+ * The wordmark as the site sets it — what "the one at wear-run.help" means for the name
+ * (audits TY-08 and XS-01: the viewer set it 900 and 22% wider). Values as
+ * `getComputedStyle` returns them at the 16px default text size.
  */
-export const SITE_BAR_LOGO = {
-  src: '/run-mark-on-dark.svg',
-  width: 81,
-  height: 28,
+export const SITE_BAR_WORDMARK = {
+  fontWeight: '800',
+  fontStretch: '100%',
+  fontSize: '16px',
+  letterSpacing: '-0.32px',
 } as const
 
 export type SiteBarState = 'wide' | 'phone-closed' | 'phone-open'

@@ -789,20 +789,11 @@ test.describe('the bar never covers the page', () => {
     // reintroducing the overlap from a text field with nothing failing.
     await page.setViewportSize({ width: 320, height: 800 })
     await page.goto('/')
-    /*
-     * Since the 2027 logo (2026-11-15) the CMS name is the picture's `alt`, and a browser shows
-     * an `alt` only when the picture fails. So the worst case is a long name AND a missing file:
-     * the text must stay inside the logo's fixed 81 x 28 box rather than widen the bar.
-     */
-    const heights = await page.evaluate(async () => {
+    const heights = await page.evaluate(() => {
       const bar = document.querySelector('.notch') as HTMLElement
-      const logo = document.querySelector('.notch__logo') as HTMLImageElement
+      const mark = document.querySelector('.notch__wordmark') as HTMLElement
       const before = Math.round(bar.getBoundingClientRect().height)
-      logo.alt = 'RUN APPAREL INTERNATIONAL MANUFACTURING LIMITED'
-      await new Promise<void>((resolve) => {
-        logo.addEventListener('error', () => resolve(), { once: true })
-        logo.src = '/no-such-logo.svg'
-      })
+      mark.textContent = 'RUN APPAREL INTERNATIONAL MANUFACTURING LIMITED'
       const after = Math.round(bar.getBoundingClientRect().height)
       return { before, after }
     })
