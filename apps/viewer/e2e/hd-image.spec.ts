@@ -671,9 +671,22 @@ test('under reduced motion the HD picture changes colour at once', async ({ page
  */
 async function watchFullDye(page: Page) {
   await page.evaluate(() => {
-    const w = window as unknown as { __frames: number; __inked: boolean }
+    const w = window as unknown as { __frames: number; __inked: boolean; __started: boolean }
     w.__frames = 0
     w.__inked = false
+    /*
+     * Whether a dye STARTED is read from the attribute itself, by a MutationObserver, not by counting
+     * frames. dyePlayer.ts sets `data-running` the moment a dye begins and clears it only from a
+     * frame callback, and a frame runs only before a repaint: CI's software WebKit can paint nothing
+     * for seconds (main run 43688095997, 15 Nov 2026: no frame from 1.9 s to 5.1 s). A dye that wrongly
+     * ran inside such a stall would draw no frame in the 400 ms the "at once" tests wait, so "0 frames"
+     * would read as "no dye" and pass. The frame count stays for what it measures: how many frames a real dye
+     * was drawn over. Same recorder as the 3D window's reduced-motion test above.
+     */
+    w.__started = document.querySelector('.hd-image__dye[data-running]') !== null
+    new MutationObserver(() => {
+      if (document.querySelector('.hd-image__dye[data-running]')) w.__started = true
+    }).observe(document, { subtree: true, attributes: true, attributeFilter: ['data-running'] })
     const tick = () => {
       const layer = document.querySelector<HTMLCanvasElement>('.hd-image__dye')
       if (layer?.hasAttribute('data-running')) {
@@ -688,8 +701,8 @@ async function watchFullDye(page: Page) {
 }
 const fullDye = (page: Page) =>
   page.evaluate(() => {
-    const w = window as unknown as { __frames: number; __inked: boolean }
-    return { frames: w.__frames, inked: w.__inked }
+    const w = window as unknown as { __frames: number; __inked: boolean; __started: boolean }
+    return { frames: w.__frames, inked: w.__inked, started: w.__started }
   })
 
 test('the full-screen view changes colour with the dye, and leaves nothing over it', async ({
@@ -703,7 +716,7 @@ test('the full-screen view changes colour with the dye, and leaves nothing over 
   await expect(picture).toHaveAttribute('data-loaded', 'true')
   await slowDye(page)
   await watchFullDye(page)
-  expect((await fullDye(page)).frames, 'opening the view is not a colour change').toBe(0)
+  expect((await fullDye(page)).started, 'opening the view is not a colour change').toBe(false)
 
   await dialog.getByRole('button', { name: 'Next colour: Pebble / Optic White' }).click()
   await expect(picture).toHaveAttribute('src', /blush/)
@@ -736,7 +749,7 @@ test('zoomed in, the full-screen view changes colour at once', async ({ page, is
   await dialog.getByRole('button', { name: 'Next colour: Pebble / Optic White' }).click()
   await expect(dialog.locator('.hd-image__render')).toHaveAttribute('src', /blush/)
   await page.waitForTimeout(400)
-  expect((await fullDye(page)).frames).toBe(0)
+  expect((await fullDye(page)).started, 'a dye ran while zoomed in').toBe(false)
 })
 
 test('under reduced motion the full-screen view changes colour at once', async ({ page }) => {
@@ -748,5 +761,5 @@ test('under reduced motion the full-screen view changes colour at once', async (
   await dialog.getByRole('button', { name: 'Next colour: Pebble / Optic White' }).click()
   await expect(dialog.locator('.hd-image__render')).toHaveAttribute('src', /blush/)
   await page.waitForTimeout(400)
-  expect((await fullDye(page)).frames).toBe(0)
+  expect((await fullDye(page)).started, 'a dye ran under reduced motion').toBe(false)
 })

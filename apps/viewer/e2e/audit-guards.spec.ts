@@ -1043,6 +1043,19 @@ test.describe('a synthetic wheel event does not scroll the page (FA-F-12)', () =
       )
       // Longer than --scroll-duration, so a slow glide cannot hide inside the wait.
       await new Promise((resolve) => setTimeout(resolve, 1500))
+      /*
+       * AND ten drawn frames after it. Lenis moves the page only inside its animation frames
+       * (`autoRaf`), and a frame runs only before a repaint: CI's software WebKit can paint nothing
+       * for seconds while the 3D engine starts (main run 43688095997, 15 Nov 2026: no frame from
+       * 1.9 s to 5.1 s), and this test does not wait for the 3D. A glide accepted inside such a stall
+       * has not moved the page when the timer ends, so a predicate that let the untrusted wheel
+       * through would read 0 and pass. The frames give a glide its chance to show, whatever the timer.
+       */
+      await new Promise((resolve) => {
+        let frames = 0
+        const next = () => (++frames >= 10 ? resolve(null) : requestAnimationFrame(next))
+        requestAnimationFrame(next)
+      })
       return Math.round(window.scrollY)
     })
     expect(
