@@ -108,8 +108,10 @@ jobs:
           node scripts/guide-source-links.mjs extract > "$RUNNER_TEMP/guide-sources.html"
           run_lychee "$RUNNER_TEMP/guide-sources.html" "$RUNNER_TEMP/lychee.json"
           # A second look at only what failed, after a pause: one 500 or one reset connection is not a dead
-          # source (ecc.isc.ac answered 500 on 2026-11-15 and 200 an hour later). Only a break that fails
-          # both times is reported.
+          # source. Only a break that fails both times is reported.
+          # 🟡 THIS JOB SEES STATUS CODES, NOT PAGES: ecc.isc.ac answered 500, then 200 an hour later, yet
+          # in Chrome the same hour it showed "Runtime Error" (2026-11-15; the source was replaced, #390).
+          # An error page served with 200 passes here; only a person in a browser catches it.
           node scripts/guide-source-links.mjs recheck "$RUNNER_TEMP/lychee.json" > "$RUNNER_TEMP/again.html"
           if grep -q '<a href=' "$RUNNER_TEMP/again.html"; then
             sleep 300
