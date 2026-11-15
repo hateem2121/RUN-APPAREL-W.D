@@ -1,5 +1,7 @@
 import { authorName, bylineFor } from '../../lib/bylines'
+import { t } from '../../lib/i18n/ui'
 import { formatPostDate } from '../../lib/journal'
+import type { Locale } from '../../lib/locale'
 
 /**
  * Who wrote the page and when its words last changed (findability audit, 2026-10-08), under the
@@ -16,10 +18,13 @@ export function Byline({
   path,
   dateLabel = 'Last checked',
   reviewed,
+  locale = 'en',
 }: {
   path: string
   dateLabel?: string
   reviewed?: string
+  /** The page's language (Russian section, 2026-11-15); `path` stays the English path. */
+  locale?: Locale
 }) {
   const byline = bylineFor(path)
   // `bylines.test.ts` gives every guide, policy and careers one; drawing nothing is the safe miss.
@@ -29,20 +34,26 @@ export function Byline({
   return (
     <dl className="page-byline">
       <div>
-        <dt>Written by</dt>
+        <dt>{t(locale, 'Written by')}</dt>
         <dd>{authorName(byline.author)}</dd>
       </div>
       <div>
-        <dt>{dateLabel}</dt>
+        <dt>
+          {dateLabel === 'Last checked'
+            ? t(locale, 'Last checked')
+            : dateLabel === 'Last reviewed'
+              ? t(locale, 'Last reviewed')
+              : dateLabel}
+        </dt>
         <dd>
-          <time dateTime={day}>{formatPostDate(day)}</time>
+          <time dateTime={day}>{formatPostDate(day, locale)}</time>
         </dd>
       </div>
       {reviewed ? (
         <div>
-          <dt>Last reviewed</dt>
+          <dt>{t(locale, 'Last reviewed')}</dt>
           <dd>
-            <time dateTime={reviewed}>{formatPostDate(reviewed)}</time>
+            <time dateTime={reviewed}>{formatPostDate(reviewed, locale)}</time>
           </dd>
         </div>
       ) : null}

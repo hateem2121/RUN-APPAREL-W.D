@@ -92,7 +92,8 @@ const QUOTED_PER_INQUIRY =
 export const GUIDES_INDEX_RU = {
   path: '/guides',
   title: 'Руководства для заказчиков',
-  metaTitle: 'Контрактное производство одежды: руководства для брендов',
+  // ≤ 46 characters, so the <title> with ' | RUN APPAREL' stays within the site's 60.
+  metaTitle: 'Руководства по пошиву одежды для брендов',
   description:
     'Короткие руководства для заказчиков: как устроен заказ, 3D-модель, минимальная партия и образцы, печать, ткани, упаковка, доставка и пошлины.',
   heading: 'Руководства для заказчиков,',

@@ -3,6 +3,7 @@ import { LEGAL_NAME, WHAT_WE_ARE, WHAT_WE_MAKE } from './companyFacts'
 import type { ProductCard, PublicSiteSettings } from './projectPublic'
 import { SITE_NAME, SITE_ORIGIN, GARMENT_PAGES } from './seo'
 import { bylineFor } from './bylines'
+import { type Locale, ruPath } from './locale'
 import { SHARE_IMAGE, shareCardFor, shareImageUrl } from './shareImages'
 
 /**
@@ -218,7 +219,27 @@ export function breadcrumbJsonLd(page: { title: string; path: string }) {
 }
 
 /** Where a guide sits: Home, then Guides, then the guide. */
-export function guideBreadcrumbJsonLd(guide: { title: string; path: string }) {
+export function guideBreadcrumbJsonLd(
+  guide: { title: string; path: string },
+  locale: Locale = 'en',
+) {
+  // A Russian guide's trail is Russian, on its /ru addresses (Russian section, 2026-11-15).
+  if (locale === 'ru') {
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Главная', item: `${SITE_ORIGIN}/ru` },
+        { '@type': 'ListItem', position: 2, name: 'Руководства', item: `${SITE_ORIGIN}/ru/guides` },
+        {
+          '@type': 'ListItem',
+          position: 3,
+          name: guide.title,
+          item: `${SITE_ORIGIN}${ruPath(guide.path)}`,
+        },
+      ],
+    }
+  }
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -361,10 +382,14 @@ export function articleJsonLd(article: ArticleInput) {
  * ("Merchandiser, RUN APPAREL") names no person, so that guide's author is the company itself.
  * The picture is the guide's own share card.
  */
-export function guideArticleJsonLd(guide: { path: string; title: string; description: string }) {
+export function guideArticleJsonLd(
+  guide: { path: string; title: string; description: string },
+  locale: Locale = 'en',
+) {
+  // The byline is the English path's; a Russian guide's own address is /ru… (2026-11-15).
   const byline = bylineFor(guide.path)
   return articleJsonLd({
-    path: guide.path,
+    path: locale === 'ru' ? ruPath(guide.path) : guide.path,
     headline: guide.title,
     description: guide.description,
     image: {

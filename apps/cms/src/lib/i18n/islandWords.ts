@@ -18,7 +18,7 @@ export function isRussianPath(pathname: string | null): boolean {
 const RU_LINK_LABELS: Readonly<Record<string, string>> = {
   '/products': 'Продукция',
   '/contact': 'Контакты',
-  '/guides': 'Гиды',
+  '/guides': 'Руководства',
 }
 
 function ru(links: readonly { readonly href: string; readonly label: string }[]) {

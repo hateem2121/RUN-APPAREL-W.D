@@ -107,7 +107,7 @@ const DAY_RU: Readonly<Record<string, string>> = {
 const RU_LABELS: Readonly<Record<string, string>> = {
   '/products': 'Продукция',
   '/contact': 'Контакты',
-  '/guides': 'Гиды',
+  '/guides': 'Руководства',
   '/privacy': 'Конфиденциальность',
   '/privacy#cookies': 'Файлы cookie',
   '/terms': 'Условия',

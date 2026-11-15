@@ -1,6 +1,8 @@
 import { IntentLink as Link } from './IntentLink'
 import type { ReactNode } from 'react'
 import { FAMILY_PAGE_ACTION } from '../../lib/familyPages'
+import { t } from '../../lib/i18n/ui'
+import type { Locale } from '../../lib/locale'
 import type { PublicImage } from '../../lib/journalPublic'
 
 /**
@@ -19,7 +21,35 @@ import type { PublicImage } from '../../lib/journalPublic'
  * about us" and the FAQ pages' "More to read" finish the column the button starts. A page whose
  * links sit under the whole block (the guides') draws them after `<SiteClosing />` instead.
  */
-export function SiteClosing({ children }: { children?: ReactNode }) {
+export function SiteClosing({
+  children,
+  locale = 'en',
+}: {
+  children?: ReactNode
+  /** The page's language (Russian section, 2026-11-15). */
+  locale?: Locale
+}) {
+  if (locale === 'ru') {
+    return (
+      <div className="section-head">
+        <h2 className="display display--section">{t(locale, 'Tell us what you’re making.')}</h2>
+        <div className="section-head__words">
+          <p className="site-lede">
+            {t(
+              locale,
+              'Send the styles, quantities and specs you have. A sketch is enough to start. We reply within 24 hours.',
+            )}
+          </p>
+          <div className="site-actions">
+            <Link className="btn btn--primary" href="/contact#inquiry">
+              {t(locale, 'Start a conversation')}
+            </Link>
+          </div>
+          {children}
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="section-head">
       <h2 className="display display--section">Tell us what you&rsquo;re&nbsp;making.</h2>

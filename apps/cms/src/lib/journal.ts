@@ -65,8 +65,9 @@ export function relatedPagesFor(stored: unknown): Array<{ href: string; name: st
  * day printed is the day stored whatever the server's clock zone, and the page and its data
  * (`datePublished`) can never name different days.
  */
-export function formatPostDate(iso: string): string {
-  return new Intl.DateTimeFormat('en-US', {
+export function formatPostDate(iso: string, locale: 'en' | 'ru' = 'en'): string {
+  // Russian pages read «8 октября 2026 г.» (Russian section, 2026-11-15); English is unchanged.
+  return new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
