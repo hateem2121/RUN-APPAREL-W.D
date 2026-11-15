@@ -1,0 +1,20 @@
+{
+  "_about": "Read by scripts/guide-source-links.mjs. A host here is never asked (one reason each); a knownBroken address is accepted until its date, then reported again. 403 and 429 answers need no entry: they are never reported.",
+  "blockedHosts": [
+    {
+      "host": "ftc.gov",
+      "reason": "Answers 404 to any script, even for its home page, while every FTC link loaded in a real browser (checked 2026-11-15)."
+    },
+    {
+      "host": "wcoomd.org",
+      "reason": "Resets every lychee connection (os error 54) in two runs on 2026-11-15, while the same page loaded (HTTP 200, 11 s) for curl with a browser agent: it drops the checker's TLS fingerprint, not the page."
+    }
+  ],
+  "knownBroken": [
+    {
+      "url": "https://doi.org/10.56824/vujs.2026a005a",
+      "until": "2026-12-15",
+      "reason": "A correct DOI whose landing site vujs.vn has an expired TLS certificate (2026-11-15); the guide keeps the DOI. Look again on the date."
+    }
+  ]
+}

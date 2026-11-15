@@ -169,6 +169,9 @@ jobs:
           # only whether its Monday schedule still runs at all.
           # actions-changelog.yml (added 2026-11-08) is watched for SUCCESS: it fails only when
           # GitHub's changelog feed cannot be read, so a week of red is a dead watcher.
+          # guide-sources.yml (added 2026-11-15) is watched for SUCCESS: a broken guide source
+          # opens an issue and the run stays green; it fails only when lychee's report cannot be
+          # read or checked too few addresses, so a week of red is a dead checker.
           WATCHED="
           uptime.yml:24:completed:every 6 hours, at :23
           nightly-backup.yml:36:success:nightly
@@ -182,6 +185,7 @@ jobs:
           refresh-skills.yml:192:completed:weekly on Mondays
           tool-versions.yml:192:completed:weekly on Mondays
           actions-changelog.yml:192:success:weekly on Tuesdays
+          guide-sources.yml:192:success:weekly on Sundays
           "
 
           # perf-watch.yml was NOT watched until 2026-08-30 — it could have stopped

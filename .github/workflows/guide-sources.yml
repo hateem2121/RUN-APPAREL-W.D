@@ -1,0 +1,149 @@
+name: Guide sources
+
+# Checks every outside address the buyer guides cite as a source, and keeps ONE issue open while
+# any of them really fails to answer (404, 410, 5xx, a name that does not resolve, a bad TLS
+# certificate, a timeout, after retries). It closes the issue itself once none is broken.
+#
+# WHY (15 Nov 2026). link-crawl.yml never follows a link to another site, so two dead guide sources
+# were found only by a hand-run lychee, and an address that had lost its closing ")" had sat live,
+# answering 404. That hand run also showed the risk of a job like this: of 134 errors about 120 were
+# sites refusing robots (HTTP 403), not dead pages, and ftc.gov answers 404 to any script. So
+# scripts/guide-source-links.mjs never reports 403 or 429, and scripts/guide-source-links.config.json
+# lists the hosts that are not asked at all (one reason each) and any source accepted as broken until
+# a date. A job that cried wolf would be ignored.
+#
+# The addresses come from the guides' own files (apps/cms/src/lib/guides.ts, guideLibrary.ts), never a
+# second list; apps/cms/src/guideSourceLinks.test.ts proves the reader finds what the site renders.
+#
+# Not gated by DEPLOY_ENABLED: it asks public pages and touches nothing of the site's.
+
+on:
+  schedule:
+    # SUNDAYS (GitHub cron day 0 = Sunday), 04:37 UTC. A queue position, not a deadline: scheduled runs
+    # land 19-90 minutes late here (.github/CLAUDE.md, measured).
+    - cron: '37 4 * * 0'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# No job here uses the Actions cache (GitHub `cache-mode`, as in every other workflow).
+cache-mode: none
+
+# One run at a time; queued, never cancelled, so a manual run cannot cut a scheduled one short.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-26.04
+    # ~511 addresses, 2 at a time per host and 0.5 s apart, each retried up to 3 times with a 30 s timeout,
+    # plus a 5-minute pause before the second look at the failures.
+    timeout-minutes: 30
+    # The one job here files an issue, so it alone gets `issues: write`. A job-level block REPLACES the
+    # workflow's, so `contents: read` is restated.
+    permissions:
+      contents: read
+      issues: write # opens, updates and closes the one issue
+    steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@v2.22.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 26
+          cache: ''
+          package-manager-cache: false
+
+      # lychee (MIT) as a pinned release BINARY, not lycheeverse/lychee-action: the same choice ci.yml makes
+      # for gitleaks, actionlint and Trivy. Downloaded TO A FILE (a retry resuming mid-stream would splice
+      # two responses into tar), checked against its SHA-256 (GitHub's own digest of the release asset,
+      # read 2026-11-15), version printed. Hosted x64 runners only: an unknown arch fails by name.
+      - name: Install lychee
+        env:
+          LYCHEE_VERSION: 0.24.2
+          LYCHEE_SHA256_X64: 1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            x86_64|amd64) ;;
+            *) echo "::error::unsupported arch $(uname -m) for lychee"; exit 1 ;;
+          esac
+          curl -sSfL --retry 5 --retry-delay 3 --retry-all-errors \
+            -o "$RUNNER_TEMP/lychee.tar.gz" \
+            "https://github.com/lycheeverse/lychee/releases/download/lychee-v${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${LYCHEE_SHA256_X64}  $RUNNER_TEMP/lychee.tar.gz" | sha256sum --check --strict -
+          mkdir "$RUNNER_TEMP/lychee-bin"
+          # The archive nests everything under lychee-x86_64-unknown-linux-gnu/ (listed 2026-11-15).
+          tar -xzf "$RUNNER_TEMP/lychee.tar.gz" -C "$RUNNER_TEMP/lychee-bin" \
+            --strip-components=1 lychee-x86_64-unknown-linux-gnu/lychee
+          "$RUNNER_TEMP/lychee-bin/lychee" --version
+
+      - name: Ask every guide source, then ask the failures again
+        run: |
+          set -euo pipefail
+          lychee="$RUNNER_TEMP/lychee-bin/lychee"
+          # Gentle on each host (2 at a time, 0.5 s apart): 128 at once made sites reset connections in a
+          # local trial on 2026-11-15. A browser-style agent, because several sites drop anything else
+          # (business.gov.au and wcoomd.org reset a script's connection and loaded fine in a browser).
+          flags=(--format json --no-progress --max-retries 3 --retry-wait-time 5 --timeout 30
+            --host-concurrency 2 --host-request-interval 500ms
+            --user-agent 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15')
+          # lychee exits 2 when it finds errors: the expected case, and `report` decides what counts.
+          # Any other code (a crash, a bad flag) must stop the job, so it is read, not swallowed.
+          # 403 and 429 are not accepted here but classified by `report`, so the log stays honest.
+          run_lychee() {
+            status=0
+            "$lychee" "${flags[@]}" --output "$2" "$1" || status=$?
+            if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+              echo "::error::lychee failed with exit code $status; nothing was verified"
+              exit 1
+            fi
+          }
+          node scripts/guide-source-links.mjs extract > "$RUNNER_TEMP/guide-sources.html"
+          run_lychee "$RUNNER_TEMP/guide-sources.html" "$RUNNER_TEMP/lychee.json"
+          # A second look at only what failed, after a pause: one 500 or one reset connection is not a dead
+          # source. Only a break that fails both times is reported.
+          # 🟡 THIS JOB SEES STATUS CODES, NOT PAGES: ecc.isc.ac answered 500, then 200 an hour later, yet
+          # in Chrome the same hour it showed "Runtime Error" (2026-11-15; the source was replaced, #390).
+          # An error page served with 200 passes here; only a person in a browser catches it.
+          node scripts/guide-source-links.mjs recheck "$RUNNER_TEMP/lychee.json" > "$RUNNER_TEMP/again.html"
+          if grep -q '<a href=' "$RUNNER_TEMP/again.html"; then
+            sleep 300
+            run_lychee "$RUNNER_TEMP/again.html" "$RUNNER_TEMP/lychee-again.json"
+          fi
+
+      - name: Open, update or close the one issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_TITLE: Guide sources that are broken
+        run: |
+          set -euo pipefail
+          # Exit 1 = the report could not be read or nothing was checked: the job fails, never "all clear".
+          # `lychee-again.json` exists only when the first pass found something to ask again.
+          again=""
+          if [ -f "$RUNNER_TEMP/lychee-again.json" ]; then again="$RUNNER_TEMP/lychee-again.json"; fi
+          node scripts/guide-source-links.mjs report "$RUNNER_TEMP/lychee.json" ${again:+"$again"} > "$RUNNER_TEMP/issue.md"
+          # Only an issue github-actions itself opened counts: on a public repo anyone can open one with
+          # this title (the same rule actions-changelog.yml follows). `--search` with the author qualifier,
+          # because `--app` matched none of this repo's robot issues (2026-11-08).
+          number=$(gh issue list --state open \
+            --search "author:app/github-actions in:title \"${ISSUE_TITLE}\"" \
+            --limit 1 --json number --jq '.[0].number // empty')
+          # The report's text reaches the issue only as a file, never through the shell.
+          if [ -s "$RUNNER_TEMP/issue.md" ]; then
+            if [ -n "$number" ]; then
+              gh issue edit "$number" --body-file "$RUNNER_TEMP/issue.md"
+              echo "Updated issue #${number}"
+            else
+              gh issue create --title "$ISSUE_TITLE" --body-file "$RUNNER_TEMP/issue.md"
+            fi
+          elif [ -n "$number" ]; then
+            gh issue close "$number" --comment "The weekly check found no broken guide source, so this issue is closed."
+          fi
