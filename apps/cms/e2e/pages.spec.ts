@@ -795,8 +795,10 @@ test.describe('FA-P-09 — the empty gallery is a designed state, reached on pur
 
     // and the page is still a page: the jump bar, the header and the footer are all there
     await expect(page.locator('.filter-bar .filter-chip').first()).toBeVisible()
-    // Products, Contact and — shown in the phone menu only — Guides (VA-37).
-    await expect(page.locator('.notch__nav a')).toHaveCount(3)
+    // Products, Contact and — shown in the phone menu only — Guides (VA-37), plus one language
+    // link in the phone menu since the Russian section (2026-11-15).
+    await expect(page.locator('.notch__nav a:not([hreflang])')).toHaveCount(3)
+    await expect(page.locator('.notch__nav a[hreflang]')).toHaveCount(1)
     await expect(page.locator('.site-footer')).toBeVisible()
   })
 

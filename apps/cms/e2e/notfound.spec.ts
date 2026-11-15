@@ -34,8 +34,10 @@ test.describe('the branded 404', () => {
     expect(response?.status()).toBe(404)
 
     await expect(page.locator('h1')).toContainText(/isn.t here/i)
-    // Products, Contact and — shown in the phone menu only — Guides (VA-37).
-    await expect(page.locator('.notch__nav a')).toHaveCount(3)
+    // Products, Contact and — shown in the phone menu only — Guides (VA-37), plus one language
+    // link in the phone menu since the Russian section (2026-11-15).
+    await expect(page.locator('.notch__nav a:not([hreflang])')).toHaveCount(3)
+    await expect(page.locator('.notch__nav a[hreflang]')).toHaveCount(1)
     // both routes out are offered
     await expect(page.locator('main a[href="/products"]')).toBeVisible()
     await expect(page.locator('main a[href="/contact"]')).toBeVisible()
