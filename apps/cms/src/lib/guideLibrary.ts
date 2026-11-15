@@ -1292,7 +1292,10 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
       },
       {
         name: 'Pamuk and Yıldız, The Effect of Chain Width on the Strength of the Metallic Slide Fasteners, Tekstil ve Konfeksiyon (Journal of Textile and Apparel) 23(3), 2013',
-        url: 'https://ecc.isc.ac/showJournal/14728/51673/688713',
+        // ISC's record of the paper (2026-11-15): the ISC journal page linked before shows "Runtime
+        // Error" in a browser, the paper has no DOI and is not among this volume's papers on DergiPark,
+        // and the journal's old domain, tekstilvekonfeksiyon.com, now serves an online-casino page.
+        url: 'https://manuscript.isc.ac/Inventory/10/2646836.htm',
         date: '2013-01-01',
         kind: 'read',
       },
