@@ -174,12 +174,24 @@ async function speller(items) {
 
 async function grammar(items) {
   const flags = []
+  // Each string is its own paragraph (a blank line between). Joined by one newline, LanguageTool
+  // read two unrelated strings as one: a label with no full stop, then the next string's capital,
+  // came back as «пропущена точка» (61 of 749 flags, measured 2026-11-15), and 76 flags matched
+  // across two strings, such as «Главная» twice as a repeated word.
+  const GAP = '\n\n'
   const groups = batches(items, 18000)
   for (const [n, group] of groups.entries()) {
-    const text = group.map((item) => item.text).join('\n')
+    const text = group.map((item) => item.text).join(GAP)
     const res = await fetch('https://api.languagetool.org/v2/check', {
       method: 'POST',
-      body: new URLSearchParams({ text, language: 'ru-RU', level: 'default' }),
+      // UPPERCASE_SENTENCE_START is off: the scanner cuts a template at each ${…}, so a piece such as
+      // «в 3D» or a plural form («вопроса») starts mid-sentence by design (117 such flags, 2026-11-15).
+      body: new URLSearchParams({
+        text,
+        language: 'ru-RU',
+        level: 'default',
+        disabledRules: 'UPPERCASE_SENTENCE_START',
+      }),
     })
     if (res.status === 429) {
       await pause(65000)
@@ -192,7 +204,7 @@ async function grammar(items) {
     let at = 0
     for (const item of group) {
       starts.push(at)
-      at += item.text.length + 1
+      at += item.text.length + GAP.length
     }
     for (const match of matches) {
       let i = starts.length - 1
