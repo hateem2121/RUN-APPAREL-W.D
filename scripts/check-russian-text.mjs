@@ -19,7 +19,7 @@
  *
  * Usage: node scripts/check-russian-text.mjs [--speller-only] [--grammar-only] [--files a,b]
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -34,12 +34,14 @@ const CYRILLIC = /[Ѐ-ӿ]/
  */
 export function russianFiles(root = ROOT) {
   const out = []
+  // The listing says what each entry is (withFileTypes), so nothing is checked and then read
+  // separately: CodeQL's file-system race alert on a statSync before the read (PR #398).
   const walk = (dir) => {
-    for (const name of readdirSync(dir)) {
-      const path = join(dir, name)
-      if (statSync(path).isDirectory()) {
-        if (name !== 'node_modules') walk(path)
-      } else if (/\.tsx?$/.test(name) && !/\.test\./.test(name)) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        if (entry.name !== 'node_modules') walk(path)
+      } else if (entry.isFile() && /\.tsx?$/.test(entry.name) && !/\.test\./.test(entry.name)) {
         if (CYRILLIC.test(readFileSync(path, 'utf8'))) out.push(path)
       }
     }
