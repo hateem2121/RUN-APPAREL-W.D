@@ -38,7 +38,8 @@ decision knowingly on 2026-11-15 after seeing the numbers above.
   `apps/cms/viewerForward.mjs`) stay English. The Russian product gallery links to them. (Builder's
   call, recorded here: 205 pages in a second app, with words held in the database.)
 - No Russian-only content: no payment, delivery or Russia-specific claims (owner, 2026-11-15:
-  "say nothing; ask on enquiry").
+  "say nothing; ask on enquiry"). The payment and shipping text the English already carries is
+  translated as it stands (owner, later the same day); nothing is added for Russia.
 - No Russian subdomain: every `wear-run.com` subdomain except `www.` and `media.` belongs to the
   owner's email-signature project (root `CLAUDE.md`).
 
@@ -158,7 +159,16 @@ English and gains a line "Language: Russian (/ru/contact)". The sent page is Rus
   English type, used on Russian cards; product names (brand names) stay as they are.
 - One pull request, merged only when everything is translated and checked; no feature flag.
 - Same contact form as English (152-FZ risk accepted).
-- Payment and delivery: say nothing; discussed per enquiry.
+- Payment and delivery: say nothing Russia-specific; discussed per enquiry.
+- **The English payment and shipping text is kept on the Russian pages, word for word** (asked
+  after the Russian review, 2026-11-15): the payment-methods line (T/T, L/C), the
+  shipping-and-import-duties guide, the FAQ's 50% deposit, "Where do you ship?" and Incoterms
+  answers, and the glossary's shipping terms. Russian matches English; nothing is added or removed.
+- The glossary's football-kit entry says «трусы», the word the Russian Laws of the Game use for
+  shorts (owner kept the reviewer's change).
+- Russian text review: two independent Russian-language reviews returned 144 fixes, both ОДОБРЕНО
+  once applied; applied all or nothing (commit "Russian section — the two Russian reviewers' 144
+  fixes …").
 
 ## Corrections from the builder check (2026-11-15)
 
