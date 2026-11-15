@@ -2362,7 +2362,9 @@ Every live product name is a brand name ("MINECUT MOTION"), so until this day no
 page's title said what the garment is. Each product now has an optional **Garment type (for
 Google)** box in the CMS (`garmentType` in `apps/cms/src/collections/Products.ts`), and the
 title reads `NAME — Garment Type, Colour | RUN APPAREL`. When that is longer than a search
-result shows, the brand is dropped, never the type. A garment with an empty box keeps the
+result shows, the brand is dropped first. Still too long: the main colour's page (the one in the
+sitemap) drops its colour, and every other colour's page drops the type and keeps its colour, so
+each colour page keeps a title of its own (owner, 15 Nov 2026). A garment with an empty box keeps the
 code-led title it had.
 
 One function builds it, `garmentPageTitle` in `packages/shared/src/pageTitle.ts`, and both
