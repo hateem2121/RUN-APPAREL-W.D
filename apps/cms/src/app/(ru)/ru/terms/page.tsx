@@ -4,6 +4,7 @@
 // carries any weight.
 import type { Metadata } from 'next'
 import { OnThisPage, type PageSection } from '../../../../components/site/OnThisPage'
+import { TranslationNotice } from '../../../../components/site/TranslationNotice'
 import { getSiteSettings } from '../../../../lib/content'
 import { buildMetadata } from '../../../../lib/seo'
 
@@ -59,6 +60,7 @@ export default async function RussianTermsPage() {
         <div className="site-container legal">
           <OnThisPage sections={SECTIONS} locale="ru" />
           <div className="prose legal__body">
+            <TranslationNotice href="/terms" />
             <p>
               Этот сайт и размещённые на нём 3D-модели изделий публикует {settings.companyName} для
               корпоративных заказчиков, которые рассматривают возможность производства у нас.

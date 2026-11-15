@@ -253,7 +253,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     .then((found) => found.docs.map((doc) => String(doc.email ?? '')))
     .catch(() => null)
   if (receiptAllowed(result.value.email, earlier)) {
-    const receipt = buyerReceipt({ id, subject: result.value.subject })
+    // In the sender's language: an inquiry from /ru/contact gets the Russian receipt (owner, 2026-11-15).
+    const receipt = buyerReceipt({ id, subject: result.value.subject, lang: lang() })
     const confirmed = await sendNotification({
       fromName: 'RUN APPAREL',
       to: result.value.email,
