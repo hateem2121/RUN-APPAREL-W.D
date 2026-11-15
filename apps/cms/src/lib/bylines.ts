@@ -152,6 +152,11 @@ const HELD_GUIDES_LIVE = '2026-11-08T19:05:18+05:00'
  * (the Green Claims link's lost bracket; two papers whose DOIs failed, now at their journals' homes).
  */
 const SEO_PASS = '2026-11-15T04:02:43+05:00'
+/**
+ * The trims guide's zip-strength paper (owner, 2026-11-15): its ISC journal page errored, so the
+ * source now goes to ISC's record of the same paper. Found by the post-deploy link check of #389.
+ */
+const TRIMS_SOURCE = '2026-11-15T10:47:40+05:00'
 /*
  * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
  * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". Its date is
@@ -234,7 +239,7 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     '61d050ce6a67',
   ),
   '/guides/clothing-labels': byline(AUTHORS.merchandiser, LIBRARY, LIBRARY, '77895275599e'),
-  '/guides/apparel-trims': byline(AUTHORS.production, LIBRARY, LIBRARY, 'b94de6c5ba53'),
+  '/guides/apparel-trims': byline(AUTHORS.production, LIBRARY, TRIMS_SOURCE, '2356141baad0'),
   '/guides/sportswear-fibers': byline(AUTHORS.production, LIBRARY, LIBRARY, '1a47decee35b'),
   '/guides/yarn-count-and-denier': byline(AUTHORS.production, LIBRARY, LIBRARY, '961eae748c05'),
   '/guides/sportswear-pattern-making': byline(

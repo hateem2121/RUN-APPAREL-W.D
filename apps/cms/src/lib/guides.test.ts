@@ -746,12 +746,12 @@ describe('a guide’s sources (2026-10-08)', () => {
     '/guides/apparel-trims': hosts(
       'boutique.afnor.org',
       'cpsc.gov',
-      'ecc.isc.ac',
       'ecfr.gov',
       'eur-lex.europa.eu',
       'evs.ee',
       'hts.usitc.gov',
       'inside.fifa.com',
+      'manuscript.isc.ac',
       'store.astm.org',
       'store.uni.com',
     ),
