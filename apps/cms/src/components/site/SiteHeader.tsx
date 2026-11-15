@@ -76,6 +76,11 @@ export function SiteHeader({ wordmark }: { wordmark: string }) {
             alt={wordmark}
             width={SITE_BAR_LOGO.width}
             height={SITE_BAR_LOGO.height}
+            // LOW, so React does not preload it (19.3.1 adds <link rel=preload as=image> for any
+            // server-rendered <img> that is not lazy or low; CI, PR #397: one extra preload on every
+            // page failed familyHero.spec and perfBudgets.spec). The page's own picture keeps the
+            // bandwidth; a 3 KB logo still arrives at once.
+            fetchPriority="low"
           />
         </Link>
 

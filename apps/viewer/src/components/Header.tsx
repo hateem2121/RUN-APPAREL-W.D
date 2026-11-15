@@ -125,6 +125,8 @@ export function Header({ wordmark }: HeaderProps) {
             alt={wordmark}
             width={SITE_BAR_LOGO.width}
             height={SITE_BAR_LOGO.height}
+            // Low, as the website's header (SiteHeader.tsx says why): the garment is the picture that matters.
+            fetchPriority="low"
           />
         </a>
         <nav className="notch__nav" aria-label={SITE_NAV_LABEL}>
