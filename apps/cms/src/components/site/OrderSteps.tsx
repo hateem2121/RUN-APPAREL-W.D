@@ -3,7 +3,7 @@ import { FACTORY_PHOTOS, factoryPhotoImage, stepPhotoSrcSet } from '../../lib/fa
 import { t } from '../../lib/i18n/ui'
 import type { Locale } from '../../lib/locale'
 import { ORDER_PHASES } from '../../lib/orderProcess'
-import { ORDER_PHASES_RU } from '../../lib/orderProcess.ru'
+import { ORDER_PHASE_NAMES_RU, ORDER_PHASES_RU } from '../../lib/orderProcess.ru'
 import { OrderStagesList } from './OrderStagesList'
 
 /**
@@ -128,7 +128,7 @@ export function OrderSteps({ locale = 'en' }: { locale?: Locale } = {}) {
                       <div className="order-step">
                         {index === 0 ? (
                           // One string, so the markup holds the name whole ("Stage 1 · Talk"), not in three pieces.
-                          <p className="order-stage__name">{`${t(locale, 'Stage')} ${stage + 1} · ${phase.name}`}</p>
+                          <p className="order-stage__name">{`${t(locale, 'Stage')} ${stage + 1} · ${locale === 'ru' ? ORDER_PHASE_NAMES_RU[phase.name] : phase.name}`}</p>
                         ) : null}
                         <div className="order-step__top">
                           <span

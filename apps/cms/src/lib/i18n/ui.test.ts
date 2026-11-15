@@ -19,7 +19,7 @@ function sources(dir: string): string[] {
 /** Every literal key passed to `fn(…, '…')` across the app's source. */
 function keys(fn: 't' | 'tc'): string[] {
   const call = new RegExp(
-    `\\b${fn}\\(\\s*[\\w.]+,\\s*(['"\`])((?:(?!\\1)[^\\\\]|\\\\.)*)\\1\\s*\\)`,
+    `\\b${fn}\\(\\s*(?:[\\w.]+|'ru'|"ru"),\\s*(['"\`])((?:(?!\\1)[^\\\\]|\\\\.)*)\\1\\s*,?\\s*\\)`,
     'g',
   )
   return [

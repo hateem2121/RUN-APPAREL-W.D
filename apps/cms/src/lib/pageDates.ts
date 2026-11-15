@@ -111,7 +111,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/custom-sports-accessories-manufacturer': page(ORDER_PHOTO, '8ac20e5aad55'),
   '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'b26b21c57af7'),
   '/private-label-casual-wear-manufacturer': page(WAVE_ONE, '6c189a2a18d2'),
-  '/guides': page(SEARCH_WORDING, 'f2dfc64c0c7a'),
+  '/guides': page(SEARCH_WORDING, '0b0fc05abcb9'),
   '/policies': page(SOLAR_83, 'cc95deadb339'),
   '/community': page(SITE_CHECK, 'aa8161150adb'),
   '/press': page(WAVE_ONE, 'ae0578799d9e'),
