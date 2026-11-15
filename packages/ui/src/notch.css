@@ -550,9 +550,21 @@
  *   name + menu button             227   256   285   313   342   371   400
  *
  * WebKit needs 3px more for the inline row at 16px (385); Firefox matches Chromium at 16 and
- * 32. Above 720px the inline row follows `180.7px + 14.857rem` (every point within 0.6px), so
- * the phone query adds `(width < calc(184px + 14.9rem))`: 2-5px early at every measured root,
- * never late, and inert at the default size (422px < 720px). Name + button follow
+ * 32. Above 720px the inline row follows `180.7px + 14.857rem` (every point within 0.6px).
+ *
+ * ⚠️ THE RUSSIAN BAR IS WIDER, AND THE QUERY IS FITTED TO IT (2026-11-15, owner: "Separate PR
+ * now"). The /ru pages' links («Продукция», «Контакты», …) are longer, and at the old
+ * `184px + 14.9rem` the inline row cut the Russian name from a 36px root up. Measured on a fresh
+ * build, Chromium, the real text-size setting, binary-searched per root:
+ *
+ *   root size                      36    40    44    48    52    56
+ *   Russian, name whole from       738   800   862   924   986  1048   (= 180px + 15.5rem exactly)
+ *
+ * so the phone query adds `(width < calc(184px + 15.5rem))`: 4px early for Russian at every
+ * measured root. For English (which needs `180.7px + 14.857rem`) it brings the menu button in
+ * 3.3px + 0.643rem sooner (29px at a 40px root, 39px at 56px), and only once the query passes
+ * 720px, from a 34.6px root (216% text). Inert at the default size (432px < 720px); the garment
+ * pages (English) lose nothing but those inline pixels at very large text. Name + button follow
  * `111.6px + 7.208rem`, so the second row is `(width < calc(114px + 7.25rem))`.
  *
  * ⚠️ `rem` IN A MEDIA QUERY IS THE BROWSER'S DEFAULT FONT SIZE, NOT `html { font-size }`,
@@ -760,7 +772,7 @@
 
 @supports selector(:popover-open) {
   /* Phones — and any width too narrow for the inline row at the reader's text size (below). */
-  @media (width < 720px), (width < calc(184px + 14.9rem)) {
+  @media (width < 720px), (width < calc(184px + 15.5rem)) {
     /* A button in the notch must invert (the comment above): volt on ink. */
     .notch__menu-btn {
       display: inline-flex;
@@ -999,7 +1011,7 @@
   }
 
   /* Wide screens: the SAME list, inline — the browser's hide rule undone. */
-  @media (width >= 720px) and (width >= calc(184px + 14.9rem)) {
+  @media (width >= 720px) and (width >= calc(184px + 15.5rem)) {
     .notch__menu {
       display: flex;
       align-items: center;

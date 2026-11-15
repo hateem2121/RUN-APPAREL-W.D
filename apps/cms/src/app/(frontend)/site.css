@@ -9516,7 +9516,7 @@ html[data-preload="lifting"] .preloader__lockup {
  * THE LANGUAGE LINK IN THE WIDE BAR (Russian section, 2026-11-15). W3C's language-switch advice
  * puts it "at or near the top of the page"; until the language audit of that day a desktop visitor
  * on an English page saw no way to the Russian one. The bar's inline query (notch.css,
- * `184px + 14.9rem`) was fitted for the name, two links and the switch, and the garment pages share
+ * `184px + 15.5rem` since 2026-11-15) was fitted for the name, two links and the switch, and the garment pages share
  * it, so it stays: below the width measured WITH this link, the link stays in the phone menu only
  * (`nav-link--menu`), and the bar keeps its measured fit.
  *
