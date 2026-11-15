@@ -80,7 +80,7 @@ types) and a `locale` prop for component-held words.
 ### Task 3: Cyrillic fonts
 
 **Files:**
-- Create: `packages/ui/fonts/roboto-flex-cyrillic.woff2`, `packages/ui/fonts/cormorant-italic-cyrillic.woff2` (from `@fontsource-variable/roboto-flex` and `@fontsource/cormorant`, cyrillic subset; score both with Socket `depscore` before adding as devDependencies, or download the woff2 once and commit it), `packages/ui/src/cyrillic.css`
+- Create: `packages/ui/fonts/roboto-flex-cyrillic-wdth-100-125.woff2`, `packages/ui/fonts/cormorant-italic-500-cyrillic.woff2` (as built; the names first planned were `roboto-flex-cyrillic`/`cormorant-italic-cyrillic`) (from `@fontsource-variable/roboto-flex` and `@fontsource/cormorant`, cyrillic subset; score both with Socket `depscore` before adding as devDependencies, or download the woff2 once and commit it), `packages/ui/src/cyrillic.css`
 - Modify: `apps/cms/src/app/(ru)/layout.tsx` imports it (Task 4); nothing in `(frontend)` imports it
 - Test: `apps/cms/e2e/russian.spec.ts` (created here, extended later)
 
@@ -92,7 +92,7 @@ types) and a `locale` prop for component-held words.
 ### Task 4: The Russian root layout, chrome and 404
 
 **Files:**
-- Create: `apps/cms/src/app/(ru)/layout.tsx`, one `page.tsx` per Russian page under `apps/cms/src/app/(ru)/ru/`, `apps/cms/src/lib/i18n/chrome.ts` (EN and RU strings: skip link, nav, footer labels the website draws itself, cookie banner, language link, 404 words), `apps/cms/src/lib/ruPages.tsx` (registry, filled by Tasks 5–8)
+- Create: `apps/cms/src/app/(ru)/layout.tsx`, one `page.tsx` per Russian page under `apps/cms/src/app/(ru)/ru/`, `apps/cms/src/lib/i18n/chrome.ts` (EN and RU strings: skip link, nav, footer labels the website draws itself, cookie banner, language link, 404 words) (as built: no registry file; each Russian page is its own route file that draws the English page's component with `locale="ru"`)
 - Modify: `apps/cms/src/app/(frontend)/layout.tsx` (pass `locale="en"`), `apps/cms/src/components/site/SiteHeader.tsx`, `SiteFooter.tsx`, `ConsentBanner.tsx` (take `locale`, read words from `chrome.ts`, English output byte-identical), `apps/cms/src/app/not-found.tsx` (language from the request path)
 - Test: `apps/cms/src/lib/i18n/chrome.test.ts`, `apps/cms/e2e/russian.spec.ts`
 
@@ -105,8 +105,8 @@ types) and a `locale` prop for component-held words.
 ### Task 5: Buyer pages and home
 
 **Files:**
-- Create: `apps/cms/src/lib/familyPages.ru.ts` (`FAMILY_PAGES_RU: readonly FamilyPage[]`), `apps/cms/src/lib/home.ru.ts`, `apps/cms/src/lib/garmentTypes.ru.ts` (`GARMENT_TYPE_RU: Record<string, string>`, all 40 English types)
-- Modify: `apps/cms/src/components/site/FamilyLanding.tsx`, `HomeHero.tsx` and the home page's components (take `locale`), `apps/cms/src/lib/ruPages.tsx`
+- Create: `apps/cms/src/lib/familyPages.ru.ts` (`FAMILY_PAGES_RU: readonly FamilyPage[]`), the home words (as built: `apps/cms/src/lib/pageDescriptions.ru.ts`, `apps/cms/src/lib/aboutCopy.ru.ts` and the Russian beside the English in `apps/cms/src/components/site/HomePage.tsx`), `apps/cms/src/lib/garmentTypes.ru.ts` (`GARMENT_TYPE_RU: Record<string, string>`, all 40 English types)
+- Modify: `apps/cms/src/components/site/FamilyLanding.tsx`, `HomeHero.tsx` and the home page's components (take `locale`)
 - Test: `apps/cms/src/ruParity.test.ts` (created here, extended by Tasks 6–8)
 
 **Interfaces:**
@@ -128,7 +128,7 @@ types) and a `locale` prop for component-held words.
 
 **Files:**
 - Create: `apps/cms/src/lib/guides.ru.ts` (`GUIDES_RU: readonly Guide[]`, `GUIDES_INDEX_RU`), `apps/cms/src/lib/guideLibrary.ru.ts` (`LIBRARY_GUIDES_RU`)
-- Modify: `apps/cms/src/components/site/GuidePage.tsx`, `GuideCard.tsx`, `GuideTools.tsx` (component words via `locale`), `ruPages.tsx`
+- Modify: `apps/cms/src/components/site/GuidePage.tsx`, `GuideCard.tsx`, `GuideTools.tsx` (component words via `locale`)
 - Test: `ruParity.test.ts`
 
 - [ ] **Step 1:** Tests: `sameShape` for every guide pair (ordered by `path`); sources and their URLs identical; `legalLine` has a Russian twin.
@@ -136,7 +136,7 @@ types) and a `locale` prop for component-held words.
 
 ### Task 8: FAQ, glossary, company pages, policies, privacy, terms, careers, press, community, factory, journal and case-study hubs
 
-**Files:** Russian twins of `apps/cms/src/lib/faqs.ts`, `policies.ts`, `aboutPages.ts`, `companyFacts.ts` and the glossary data; the privacy and terms pages' text; components take `locale`; `ruPages.tsx`. Journal and case-study hubs render the English posts with «на английском».
+**Files:** Russian twins of `apps/cms/src/lib/faqs.ts`, `policies.ts`, `aboutPages.ts`, `companyFacts.ts` and the glossary data; the privacy and terms pages' text; components take `locale`; one route file per page. Journal and case-study hubs render the English posts with «на английском».
 - [ ] **Step 1:** `sameShape` for each pair; `/ru/journal` lists the same post links as `/journal`.
 - [ ] **Step 2–4:** fail → translate → pass. Commit "Russian section — the remaining pages in Russian".
 
