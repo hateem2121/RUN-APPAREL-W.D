@@ -303,32 +303,45 @@
 
 .notch__wordmark {
   /*
-   * THE 2027 LOGO, NOT THE NAME IN TYPE, since 2026-11-15 (owner: "use it everywhere"). Until
-   * then this link was the CMS name set in the display face, block + line-height so an
-   * over-long name ended in an ellipsis rather than mid-word ("RUN APPARI", 2026-09-05). The
-   * name now lives in the picture's `alt`, so the link's accessible name is unchanged.
-   *
-   * Flex centres the 28px picture on the 44px touch target. It does not shrink: a cropped
-   * logo is worse than a bar that has to make room, and at 81px it is narrower than the
-   * 16px name it replaced, so the 320px phone has more room than before, not less.
+   * ⚠️ `block` + `line-height`, NOT `inline-flex` + `align-items`. Both centre the text
+   * on the 44px touch target, but `text-overflow: ellipsis` is ignored on a flex
+   * container — the text becomes an anonymous flex item. Measured 2026-09-05: an
+   * over-long wordmark cut mid-word to "RUN APPARI" with no ellipsis, which reads as a
+   * typo rather than as a shortened name.
    */
-  display: flex;
-  align-items: center;
+  display: block;
+  line-height: var(--target-min);
   min-height: var(--target-min);
-  flex-shrink: 0;
+  /* Shrinks and truncates rather than forcing the bar wider. flex-shrink here affects
+     WIDTH only — this is a row container, so the min-height above is unaffected. */
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  /* `--font-wordmark` is the display face (tokens.css) unless a surface names its own stand-in: the
+     website does (apps/cms site.css), because its headline stand-in drew this word 29px too wide. */
+  font-family: var(--font-wordmark);
+  font-weight: 800;
+  font-size: var(--text-wordmark-sm);
+  /*
+   * ⚠️ `--tracking-wordmark`, NOT `--tracking-display-sm`. This element's SIZE is fixed at
+   * `--text-wordmark-sm` (16px), and `--tracking-display-sm` is
+   * `clamp(-1.38px, -0.1vw, -0.26px)` — tracking that changes with window width on text
+   * that does not (audit FA-C-51). At 1440 it resolved to -1.38px, which is -0.086em on a
+   * 16px face and four times tighter than the viewer renders the same name.
+   *
+   * `--tracking-wordmark` is the token written for exactly this — "fixed: display type
+   * with no optical range" — and since 2026-09-24 the viewer draws this same element,
+   * so the company's name is set identically on both surfaces (FA-Q-04).
+   *
+   * ⚠️ `.footer-q` KEEPS `--tracking-display-sm` AND THAT IS CORRECT. Its font-size is
+   * `clamp(27px, 4.3vw, 52px)` — genuinely fluid — so tracking that scales with the
+   * viewport is the right pairing there. The finding is about fixed-size text only.
+   */
+  letter-spacing: var(--tracking-wordmark);
   text-decoration: none;
   color: var(--notch-text);
-}
-
-/*
- * The logo with no background (owner, 2026-11-15), in the colours the owner chose for dark grounds
- * (`SITE_BAR_LOGO`): the bar is dark in both themes. Its outline is cut out of the green blocks, so
- * the bar itself shows through it. 28px tall keeps the brand's 24px screen minimum.
- */
-.notch__logo {
-  display: block;
-  width: 81px;
-  height: 28px;
 }
 
 .notch__nav {
@@ -568,12 +581,11 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  /* A picture has no underline to show, so the same volt draws a ring round the logo instead
-     (2026-11-15; the underline was FA-R-03's cue, kept as the same colour and weight). */
-  .notch__wordmark:hover .notch__logo {
-    outline: 2px solid var(--volt);
-    outline-offset: 4px;
-    border-radius: var(--radius-chip);
+  .notch__wordmark:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--volt);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
   }
 }
 
@@ -1116,10 +1128,5 @@
   /* The menu's links and buttons are for a screen; on paper the bar is the name (polish F14). */
   .notch__nav {
     display: none !important;
-  }
-
-  /* On paper the bar has no dark ground, so the logo takes its light-ground colours (2026-11-15). */
-  .notch__logo {
-    content: url("/run-mark.svg");
   }
 }

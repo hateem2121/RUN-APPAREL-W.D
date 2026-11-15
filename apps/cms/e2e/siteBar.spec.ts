@@ -1,17 +1,12 @@
 import { afterCurtain } from './curtain'
 import { expect, type Page, test } from './offlineMedia'
 import {
-  SITE_BAR_LOGO,
+  SITE_BAR_WORDMARK,
   SITE_MENU_ID,
   SITE_MENU_NAME,
   siteBarAriaSnapshot,
 } from '../../../packages/shared/src/siteBar'
 
-/**
- * XS-02, XS-01, TY-08 — ONE menu bar on both hosts (owner decision 2026-09-17: "Same menu bars
- * everywhere. The one I prefer is at wear-run.help"). apps/viewer/e2e/siteBar.spec.ts runs the
- * same checks against the same constants, so a bar that drifts on either host fails on THAT host.
- */
 /**
  * The site's open phone menu is the garment pages' plus ONE link: the page in Russian, before the
  * switch (Russian section; owner, 2026-11-15, kept it in the phone menu). The garment pages have no
@@ -30,13 +25,18 @@ function siteBarSnapshot(state: Parameters<typeof siteBarAriaSnapshot>[0], wordm
   ].join('\n')
 }
 
+/**
+ * XS-02, XS-01, TY-08 — ONE menu bar on both hosts (owner decision 2026-09-17: "Same menu bars
+ * everywhere. The one I prefer is at wear-run.help"). apps/viewer/e2e/siteBar.spec.ts runs the
+ * same checks against the same constants, so a bar that drifts on either host fails on THAT host.
+ */
 test.describe('one menu bar on both hosts — the site', () => {
   test('renders the shared accessibility tree: wide, and on a phone closed and open', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/')
-    const wordmark = (await page.locator('.notch__logo').getAttribute('alt'))?.trim() ?? ''
+    const wordmark = (await page.locator('.notch__wordmark').innerText()).trim()
     const bar = page.locator('header.notch-shell')
     await expect(bar).toMatchAriaSnapshot(siteBarSnapshot('wide', wordmark))
     await page.setViewportSize({ width: 390, height: 800 })
@@ -47,34 +47,34 @@ test.describe('one menu bar on both hosts — the site', () => {
   })
 
   for (const scheme of ['light', 'dark'] as const) {
-    test(`${scheme}: draws the logo exactly as the contract says (owner, 2026-11-15)`, async ({
+    test(`${scheme}: sets the name exactly as the contract says (TY-08, XS-01)`, async ({
       page,
     }) => {
       await page.goto('/')
       await page.emulateMedia({ colorScheme: scheme })
       await page.goto('/')
-      const logo = page.locator('.notch__logo')
-      /*
-       * LOADED, not just present: an <img> whose file is missing still has its box, because
-       * width and height are set, so only naturalWidth tells a drawn logo from a blank plate.
-       * Waits for the load, since the picture is fetched after the markup arrives.
-       */
-      await expect
-        .poll(() => logo.evaluate((img) => (img as HTMLImageElement).naturalWidth))
-        .toBeGreaterThan(0)
-      const m = await logo.evaluate((img) => {
-        const box = img.getBoundingClientRect()
+      await page.evaluate(() => document.fonts.ready.then(() => true))
+      const m = await page.locator('.notch__wordmark').evaluate((element) => {
+        const style = getComputedStyle(element)
+        const bar = element.closest('.notch')
         return {
-          path: new URL((img as HTMLImageElement).src).pathname,
-          width: Math.round(box.width),
-          height: Math.round(box.height),
+          family: style.fontFamily,
+          fontWeight: style.fontWeight,
+          fontStretch: style.fontStretch,
+          fontSize: style.fontSize,
+          letterSpacing: style.letterSpacing,
+          colour: style.color,
+          barColour: bar ? getComputedStyle(bar).color : '',
         }
       })
-      expect(m).toEqual({
-        path: SITE_BAR_LOGO.src,
-        width: SITE_BAR_LOGO.width,
-        height: SITE_BAR_LOGO.height,
-      })
+      expect({
+        fontWeight: m.fontWeight,
+        fontStretch: m.fontStretch,
+        fontSize: m.fontSize,
+        letterSpacing: m.letterSpacing,
+      }).toEqual(SITE_BAR_WORDMARK)
+      expect(m.family).toMatch(/^"?Archivo Variable"?/)
+      expect(m.colour, "the name is not in the bar's own text colour").toBe(m.barColour)
     })
   }
 })

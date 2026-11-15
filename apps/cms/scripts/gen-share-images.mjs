@@ -67,7 +67,7 @@ const FONTS = {
 }
 
 /**
- * The 2027 logo (owner, 2026-11-15: "use it everywhere"), the band the site's header draws, read
+ * The 2027 logo (owner, 2026-11-15: "use it everywhere"), the 2027 band for dark grounds, read
  * from its committed file rather than restated: no background, in the colours the owner chose for
  * dark grounds (the cards are ink). 48px tall in place of the 34px name in type.
  */
