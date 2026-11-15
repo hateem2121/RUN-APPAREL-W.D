@@ -1,0 +1,39 @@
+// The Russian twin of app/(frontend)/custom-activewear-manufacturer/page.tsx (Russian section, 2026-11-15): the same page,
+// the Russian words (lib/familyPages.ru.ts) and locale="ru". Made from it by script.
+import type { Metadata } from 'next'
+import { FamilyLanding } from '../../../../components/site/FamilyLanding'
+import { getProductCards, getSiteSettings } from '../../../../lib/content'
+import { FAMILY_PAGES_RU as FAMILY_PAGES } from '../../../../lib/familyPages.ru'
+import { buildMetadata } from '../../../../lib/seo'
+
+/** Read at request time: the garments come from the database (see `(frontend)/page.tsx`). */
+export const dynamic = 'force-dynamic'
+
+/**
+ * The Sportswear buyer page, the same shape as the Teamwear one. The words are in
+ * `lib/familyPages.ts` (approved by the owner 2026-09-30) and the layout in `components/site/FamilyLanding.tsx`; this file is only the
+ * address.
+ *
+ * ⚠️ THE FOLDER NAME IS THE ADDRESS, and it is public: it must equal this page's `path` in
+ * `familyPages.ts` and its entry in `FAMILY_PAGE_SOURCES`. `familyPages.test.ts` checks all
+ * three against each other.
+ */
+const PATH = '/custom-activewear-manufacturer'
+
+function thisPage() {
+  const page = FAMILY_PAGES.find((entry) => entry.path === PATH)
+  if (!page) throw new Error(`familyPages.ts has no page at ${PATH}`)
+  return page
+}
+
+export const metadata: Metadata = buildMetadata({
+  title: thisPage().title,
+  description: thisPage().description,
+  path: PATH,
+  locale: 'ru',
+})
+
+export default async function RussianActivewearPage() {
+  const [settings, products] = await Promise.all([getSiteSettings(), getProductCards()])
+  return <FamilyLanding page={thisPage()} products={products} settings={settings} locale="ru" />
+}

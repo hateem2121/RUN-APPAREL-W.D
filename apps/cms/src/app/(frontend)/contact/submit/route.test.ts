@@ -474,3 +474,29 @@ describe('Turnstile on the contact form', () => {
     expect(toCloudflare()).toHaveLength(0)
   })
 })
+
+describe('a form sent from the Russian page (Russian section, 2026-11-15)', () => {
+  it('sends a Russian buyer with a missing field back to /ru/contact, not the English page', async () => {
+    const res = await post({ lang: 'ru' })
+    expect(res.status).toBe(303)
+    expect(where(res)).toBe(
+      'https://wear-run.com/ru/contact?error=invalid&fields=name,email,message,phone#inquiry-problem',
+    )
+    expect(rowsOf('inquiries')).toHaveLength(0)
+  })
+
+  it('thanks a Russian buyer on /ru/contact, and tells the team the form was Russian', async () => {
+    const res = await post({ ...GOOD, lang: 'ru' })
+    expect(where(res)).toBe('https://wear-run.com/ru/contact?sent=1#inquiry-done')
+    expect(emailBody().text).toContain('Language: Russian (/ru/contact)')
+    expect(emailBody().html).toContain('Russian (/ru/contact)')
+    // The stored row is the English page's: no new column, nothing the admin does not know.
+    expect(rowsOf('inquiries')[0]?.[0].data).not.toHaveProperty('lang')
+  })
+
+  it('leaves an English form exactly as it was: no language line, the English page', async () => {
+    const res = await post(GOOD)
+    expect(where(res)).toBe('https://wear-run.com/contact?sent=1#inquiry-done')
+    expect(emailBody().text).not.toContain('Language:')
+  })
+})

@@ -113,7 +113,10 @@ const ONE_BUILDING =
   /\b(?:one|single|same) building\b|\bunder one roof\b|\bsame floor\b|\bour (?:own )?building\b|\bin the building\b/i
 
 /** The home page's own words live in its JSX, not in a module, so its source is read instead. */
-const HOME_SOURCE = readFileSync(new URL('../app/(frontend)/page.tsx', import.meta.url), 'utf8')
+const HOME_SOURCE = readFileSync(
+  new URL('../components/site/HomePage.tsx', import.meta.url),
+  'utf8',
+)
 
 describe('six buildings on one site (owner, 2026-10-15)', () => {
   it('no page calls the works one building', () => {

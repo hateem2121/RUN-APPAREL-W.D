@@ -16,6 +16,8 @@ import type { CardColour, LiveModel } from '../../lib/projectPublic'
 import { pillPaint } from '../../lib/proofShowcase'
 import { LiveGarment, type PickedFrom, pointIn } from './LiveGarment'
 import { ProductPoster } from './ProductPoster'
+import { RU_PROOF_WORDS } from '../../lib/i18n/islandWords'
+import { useLocale } from '../../lib/i18n/uiClient'
 
 /** What №03 needs of its garment: one published product with a poster. */
 export type ProofProduct = {
@@ -71,6 +73,8 @@ export function ProofShowcase({
   /** The words: the number, the heading, the lede and the points, drawn by the server. */
   children: ReactNode
 }) {
+  // Russian section (2026-11-15): the page's language from its address, no words as props.
+  const ru = useLocale() === 'ru'
   const [chosen, setChosen] = useState(0)
   const colours = product?.colours ?? []
   const colour = colours[chosen] ?? colours[0]
@@ -183,7 +187,9 @@ export function ProofShowcase({
               {shown.src ? (
                 <ProductPoster key={shown.key} src={shown.src} alt={shown.alt} />
               ) : (
-                <span className="product-card__placeholder">[ 3D reference ]</span>
+                <span className="product-card__placeholder">
+                  {ru ? RU_PROOF_WORDS.placeholder : '[ 3D reference ]'}
+                </span>
               )}
               {/* The old colour soaking away (dyeStill, above); silent, as the picture names it. */}
               {/* biome-ignore lint/a11y/noAriaHiddenOnFocusable: a canvas has no tabindex and takes no focus (as LiveGarment.tsx's). */}
@@ -215,7 +221,13 @@ export function ProofShowcase({
       {product && details && details.rows.length > 0 ? (
         <div className="proof__details">
           <p className="proof__label">
-            {details.type ? `This reference · ${details.type}` : 'This reference'}
+            {ru
+              ? details.type
+                ? `${RU_PROOF_WORDS.reference} · ${details.type}`
+                : RU_PROOF_WORDS.reference
+              : details.type
+                ? `This reference · ${details.type}`
+                : 'This reference'}
           </p>
           <dl className="proof__specs">
             {details.rows.map(([name, value]) => (
@@ -325,6 +337,8 @@ function ColourPills({
   /** The row's box, where №03 reads the chosen dot from. */
   pickRef: RefObject<HTMLDivElement | null>
 }) {
+  // Russian section (2026-11-15): the page's language from its address, no words as props.
+  const ru = useLocale() === 'ru'
   const titleId = useId()
   const row = useRef<HTMLDivElement>(null)
   const buttons = useRef<(HTMLButtonElement | null)[]>([])
@@ -411,7 +425,7 @@ function ColourPills({
   return (
     <div className="proof__pick" ref={pickRef}>
       <p className="proof__label" id={titleId}>
-        Colors
+        {ru ? RU_PROOF_WORDS.colours : 'Colors'}
       </p>
       <div
         className="proof__pills"

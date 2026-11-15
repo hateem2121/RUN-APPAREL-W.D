@@ -14,11 +14,18 @@ export interface PageSection {
   title: string
 }
 
-export function OnThisPage({ sections }: { sections: readonly PageSection[] }) {
+export function OnThisPage({
+  sections,
+  locale = 'en',
+}: {
+  sections: readonly PageSection[]
+  /** Russian section (2026-11-15): the label in Russian. */
+  locale?: 'en' | 'ru'
+}) {
   return (
     <nav className="legal__toc" aria-labelledby="on-this-page">
       <p className="mono legal__toc-label" id="on-this-page">
-        On this page
+        {locale === 'ru' ? 'На этой странице' : 'On this page'}
       </p>
       <ol>
         {sections.map((section) => (

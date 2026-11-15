@@ -2,7 +2,9 @@
 
 import { type TrackerWindow, trackerEvent } from '@run-apparel/shared'
 import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react'
+import { useLocale } from '../../lib/i18n/uiClient'
 import { NEED_US_SOONER, RECEIVED_HEADING, SEND_ANOTHER } from '../../lib/inquiryForm'
+import { NEED_US_SOONER_RU, RECEIVED_HEADING_RU, SEND_ANOTHER_RU } from '../../lib/inquiryForm.ru'
 
 /**
  * Where a visitor lands after Send: focus on the result, and the result's code out of the address.
@@ -59,6 +61,8 @@ export function InquiryReceived({
   whatsappHref: string
   whatsappLabel: string
 }) {
+  // Russian section (2026-11-15): the page's language from its address, no words as props.
+  const ru = useLocale() === 'ru'
   const panel = useRef<HTMLDivElement>(null)
   const again = useRef<HTMLAnchorElement>(null)
   const [shown, setShown] = useState(true)
@@ -107,17 +111,21 @@ export function InquiryReceived({
         <path d="M15 28l8 8 16-17" pathLength={1} />
       </svg>
       <h3 className="inquiry-done__title" id="inquiry-done-title">
-        {RECEIVED_HEADING}
+        {ru ? RECEIVED_HEADING_RU : RECEIVED_HEADING}
       </h3>
       <p className="inquiry-done__text">{thanks}</p>
       <p className="inquiry-done__line">
-        {NEED_US_SOONER} <a href={`mailto:${email}`}>{email}</a> ·{' '}
+        {ru ? NEED_US_SOONER_RU : NEED_US_SOONER} <a href={`mailto:${email}`}>{email}</a> ·{' '}
         <a href={whatsappHref} rel="noopener">
           WhatsApp {whatsappLabel}
         </a>
       </p>
-      <a ref={again} className="btn btn--ghost" href="/contact#inquiry">
-        {SEND_ANOTHER}
+      <a
+        ref={again}
+        className="btn btn--ghost"
+        href={ru ? '/ru/contact#inquiry' : '/contact#inquiry'}
+      >
+        {ru ? SEND_ANOTHER_RU : SEND_ANOTHER}
       </a>
     </div>
   )

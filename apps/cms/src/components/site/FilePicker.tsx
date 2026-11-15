@@ -3,7 +3,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatBytes, MAX_FILES, MAX_TOTAL_BYTES } from '../../lib/inquiryFiles'
 import { INQUIRY_FILE_ACCEPT } from '../../lib/inquiryFileTypes'
+import { useLocale } from '../../lib/i18n/uiClient'
 import { FILE_BOX_NOTE, pickedFileProblem, pickProblem } from '../../lib/inquiryForm'
+import {
+  FILE_BOX_NOTE_RU,
+  formatBytesRu,
+  pickedFileProblemRu,
+  pickProblemRu,
+} from '../../lib/inquiryForm.ru'
 
 /**
  * The contact form's file field (owner, 2026-09-29: up to 5 files, 25 MB in total).
@@ -30,6 +37,8 @@ import { FILE_BOX_NOTE, pickedFileProblem, pickProblem } from '../../lib/inquiry
  * ⚠️ THE SERVER STILL DECIDES. `checkFiles` in the route re-checks everything.
  */
 export function FilePicker() {
+  // Russian section (2026-11-15): the page's language from its address, no words as props.
+  const ru = useLocale() === 'ru'
   const input = useRef<HTMLInputElement>(null)
   const [chosen, setChosen] = useState<{ name: string; size: number }[]>([])
   const [problem, setProblem] = useState<string | null>(null)
@@ -84,12 +93,12 @@ export function FilePicker() {
           const picked = [...(field.files ?? [])]
           const files = picked.map(({ name, size }) => ({ name, size }))
           const pick = ++latest.current
-          const found = pickProblem(files)
+          const found = (ru ? pickProblemRu : pickProblem)(files)
           field.setCustomValidity(found ?? '')
           setChosen(files)
           setProblem(found)
           if (found) return
-          void pickedFileProblem(picked).then((late) => {
+          void (ru ? pickedFileProblemRu : pickedFileProblem)(picked).then((late) => {
             if (pick !== latest.current) return
             field.setCustomValidity(late ?? '')
             setProblem(late)
@@ -119,14 +128,26 @@ export function FilePicker() {
           place([...(input.current?.files ?? []), ...dropped])
         }}
       >
-        <b className="inquiry-form__drop-title">Drop sketches, tech packs or photos here</b>
-        <span className="inquiry-form__drop-line">
-          or <u>choose files</u> · up to {MAX_FILES} files, {MAX_TOTAL_BYTES / (1024 * 1024)} MB in
-          total
-        </span>
+        {ru ? (
+          <>
+            <b className="inquiry-form__drop-title">Перетащите сюда эскизы, ТЗ или фото</b>
+            <span className="inquiry-form__drop-line">
+              или <u>выберите файлы</u> · до {MAX_FILES} файлов, всего до{' '}
+              {MAX_TOTAL_BYTES / (1024 * 1024)} МБ
+            </span>
+          </>
+        ) : (
+          <>
+            <b className="inquiry-form__drop-title">Drop sketches, tech packs or photos here</b>
+            <span className="inquiry-form__drop-line">
+              or <u>choose files</u> · up to {MAX_FILES} files, {MAX_TOTAL_BYTES / (1024 * 1024)} MB
+              in total
+            </span>
+          </>
+        )}
       </label>
       <p className="inquiry-form__note" id="inquiry-files-note">
-        {FILE_BOX_NOTE}
+        {ru ? FILE_BOX_NOTE_RU : FILE_BOX_NOTE}
       </p>
       {chosen.length > 0 ? (
         <ul className="inquiry-files">
@@ -135,11 +156,13 @@ export function FilePicker() {
             // biome-ignore lint/suspicious/noArrayIndexKey: the list is replaced whole on each pick
             <li key={`${index}-${file.name}`} className="inquiry-files__item">
               <span className="inquiry-files__name">{file.name}</span>
-              <span className="inquiry-files__size">{formatBytes(file.size)}</span>
+              <span className="inquiry-files__size">
+                {ru ? formatBytesRu(file.size) : formatBytes(file.size)}
+              </span>
               <button
                 type="button"
                 className="inquiry-files__remove"
-                aria-label={`Remove ${file.name}`}
+                aria-label={ru ? `Удалить ${file.name}` : `Remove ${file.name}`}
                 onClick={() => {
                   const files = [...(input.current?.files ?? [])]
                   files.splice(index, 1)

@@ -2,7 +2,18 @@ import { IntentLink as Link } from './IntentLink'
 import type { CSSProperties } from 'react'
 import { cardImage, FAMILY_SIZES } from '../../lib/cardImage'
 import type { Family, FamilyGarment, FamilyPicture } from '../../lib/families'
+import { FAMILY_NAMES_RU, FAMILY_PHOTO_ALT_RU, FAMILY_TEXT_RU } from '../../lib/families.ru'
 import { FAMILY_SOON, familyHref } from '../../lib/familyPages'
+import { FAMILY_SOON_RU } from '../../lib/familyPages.ru'
+import type { Locale } from '../../lib/locale'
+
+const MODELS_RU: Record<string, string> = {
+  one: 'модель',
+  few: 'модели',
+  many: 'моделей',
+  other: 'модели',
+}
+const RU_PLURAL = new Intl.PluralRules('ru')
 
 // How wide a family card draws: `lib/cardImage.ts`, beside the gallery card's, since polish D1.
 export { FAMILY_SIZES }
@@ -54,6 +65,7 @@ export function FamilyCard({
   index = 0,
   soon = false,
   count = 0,
+  locale = 'en',
 }: {
   family: Family
   picture: FamilyPicture | null
@@ -67,7 +79,20 @@ export function FamilyCard({
   soon?: boolean
   /** How many of the family's garments the site shows. */
   count?: number
+  /** Russian section (2026-11-15): the card's own words in Russian; the CMS's list stays English. */
+  locale?: Locale
 }) {
+  const ru = locale === 'ru'
+  const name = ru ? (FAMILY_NAMES_RU[family.name] ?? family.name) : family.name
+  const text = ru ? FAMILY_TEXT_RU[family.slug] : undefined
+  // `FAMILY_SOON.label` and `FAMILY_SOON.ask` (the one-list test reads them here), or their Russian.
+  const soonWords = ru
+    ? FAMILY_SOON_RU
+    : { label: FAMILY_SOON.label, ask: FAMILY_SOON.ask, href: FAMILY_SOON.href }
+  const alt =
+    picture && ru && FAMILY_PHOTO_ALT_RU[family.slug] && picture.srcSet
+      ? FAMILY_PHOTO_ALT_RU[family.slug]
+      : picture?.alt
   // The site's own photos bring their widths; a product picture gets the resized card sizes.
   const image = picture
     ? picture.srcSet
@@ -78,9 +103,11 @@ export function FamilyCard({
   // A family with a page but no garment on show (CI's database, a database wobble) shows no count.
   const counted = (short: boolean) =>
     soon
-      ? FAMILY_SOON.label
+      ? soonWords.label
       : count > 0
-        ? `${count} ${short ? 'ref' : 'reference'}${count === 1 ? '' : 's'}`
+        ? ru
+          ? `${count} ${MODELS_RU[RU_PLURAL.select(count)] ?? 'моделей'}`
+          : `${count} ${short ? 'ref' : 'reference'}${count === 1 ? '' : 's'}`
         : null
   const more = list.length - LIST_SHOWN
   return (
@@ -97,7 +124,7 @@ export function FamilyCard({
               src={image?.src}
               srcSet={image?.srcSet}
               sizes={image?.srcSet ? FAMILY_SIZES : undefined}
-              alt={picture.alt}
+              alt={alt}
               width={1200}
               height={1500}
               loading="lazy"
@@ -132,12 +159,14 @@ export function FamilyCard({
            * image or a fake product.
            */
           <span className="family-card__media family-card__media--empty">
-            <span className="product-card__placeholder">[ Photo to come ]</span>
+            <span className="product-card__placeholder">
+              {ru ? '[ Фото скоро ]' : '[ Photo to come ]'}
+            </span>
           </span>
         )}
         <span className="family-card__under" aria-hidden="true">
           <span className="family-card__stub">
-            <span className="family-card__stub-name">{family.name}</span>
+            <span className="family-card__stub-name">{name}</span>
             {counted(true) ? (
               <span className="family-card__count">
                 {soon ? counted(true) : `[ ${counted(true)} ]`}
@@ -150,20 +179,24 @@ export function FamilyCard({
       <div className="family-card__more">
         {counted(false) ? <p className="family-card__meta">{counted(false)}</p> : null}
         <h3 className="family-card__title">
-          <Link className="family-card__link" href={soon ? FAMILY_SOON.href : familyHref(family)}>
-            {family.name}
-            {soon ? <span className="visually-hidden">. {FAMILY_SOON.ask}</span> : null}
+          <Link className="family-card__link" href={soon ? soonWords.href : familyHref(family)}>
+            {name}
+            {soon ? <span className="visually-hidden">. {soonWords.ask}</span> : null}
           </Link>
         </h3>
-        <p className="family-card__desc">{family.body}</p>
+        <p className="family-card__desc">{text ? text.body : family.body}</p>
         {list.length > 0 ? (
           <>
-            <p className="family-card__label">{family.listLabel}</p>
+            <p className="family-card__label">{text ? text.listLabel : family.listLabel}</p>
             <ul className="family-card__list">
               {list.slice(0, LIST_SHOWN).map((name) => (
                 <li key={name}>{name}</li>
               ))}
-              {more > 0 ? <li className="family-card__list-more">+ {more} more</li> : null}
+              {more > 0 ? (
+                <li className="family-card__list-more">
+                  {ru ? `+ ещё ${more}` : `+ ${more} more`}
+                </li>
+              ) : null}
             </ul>
           </>
         ) : null}
@@ -184,7 +217,7 @@ export function FamilyCard({
           </div>
         ) : null}
         <span className="family-card__cue" aria-hidden="true">
-          {soon ? FAMILY_SOON.ask : 'View the range'} <b>→</b>
+          {soon ? soonWords.ask : ru ? 'Смотреть ассортимент' : 'View the range'} <b>→</b>
         </span>
       </div>
     </li>

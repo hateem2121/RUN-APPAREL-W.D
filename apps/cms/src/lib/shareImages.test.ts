@@ -166,8 +166,10 @@ describe('each card carries its page’s own words', () => {
 
   // These words are written in the pages' markup, so the page's source is where to look.
   const SOURCES: [string, string][] = [
-    ['/products', join(FRONTEND, 'products', 'page.tsx')],
-    ['/contact', join(FRONTEND, 'contact', 'page.tsx')],
+    // The gallery's and the contact page's markup moved into components on 2026-11-15, so /ru
+    // draws the same pages; their words are read where they are.
+    ['/products', join(FRONTEND, '..', '..', 'components', 'site', 'ProductsPage.tsx')],
+    ['/contact', join(FRONTEND, '..', '..', 'components', 'site', 'ContactPage.tsx')],
     ['/guides', join(FRONTEND, 'guides', 'page.tsx')],
     ['/guides/garment-printing-methods', join(CMS, 'src', 'components', 'site', 'GuidePage.tsx')],
   ]

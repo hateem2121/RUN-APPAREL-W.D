@@ -334,3 +334,10 @@ export const FAMILY_PAGES_RU: readonly FamilyPage[] = [
       'Поверните Kaizen, приблизьте и проверьте принт на каждой панели. На его странице — полная спецификация. Поделитесь ссылкой с командой, прежде чем кто-то заплатит за образец.',
   },
 ]
+
+/** `FAMILY_SOON` in Russian: the same link, the label and the ask in Russian. */
+export const FAMILY_SOON_RU = {
+  label: '[ спросите нас ]',
+  ask: 'Спросите, что мы шьём',
+  href: '/contact',
+} as const

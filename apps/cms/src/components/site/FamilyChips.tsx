@@ -1,9 +1,14 @@
 import type { Family } from '../../lib/families'
+import { FAMILY_NAMES_RU } from '../../lib/families.ru'
+import { t } from '../../lib/i18n/ui'
+import type { Locale } from '../../lib/locale'
 import type { ProductCard } from '../../lib/projectPublic'
 
 type FamilyChipsProps = {
   /** Every family on `/products`, in the page's order, with the garments it lists. */
   groups: ReadonlyArray<{ family: Family; products: ProductCard[] }>
+  /** Russian section (2026-11-15). */
+  locale?: Locale
 }
 
 /**
@@ -16,9 +21,12 @@ type FamilyChipsProps = {
  * Its own file so `e2e/productsGroupsHarness.ts` draws the page's real chips above the groups, as it
  * draws the real `FamilyGroup` (review of 11 Oct 2026).
  */
-export function FamilyChips({ groups }: FamilyChipsProps) {
+export function FamilyChips({ groups, locale = 'en' }: FamilyChipsProps) {
   return (
-    <nav className="filter-bar filter-bar--scroll" aria-label="Product families on this page">
+    <nav
+      className="filter-bar filter-bar--scroll"
+      aria-label={t(locale, 'Product families on this page')}
+    >
       {groups.map(({ family: entry, products }) => (
         <a
           key={entry.slug}
@@ -26,7 +34,7 @@ export function FamilyChips({ groups }: FamilyChipsProps) {
           href={`#${entry.slug}`}
           data-empty={products.length === 0 ? 'true' : undefined}
         >
-          {entry.name}
+          {locale === 'ru' ? (FAMILY_NAMES_RU[entry.name] ?? entry.name) : entry.name}
           <span className="filter-chip__count">{products.length}</span>
         </a>
       ))}

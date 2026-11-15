@@ -1,5 +1,6 @@
 import { FAMILY_NAMES_RU } from '../families.ru'
 import { FAMILY_PAGES_RU } from '../familyPages.ru'
+import type { FaqTopic } from '../faqs'
 import { FAQ_INDEX_RU, FAQ_TOPICS_RU } from '../faqs.ru'
 import { GLOSSARY_INDEX_RU } from '../glossary.ru'
 import { LIBRARY_GUIDES_RU } from '../guideLibrary.ru'
@@ -41,10 +42,14 @@ export function buyerPageRu(path: string | undefined) {
   return { href: page.path, name: page.heading.replace(/,\s*$/, ''), why: page.description }
 }
 
-export function faqTopicTitleRu(path: string): string {
+export function faqTopicAtRu(path: string): FaqTopic {
   const topic = FAQ_TOPICS_RU.find((entry) => entry.path === path)
   if (!topic) throw new Error(`No Russian FAQ topic at ${path}`)
-  return topic.title
+  return topic
+}
+
+export function faqTopicTitleRu(path: string): string {
+  return faqTopicAtRu(path).title
 }
 
 export const FAQ_INDEX_PATH = FAQ_INDEX_RU.path

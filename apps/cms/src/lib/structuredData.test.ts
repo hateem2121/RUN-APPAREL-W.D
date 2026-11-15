@@ -185,7 +185,7 @@ describe('organisation', () => {
     // through telHref. Remove either from the page and the structured data would describe a
     // number nobody can see or call.
     const page = readFileSync(
-      fileURLToPath(new URL('../app/(frontend)/contact/page.tsx', import.meta.url)),
+      fileURLToPath(new URL('../components/site/ContactPage.tsx', import.meta.url)),
       'utf8',
     )
     expect(page).toContain('{formatPhoneForDisplay(settings.whatsappNumber)}')

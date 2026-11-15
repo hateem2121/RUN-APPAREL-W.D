@@ -15,12 +15,40 @@ import {
   uploadPercent,
   uploadProgressLabel,
 } from '../../lib/inquiryForm'
+import {
+  fieldErrorRu,
+  SENDING_LABEL_RU,
+  SUMMARY_HEADING_RU,
+  UPLOAD_DROPPED_RU,
+  UPLOAD_FINISHING_RU,
+  UPLOAD_UNCONFIRMED_RU,
+  uploadProgressLabelRu,
+} from '../../lib/inquiryForm.ru'
+import { useLocale } from '../../lib/i18n/uiClient'
 
 type Checked = HTMLInputElement | HTMLTextAreaElement
 type Problem = { id: string; text: string }
 
 /** The fields that can be wrong: the three required ones and the file picker. */
 const CHECKED = '[data-check]'
+
+/** The helper's own words in each language (Russian section, 2026-11-15); module constants, so stable. */
+const WORDS_EN = {
+  sending: SENDING_LABEL,
+  summary: SUMMARY_HEADING,
+  dropped: UPLOAD_DROPPED,
+  finishing: UPLOAD_FINISHING,
+  unconfirmed: UPLOAD_UNCONFIRMED,
+  progress: uploadProgressLabel,
+}
+const WORDS_RU: typeof WORDS_EN = {
+  sending: SENDING_LABEL_RU,
+  summary: SUMMARY_HEADING_RU,
+  dropped: UPLOAD_DROPPED_RU,
+  finishing: UPLOAD_FINISHING_RU,
+  unconfirmed: UPLOAD_UNCONFIRMED_RU,
+  progress: uploadProgressLabelRu,
+}
 
 /**
  * The single-step contact form's behaviour (visual audit VA-02, owner-approved 2026-10-01),
@@ -60,7 +88,10 @@ export function InquiryFormEnhancer({
    */
   form?: 'inquiry' | 'careers'
 } = {}) {
-  const messages = which === 'careers' ? careersFieldError : fieldError
+  // The page's language, from its address (no words as props: they would be copied into the HTML).
+  const ru = useLocale() === 'ru'
+  const words = ru ? WORDS_RU : WORDS_EN
+  const messages = which === 'careers' ? careersFieldError : ru ? fieldErrorRu : fieldError
   const anchor = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLDivElement>(null)
   const [problems, setProblems] = useState<Problem[]>([])
@@ -276,7 +307,7 @@ export function InquiryFormEnhancer({
       const show = (loaded: number, total: number) => {
         const percent = uploadPercent(loaded, total)
         bar.value = percent
-        line.textContent = uploadProgressLabel(loaded, total)
+        line.textContent = words.progress(loaded, total)
         if (announcedQuarter(percent) !== quarter) {
           quarter = announcedQuarter(percent)
           said.textContent = line.textContent
@@ -287,7 +318,7 @@ export function InquiryFormEnhancer({
         bar.hidden = true
         progress.classList.add('form-notice', 'form-notice--bad')
         // Once every byte is in, the server may well have stored it: never invite a second copy.
-        line.textContent = arrived ? UPLOAD_UNCONFIRMED : UPLOAD_DROPPED
+        line.textContent = arrived ? words.unconfirmed : words.dropped
         said.textContent = line.textContent
       }
       show(0, bytes)
@@ -302,8 +333,8 @@ export function InquiryFormEnhancer({
       xhr.upload.addEventListener('load', () => {
         arrived = true
         bar.value = 100
-        line.textContent = UPLOAD_FINISHING
-        said.textContent = UPLOAD_FINISHING
+        line.textContent = words.finishing
+        said.textContent = words.finishing
       })
       xhr.addEventListener('load', () => {
         arrived = true
@@ -328,7 +359,7 @@ export function InquiryFormEnhancer({
       }
       sending = true
       if (button) {
-        button.textContent = SENDING_LABEL
+        button.textContent = words.sending
         button.setAttribute('aria-disabled', 'true')
       }
       const bytes = attachedBytes()
@@ -367,7 +398,7 @@ export function InquiryFormEnhancer({
       form.removeEventListener('submit', onSubmit)
       window.removeEventListener('pageshow', onShow)
     }
-  }, [messages])
+  }, [messages, words])
 
   useEffect(() => {
     if (focusList.current && problems.length > 0) list.current?.focus()
@@ -385,7 +416,7 @@ export function InquiryFormEnhancer({
           aria-labelledby="inquiry-summary-title"
         >
           <p className="inquiry-summary__title" id="inquiry-summary-title">
-            {SUMMARY_HEADING}
+            {words.summary}
           </p>
           <ul className="inquiry-summary__list">
             {problems.map((problem) => (

@@ -356,10 +356,12 @@ describe('copy rules', () => {
     'sale',
   ]
 
+  // The home, contact and products markup moved into components on 2026-11-15 (so /ru draws the
+  // same pages); the words are read there.
   const PAGES = [
-    ['home', join(FRONTEND, 'page.tsx')],
-    ['contact', join(FRONTEND, 'contact', 'page.tsx')],
-    ['products', join(FRONTEND, 'products', 'page.tsx')],
+    ['home', join(CMS_ROOT, 'src', 'components', 'site', 'HomePage.tsx')],
+    ['contact', join(CMS_ROOT, 'src', 'components', 'site', 'ContactPage.tsx')],
+    ['products', join(CMS_ROOT, 'src', 'components', 'site', 'ProductsPage.tsx')],
     // The products page draws its groups and chips through FamilyGroup and FamilyChips since
     // 2026-10-11, so their words are there; reading page.tsx alone passed with "Shop now" planted.
     ['products groups', join(CMS_ROOT, 'src', 'components', 'site', 'FamilyGroup.tsx')],
@@ -386,7 +388,9 @@ describe('copy rules', () => {
     // and that the gallery builds every href through `colourHref` from what it was given.
     // The card moved to `ProductCardItem` on 2026-09-30, when the buyer pages began sharing
     // it; the page must still draw its cards through it.
-    expect(code(FRONTEND, 'products', 'page.tsx')).toContain('<ProductCardItem')
+    expect(code(CMS_ROOT, 'src', 'components', 'site', 'ProductsPage.tsx')).toContain(
+      '<ProductCardItem',
+    )
     const page = stripComments(
       readFileSync(join(CMS_ROOT, 'src', 'components', 'site', 'ProductCardItem.tsx'), 'utf8'),
     )
@@ -429,7 +433,7 @@ describe('copy rules', () => {
             (source.match(/garmentPages=\{GARMENT_PAGES\}/g) ?? []).length +
             // ...and each picture link CardGallery builds is one more.
             (source.match(/href=\{colourHref\(/g) ?? []).length,
-          cues: (source.match(/<ViewerCue \/>/g) ?? []).length,
+          cues: (source.match(/<ViewerCue(?: locale=\{[^}]*\})? \/>/g) ?? []).length,
         }
       })
       .filter((row) => row.links > 0 || row.cues > 0)
@@ -437,8 +441,9 @@ describe('copy rules', () => {
     // The control: the two pages that link out today are found, so a matcher that went
     // blind fails here instead of passing on nothing.
     expect(counted.map((row) => row.file).sort()).toEqual([
-      'src/app/(frontend)/page.tsx',
       'src/components/site/CardGallery.tsx',
+      // The home page's markup since 2026-11-15, which /ru draws too.
+      'src/components/site/HomePage.tsx',
       // The card both the gallery and the buyer pages draw (2026-09-30).
       'src/components/site/ProductCardItem.tsx',
     ])
@@ -1103,12 +1108,12 @@ describe('FA-I-14 — the mono micro-label says which of its five jobs it is doi
    * silently rejoins the pile. Hence a gate rather than a convention.
    */
   const PAGES = [
-    ['home', join(FRONTEND, 'page.tsx')],
-    ['products', join(FRONTEND, 'products', 'page.tsx')],
+    ['home', join(CMS_ROOT, 'src', 'components', 'site', 'HomePage.tsx')],
+    ['products', join(CMS_ROOT, 'src', 'components', 'site', 'ProductsPage.tsx')],
     // The products page's groups and chips, drawn by FamilyGroup and FamilyChips since 2026-10-11.
     ['products groups', join(CMS_ROOT, 'src', 'components', 'site', 'FamilyGroup.tsx')],
     ['products chips', join(CMS_ROOT, 'src', 'components', 'site', 'FamilyChips.tsx')],
-    ['contact', join(FRONTEND, 'contact', 'page.tsx')],
+    ['contact', join(CMS_ROOT, 'src', 'components', 'site', 'ContactPage.tsx')],
     ['privacy', join(FRONTEND, 'privacy', 'page.tsx')],
     ['terms', join(FRONTEND, 'terms', 'page.tsx')],
   ] as const
@@ -1212,7 +1217,7 @@ describe('FA-N-10 / D10 — the pages say in words why there is no price', () =>
    * to say it at all — "no price" with no explanation reads as an omission.
    */
   it('/products states it is a reference set and not a shop', () => {
-    const source = stripComments(read(FRONTEND, 'products', 'page.tsx'))
+    const source = stripComments(read(CMS_ROOT, 'src', 'components', 'site', 'ProductsPage.tsx'))
     expect(source, 'the products page no longer says it is not a shop').toMatch(
       /development references, not a shop/i,
     )
@@ -1226,7 +1231,7 @@ describe('FA-N-10 / D10 — the pages say in words why there is no price', () =>
   })
 
   it('/contact never says nothing is required above three required fields (CT-14)', () => {
-    const source = stripComments(read(FRONTEND, 'contact', 'page.tsx'))
+    const source = stripComments(read(CMS_ROOT, 'src', 'components', 'site', 'ContactPage.tsx'))
     // The lede lists what HELPS a reply; the form under it requires a name, an email and a
     // message. "Nothing is required" read as a claim about the form (audit CT-14). The owner
     // chose this replacement wording on 2026-09-11.

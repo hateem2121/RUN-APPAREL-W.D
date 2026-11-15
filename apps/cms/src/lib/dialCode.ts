@@ -17,7 +17,24 @@ export function countryByCode(code: string): Country | undefined {
   return BY_CODE.get(code.trim().toUpperCase())
 }
 
-const BY_NAME = new Map(COUNTRIES.map((country) => [country.name.toLowerCase(), country]))
+const RU_REGIONS =
+  typeof Intl.DisplayNames === 'function' ? new Intl.DisplayNames(['ru'], { type: 'region' }) : null
+
+/**
+ * A country's Russian name (Russian section, 2026-11-15), from the browser's own `Intl.DisplayNames`
+ * (Node has it too, so the page and the lookup agree): «Россия», «Пакистан». No word list ships.
+ * A code it cannot name comes back unnamed, and the English name stands in.
+ */
+export function russianCountryName(country: Country): string {
+  const name = RU_REGIONS?.of(country.code)
+  return name && name !== country.code ? name : country.name
+}
+
+// Both languages' names find the country, so a Russian buyer's «Россия» fills +7 as "Russia" does.
+const BY_NAME = new Map([
+  ...COUNTRIES.map((country) => [russianCountryName(country).toLowerCase(), country] as const),
+  ...COUNTRIES.map((country) => [country.name.toLowerCase(), country] as const),
+])
 
 /**
  * The country as the buyer typed it (polish D7: a box that suggests as you type, where a list

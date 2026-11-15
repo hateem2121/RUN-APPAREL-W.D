@@ -4,6 +4,8 @@ import { GLOSSARY_INDEX } from '../../lib/glossary'
 import { IntentLink as Link } from './IntentLink'
 import { type CSSProperties, Fragment, type ReactNode } from 'react'
 import { FACTORY_PHOTOS, factoryPhotoImage, wholePhoto } from '../../lib/factoryPhotos'
+import { ruPhoto } from '../../lib/factoryPhotos.ru'
+import { GARMENT_TYPE_RU } from '../../lib/garmentTypes.ru'
 import { FAMILIES } from '../../lib/families'
 import { FAMILY_PAGES, familyPageFor } from '../../lib/familyPages'
 import {
@@ -434,10 +436,19 @@ export function isWideTable(block: Extract<GuideBlock, { kind: 'table' }>): bool
  * spread under the hero (see `GuidePage`). It loads eager at high priority (`FactoryFigure.tsx`
  * says why); every later section's photo stays lazy.
  */
-function SectionPhoto({ slug, priority }: { slug: string; priority: boolean }) {
-  const photo = FACTORY_PHOTOS.find((entry) => entry.slug === slug)
+function SectionPhoto({
+  slug,
+  priority,
+  locale,
+}: {
+  slug: string
+  priority: boolean
+  locale: Locale
+}) {
+  const found = FACTORY_PHOTOS.find((entry) => entry.slug === slug)
   // `guides.test.ts` fails a slug with no photo; drawing nothing is the safe miss in production.
-  if (!photo) return null
+  if (!found) return null
+  const photo = locale === 'ru' ? ruPhoto(found) : found
   // Every width the photo has (polish X16 added larger ones for sharp screens), as №01 asks.
   return (
     <FactoryFigure
@@ -489,9 +500,11 @@ function LinkGroup({
 function GuideGarmentsSection({
   garments,
   cards,
+  locale,
 }: {
   garments: GuideGarments
   cards: readonly ProductCard[]
+  locale: Locale
 }) {
   const links = garments.picks.flatMap((pick) => {
     const card = cards.find((entry) => entry.slug === pick.slug)
@@ -500,7 +513,15 @@ function GuideGarmentsSection({
       {
         href: buildViewerPath(card.slug, card.defaultColourSlug, GARMENT_PATH_PREFIX),
         name: card.productName,
-        detail: [card.garmentType, pick.shows].filter(Boolean).join(' · '),
+        // A Russian guide names the type in Russian (garmentTypes.ru.ts); the garment's name is a brand.
+        detail: [
+          locale === 'ru' && card.garmentType
+            ? (GARMENT_TYPE_RU[card.garmentType] ?? card.garmentType)
+            : card.garmentType,
+          pick.shows,
+        ]
+          .filter(Boolean)
+          .join(' · '),
       },
     ]
   })
@@ -726,7 +747,7 @@ export function GuidePage({
         )
         const garments =
           guide.garments?.after === section.heading ? (
-            <GuideGarmentsSection garments={guide.garments} cards={cards} />
+            <GuideGarmentsSection garments={guide.garments} cards={cards} locale={locale} />
           ) : null
         /*
          * A section with a whole photo (the owner's rule of 2026-11-05: a new picture is never cut and
@@ -736,7 +757,11 @@ export function GuidePage({
         if (section.stage) {
           return (
             <Fragment key={section.heading}>
-              <PhotoStage photo={wholePhoto(section.stage)}>
+              <PhotoStage
+                photo={
+                  locale === 'ru' ? ruPhoto(wholePhoto(section.stage)) : wholePhoto(section.stage)
+                }
+              >
                 {heading}
                 {section.blocks.map((block) => (
                   <Block
@@ -782,7 +807,7 @@ export function GuidePage({
                         photo is fetched early: the rest are further down, where lazy is right.
                         Of the five guides with photos, the minimum-order and printing guides
                         start with one (guides.ts); the other three have theirs later. */}
-                    <SectionPhoto slug={section.photo} priority={index === 0} />
+                    <SectionPhoto slug={section.photo} priority={index === 0} locale={locale} />
                   </div>
                 ) : (
                   heading

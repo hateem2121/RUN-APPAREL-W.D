@@ -2,6 +2,14 @@ import { type FooterHours, logosFor, markBox, POSTAL_ADDRESS } from '@run-appare
 import { IntentLink as Link } from './IntentLink'
 import type { CSSProperties } from 'react'
 import { CERTIFICATION_LINES, CERTIFICATION_PROMISE, FACTS, SHIPS_TO } from '../../lib/companyFacts'
+import {
+  CERTIFICATION_LINES_RU,
+  CERTIFICATION_PROMISE_RU,
+  FACTS_RU,
+  SHIPS_TO_RU,
+} from '../../lib/companyFacts.ru'
+import { CHROME } from '../../lib/i18n/chrome'
+import type { Locale } from '../../lib/locale'
 import { parseCoordinates } from '../../lib/globe'
 import { mapPoint, WORLD_MAP } from '../../lib/worldMap'
 import { CountUp } from './CountUp'
@@ -31,6 +39,14 @@ export const WORKS_ASK = {
  * offering a 30-minute sourcing call and a 60-minute production brief.
  */
 export const BOOKING_URL = 'https://wear-run.com/meeting'
+
+/** `WORKS_ASK` on the Russian home (2026-11-15). */
+export const WORKS_ASK_RU: { readonly [K in keyof typeof WORKS_ASK]: string } = {
+  heading: 'Расскажите, что вам нужно сшить.',
+  action: 'Начать разговор',
+  call: 'Или запишитесь на звонок',
+  clock: 'Местное время',
+}
 
 /**
  * №05 "The works" — the owner's confirmed numbers as a bento grid (2026-09-29), and since
@@ -67,19 +83,24 @@ export const BOOKING_URL = 'https://wear-run.com/meeting'
 export function FactsBento({
   worksCoordinates,
   hours,
+  locale = 'en',
 }: {
   worksCoordinates?: string | null
   hours: FooterHours | null
+  locale?: Locale
 }) {
+  const ru = locale === 'ru'
+  const facts = ru ? FACTS_RU : FACTS
+  const ask = ru ? WORKS_ASK_RU : WORKS_ASK
   const works = worksCoordinates ? parseCoordinates(worksCoordinates) : null
   const pin = works ? mapPoint(works) : null
   return (
     <>
       <dl className="facts-grid facts-grid--bento">
-        {FACTS.map((fact, index) => (
+        {facts.map((fact, index) => (
           <div className={index === 0 ? 'fact fact--feature' : 'fact'} key={fact.label}>
             <dt className="fact__value display display--section">
-              <CountUp value={fact.value} />
+              <CountUp value={fact.value} locale={locale} />
             </dt>
             <dd className="fact__label">{fact.label}</dd>
           </div>
@@ -87,7 +108,7 @@ export function FactsBento({
       </dl>
       <div className="works-slab">
         <div className="works-slab__half">
-          <p className="field-label">Where we ship</p>
+          <p className="field-label">{ru ? 'Куда мы отправляем' : 'Where we ship'}</p>
           <div className="ship-map">
             {/* biome-ignore lint/performance/noImgElement: a 13 KB SVG of dots, which next/image would pass through unchanged (ProductPoster.tsx measures why); decoration, so `alt=""`. */}
             <img
@@ -110,16 +131,16 @@ export function FactsBento({
                 }
                 aria-hidden="true"
               >
-                <span className="ship-map__name">{POSTAL_ADDRESS.locality}</span>
+                <span className="ship-map__name">{ru ? 'Сиалкот' : POSTAL_ADDRESS.locality}</span>
               </span>
             ) : null}
           </div>
-          <p className="works-slab__line">{SHIPS_TO}</p>
+          <p className="works-slab__line">{ru ? SHIPS_TO_RU : SHIPS_TO}</p>
         </div>
         <div className="works-slab__half">
-          <p className="field-label">Certification</p>
+          <p className="field-label">{ru ? 'Сертификация' : 'Certification'}</p>
           <ul className="cert-list">
-            {CERTIFICATION_LINES.map((line) => {
+            {(ru ? CERTIFICATION_LINES_RU : CERTIFICATION_LINES).map((line) => {
               const marks = logosFor(line)
               return (
                 <li className="cert" key={line}>
@@ -148,20 +169,34 @@ export function FactsBento({
               )
             })}
           </ul>
-          <p className="works-slab__note">{CERTIFICATION_PROMISE}</p>
+          <p className="works-slab__note">
+            {ru ? CERTIFICATION_PROMISE_RU : CERTIFICATION_PROMISE}
+          </p>
         </div>
       </div>
       <div className="works-ask">
         <div className="works-ask__words">
-          <h3 className="works-ask__heading display display--section">{WORKS_ASK.heading}</h3>
-          <WorksClockLine hours={hours} label={WORKS_ASK.clock} />
+          <h3 className="works-ask__heading display display--section">{ask.heading}</h3>
+          <WorksClockLine
+            hours={hours}
+            label={ask.clock}
+            words={
+              ru
+                ? {
+                    clockCity: CHROME.ru.footer.clockCity,
+                    openNow: CHROME.ru.footer.openNow,
+                    lang: 'ru',
+                  }
+                : undefined
+            }
+          />
         </div>
         <div className="works-ask__actions">
           <Link className="btn btn--primary" href="/contact#inquiry">
-            {WORKS_ASK.action}
+            {ask.action}
           </Link>
           <a className="btn btn--ghost" href={BOOKING_URL}>
-            {WORKS_ASK.call} <span aria-hidden="true">↗</span>
+            {ask.call} <span aria-hidden="true">↗</span>
           </a>
         </div>
       </div>

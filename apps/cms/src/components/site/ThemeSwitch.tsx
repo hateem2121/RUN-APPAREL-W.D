@@ -99,7 +99,7 @@ export function ThemeSwitch() {
     setTitle(theme === 'dark' ? names.toLight : names.toDark)
     // A returning visitor's choice reaches the phone's browser bar too.
     if (storedTheme()) paintBrowserBar(theme)
-  }, [])
+  }, [names])
 
   const onClick = () => {
     const next: Theme = appliedTheme() === 'dark' ? 'light' : 'dark'

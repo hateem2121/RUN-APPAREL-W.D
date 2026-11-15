@@ -146,7 +146,7 @@ export function NavProgress({ lang = 'en' }: { lang?: 'en' | 'ru' } = {}) {
       document.removeEventListener('click', onClick)
       window.removeEventListener('popstate', finish)
     }
-  }, [])
+  }, [lang])
 
   return (
     <>

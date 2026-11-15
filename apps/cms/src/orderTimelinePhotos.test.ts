@@ -34,7 +34,11 @@ const FRONTEND = join(import.meta.dirname, 'app', '(frontend)')
 const SITE_CSS = readFileSync(join(FRONTEND, 'site.css'), 'utf8')
 // Comments are left out: the page's own comments name what was removed and why, in the words
 // that must no longer be DRAWN, so a check on the file's text would fail on its own history.
-const HOME_PAGE = readFileSync(join(FRONTEND, 'page.tsx'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+// The home page's markup since 2026-11-15 (so /ru draws the same page).
+const HOME_PAGE = readFileSync(
+  join(FRONTEND, '..', '..', 'components', 'site', 'HomePage.tsx'),
+  'utf8',
+).replace(/\/\*[\s\S]*?\*\//g, '')
 
 const steps = ORDER_PHASES.flatMap((phase) => phase.steps)
 const photoOf = (slug: string) => FACTORY_PHOTOS.find((photo) => photo.slug === slug)
@@ -367,10 +371,9 @@ describe('the factory strip is gone, and the numbering closed up (VA-29)', () =>
   })
 
   it('numbers the sections №01 to №05, with the works (and the ask) last', () => {
-    const numbers = [...HOME_PAGE.matchAll(/section-number">(№\d+) · ([^<]+)</g)].map((match) => [
-      match[1],
-      match[2],
-    ])
+    const numbers = [...HOME_PAGE.matchAll(/section-number">(№\d+) · ([^<]+)</g)]
+      .filter((match) => !/[\u0400-\u04FF]/.test(match[2] ?? ''))
+      .map((match) => [match[1], match[2]])
     // №01 and №04 are drawn by AboutSection and OrderTimeline, not in this file.
     expect(numbers).toEqual([
       ['№02', 'What we make'],

@@ -207,7 +207,23 @@ export function productListJsonLd(
  * cards, not from inside `/products`. A search result shows this trail in place of the raw
  * address.
  */
-export function breadcrumbJsonLd(page: { title: string; path: string }) {
+export function breadcrumbJsonLd(page: { title: string; path: string }, locale: Locale = 'en') {
+  // A Russian page's trail is Russian, on its /ru addresses (Russian section, 2026-11-15).
+  if (locale === 'ru') {
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Главная', item: `${SITE_ORIGIN}/ru` },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: page.title,
+          item: `${SITE_ORIGIN}${ruPath(page.path)}`,
+        },
+      ],
+    }
+  }
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -256,7 +272,24 @@ export function guideBreadcrumbJsonLd(
  * Replaces nothing: `breadcrumbJsonLd` and `guideBreadcrumbJsonLd` stay for the pages that use
  * them. The trail must match the visible breadcrumb on the page.
  */
-export function breadcrumbTrailJsonLd(trail: ReadonlyArray<{ name: string; path: string }>) {
+export function breadcrumbTrailJsonLd(
+  trail: ReadonlyArray<{ name: string; path: string }>,
+  locale: Locale = 'en',
+) {
+  // A Russian trail starts at «Главная» and every step is on its /ru address (2026-11-15).
+  if (locale === 'ru') {
+    const ruSteps = [{ name: 'Главная', path: '/' }, ...trail]
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: ruSteps.map((step, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: step.name,
+        item: `${SITE_ORIGIN}${ruPath(step.path)}`,
+      })),
+    }
+  }
   const steps = [{ name: 'Home', path: '/' }, ...trail]
   return {
     '@context': 'https://schema.org',
@@ -453,8 +486,9 @@ export function contactPageJsonLd(settings: PublicSiteSettings) {
 export function definedTermSetJsonLd(
   set: { name: string; path: string },
   terms: ReadonlyArray<{ id: string; name: string; definition: string }>,
+  locale: Locale = 'en',
 ) {
-  const url = `${SITE_ORIGIN}${set.path}`
+  const url = `${SITE_ORIGIN}${locale === 'ru' ? ruPath(set.path) : set.path}`
   return {
     '@context': 'https://schema.org',
     '@type': 'DefinedTermSet',
