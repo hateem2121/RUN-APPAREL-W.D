@@ -3,6 +3,8 @@
 import { useRef, useState } from 'react'
 import { APPLICATION_FILE_ACCEPT } from '../../lib/applicationFileTypes'
 import { CV_HELP, pickedCvProblem } from '../../lib/careersForm'
+import { CAREERS_LABELS_RU, CV_HELP_RU, pickedCvProblemRu } from '../../lib/careersForm.ru'
+import { useLocale } from '../../lib/i18n/uiClient'
 
 /**
  * The careers form's CV: ONE optional file (owner, F23, 2026-10-07). A plain file box, so it
@@ -15,15 +17,17 @@ import { CV_HELP, pickedCvProblem } from '../../lib/careersForm'
  * is refused until it is fixed.
  */
 export function CvPicker() {
+  // Russian section (2026-11-15): the page's language from its address, no words as props.
+  const ru = useLocale() === 'ru'
   const latest = useRef(0)
   const [problem, setProblem] = useState<string | null>(null)
   return (
     <div className="inquiry-form__field">
       <label className="inquiry-form__label" htmlFor="application-cv">
-        CV
+        {ru ? CAREERS_LABELS_RU.cv : 'CV'}
       </label>
       <p className="inquiry-form__note" id="application-cv-hint">
-        {CV_HELP}
+        {ru ? CV_HELP_RU : CV_HELP}
       </p>
       <input
         className="inquiry-form__input inquiry-form__cv"
@@ -36,13 +40,15 @@ export function CvPicker() {
         onChange={(event) => {
           const field = event.currentTarget
           const pick = ++latest.current
-          void pickedCvProblem([...(field.files ?? [])]).then((found) => {
-            if (pick !== latest.current) return
-            field.setCustomValidity(found ?? '')
-            setProblem(found)
-            // The form's list of mistakes listens for this (InquiryFormEnhancer.tsx).
-            field.dispatchEvent(new Event('inquiry-checked', { bubbles: true }))
-          })
+          void (ru ? pickedCvProblemRu : pickedCvProblem)([...(field.files ?? [])]).then(
+            (found) => {
+              if (pick !== latest.current) return
+              field.setCustomValidity(found ?? '')
+              setProblem(found)
+              // The form's list of mistakes listens for this (InquiryFormEnhancer.tsx).
+              field.dispatchEvent(new Event('inquiry-checked', { bubbles: true }))
+            },
+          )
         }}
       />
       <p className="inquiry-form__error" id="application-cv-error" hidden={!problem}>

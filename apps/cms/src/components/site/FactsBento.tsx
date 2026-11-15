@@ -43,7 +43,7 @@ export const BOOKING_URL = 'https://wear-run.com/meeting'
 /** `WORKS_ASK` on the Russian home (2026-11-15). */
 export const WORKS_ASK_RU: { readonly [K in keyof typeof WORKS_ASK]: string } = {
   heading: 'Расскажите, что вам нужно сшить.',
-  action: 'Начать разговор',
+  action: 'Обсудить проект',
   call: 'Или запишитесь на звонок',
   clock: 'Местное время',
 }
@@ -108,7 +108,7 @@ export function FactsBento({
       </dl>
       <div className="works-slab">
         <div className="works-slab__half">
-          <p className="field-label">{ru ? 'Куда мы отправляем' : 'Where we ship'}</p>
+          <p className="field-label">{ru ? 'География поставок' : 'Where we ship'}</p>
           <div className="ship-map">
             {/* biome-ignore lint/performance/noImgElement: a 13 KB SVG of dots, which next/image would pass through unchanged (ProductPoster.tsx measures why); decoration, so `alt=""`. */}
             <img

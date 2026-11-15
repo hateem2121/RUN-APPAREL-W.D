@@ -160,7 +160,7 @@ export function FamilyCard({
            */
           <span className="family-card__media family-card__media--empty">
             <span className="product-card__placeholder">
-              {ru ? '[ Фото скоро ]' : '[ Photo to come ]'}
+              {ru ? '[ Фото скоро появится ]' : '[ Photo to come ]'}
             </span>
           </span>
         )}

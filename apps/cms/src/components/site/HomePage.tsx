@@ -236,7 +236,7 @@ export async function HomePageView({ locale = 'en' }: { locale?: Locale } = {}) 
             }
           >
             {ru ? (
-              <p className="section-number">№03 · Увидеть до того, как сшито</p>
+              <p className="section-number">№03 · Увидеть ещё до пошива</p>
             ) : (
               <p className="section-number">№03 · See it before it exists</p>
             )}
@@ -244,7 +244,7 @@ export async function HomePageView({ locale = 'en' }: { locale?: Locale } = {}) 
             <h2 className="display display--section">
               {ru ? (
                 <>
-                  Каждый образец —{' '}
+                  Каждое изделие —{' '}
                   <span className="serif-accent">
                     в&nbsp;<span className="serif-accent__as-written">3D</span>.
                   </span>
@@ -286,7 +286,7 @@ export async function HomePageView({ locale = 'en' }: { locale?: Locale } = {}) 
                 <p>
                   {ru ? (
                     <>
-                      <b>Поверните со всех сторон.</b> Потяните изделие, чтобы увидеть его целиком.
+                      <b>Осмотрите со всех сторон.</b> Потяните изделие, чтобы увидеть его целиком.
                     </>
                   ) : (
                     <>
@@ -305,8 +305,8 @@ export async function HomePageView({ locale = 'en' }: { locale?: Locale } = {}) 
                 <p>
                   {ru ? (
                     <>
-                      <b>Приблизьте принт.</b> Нажмите на изделие, затем прокрутите колесо или
-                      разведите пальцы, чтобы рассмотреть ближе.
+                      <b>Приблизьте принт.</b> Нажмите на изделие, затем прокрутите колёсико мыши
+                      или разведите пальцы, чтобы рассмотреть ближе.
                     </>
                   ) : (
                     <>

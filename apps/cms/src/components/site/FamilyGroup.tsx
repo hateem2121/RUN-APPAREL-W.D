@@ -84,7 +84,7 @@ export function FamilyGroup({
       ) : page ? (
         <p className="site-empty">
           {locale === 'ru' ? (
-            `Для раздела «${name}» 3D-моделей пока нет. Изделия есть, модели ещё готовятся. Напишите нам — пришлём то, что есть.`
+            `В разделе «${name}» пока нет 3D-моделей. Сами изделия уже есть, а модели ещё готовятся. Напишите нам — пришлём то, что есть.`
           ) : (
             <>
               No 3D references in {entry.name} yet. The garments exist and the references are still

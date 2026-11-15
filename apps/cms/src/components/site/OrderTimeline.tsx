@@ -46,7 +46,7 @@ export function OrderTimeline({ locale = 'en' }: { locale?: Locale } = {}) {
           </div>
           <p className="site-lede">
             {ru
-              ? 'Четыре этапа, восемь шагов, и вы всегда знаете, чей сейчас ход.'
+              ? 'Четыре этапа, восемь шагов — и вы всегда знаете, чей сейчас ход.'
               : 'Four stages, eight steps, and you always know whose move it is.'}
           </p>
         </div>

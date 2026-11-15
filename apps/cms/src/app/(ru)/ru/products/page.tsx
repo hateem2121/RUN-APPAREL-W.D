@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildMetadata({
-    title: 'Спортивная и повседневная одежда под вашим брендом в 3D',
+    title: 'Спортивная одежда под вашим брендом в 3D',
     description: PRODUCTS_DESCRIPTION_RU,
     path: '/products',
     locale: 'ru',

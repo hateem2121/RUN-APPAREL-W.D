@@ -7,6 +7,8 @@ import { LIBRARY_GUIDES_RU } from '../guideLibrary.ru'
 import type { Guide } from '../guides'
 import { GUIDES_INDEX_RU, GUIDES_RU } from '../guides.ru'
 import { formatPostDate } from '../journal'
+import type { Policy } from '../policies'
+import { POLICIES_RU } from '../policies.ru'
 
 /**
  * RUSSIAN TITLES AND NAMES, LOOKED UP BY THE ENGLISH PATH OR NAME (Russian section, 2026-11-15).
@@ -40,6 +42,12 @@ export function buyerPageRu(path: string | undefined) {
   const page = path ? FAMILY_PAGES_RU.find((entry) => entry.path === path) : undefined
   if (!page) return null
   return { href: page.path, name: page.heading.replace(/,\s*$/, ''), why: page.description }
+}
+
+export function policyAtRu(path: string): Policy {
+  const policy = POLICIES_RU.find((entry) => entry.path === path)
+  if (!policy) throw new Error(`No Russian policy at ${path}`)
+  return policy
 }
 
 export function faqTopicAtRu(path: string): FaqTopic {

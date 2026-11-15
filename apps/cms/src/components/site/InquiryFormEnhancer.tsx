@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { countryByName, type DialState, editDialCode, nextDialCode } from '../../lib/dialCode'
 import { careersFieldError } from '../../lib/careersForm'
+import { careersMessageRu } from '../../lib/careersForm.ru'
 import {
   announcedQuarter,
   fieldError,
@@ -33,6 +34,12 @@ type Problem = { id: string; text: string }
 const CHECKED = '[data-check]'
 
 /** The helper's own words in each language (Russian section, 2026-11-15); module constants, so stable. */
+/** `careersFieldError` in Russian: the same rules, each English sentence looked up (careersForm.ru.ts). */
+const careersFieldErrorRu: typeof careersFieldError = (...args) => {
+  const english = careersFieldError(...args)
+  return english === null ? null : careersMessageRu(english)
+}
+
 const WORDS_EN = {
   sending: SENDING_LABEL,
   summary: SUMMARY_HEADING,
@@ -91,7 +98,14 @@ export function InquiryFormEnhancer({
   // The page's language, from its address (no words as props: they would be copied into the HTML).
   const ru = useLocale() === 'ru'
   const words = ru ? WORDS_RU : WORDS_EN
-  const messages = which === 'careers' ? careersFieldError : ru ? fieldErrorRu : fieldError
+  const messages =
+    which === 'careers'
+      ? ru
+        ? careersFieldErrorRu
+        : careersFieldError
+      : ru
+        ? fieldErrorRu
+        : fieldError
   const anchor = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLDivElement>(null)
   const [problems, setProblems] = useState<Problem[]>([])

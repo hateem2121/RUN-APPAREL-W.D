@@ -116,7 +116,7 @@ export async function ContactPageView({
 
   return (
     <>
-      <JsonLd data={contactPageJsonLd(settings)} />
+      <JsonLd data={contactPageJsonLd(settings, locale)} />
       {/*
        * ⚠️ THE SHOWROOM BEHIND THE HERO, AS THE HOME PAGE HAS THE STITCHING FLOOR (owner,
        * 2026-09-29). `.site-hero--photo` sets the hero in the dark scheme under an ink wash, so the
@@ -222,7 +222,7 @@ export async function ContactPageView({
             <h2 className="display display--section">
               {ru ? (
                 <>
-                  Пришлите, что есть. <span className="serif-accent">Достаточно эскиза.</span>
+                  Пришлите то, что есть. <span className="serif-accent">Достаточно эскиза.</span>
                 </>
               ) : (
                 <>

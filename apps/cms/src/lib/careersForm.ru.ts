@@ -1,4 +1,6 @@
 import { RECEIVED_TEXT } from './careersForm'
+import { APPLICATION_FILE_MAX_BYTES, checkApplicationFiles } from './applicationFileTypes'
+import { formatBytesRu } from './inquiryForm.ru'
 
 /**
  * Russian twin of `careersForm.ts`: every exported sentence with an `_RU` suffix, and
@@ -31,7 +33,8 @@ export const PRIVACY_LINE_RU = `Мы храним вашу заявку до 12 
 export const CAREERS_MESSAGES_RU: Record<string, string> = {
   // careersFieldError: an empty box (`MISSING`).
   'Enter your name.': 'Введите ваше имя.',
-  'Enter a phone number we can call.': 'Введите номер телефона, по которому мы можем позвонить.',
+  'Enter a phone number we can call.':
+    'Введите номер телефона, по которому мы сможем вам позвонить.',
   'Choose what you do.': 'Выберите, чем вы занимаетесь.',
   'Tell us what you do.': 'Расскажите, чем вы занимаетесь.',
   // careersFieldError: a box filled the wrong way.
@@ -62,4 +65,46 @@ export const CAREERS_MESSAGES_RU: Record<string, string> = {
 /** The Russian for a careers message, or the English itself when it has none (see above). */
 export function careersMessageRu(english: string): string {
   return CAREERS_MESSAGES_RU[english] ?? english
+}
+
+const WRONG_KIND_RU = 'Мы принимаем PDF, Word (.docx), JPG или PNG.'
+
+/** `pickedCvProblem` in Russian: the same checks, the same order (2026-11-15). */
+export async function pickedCvProblemRu(files: readonly File[]): Promise<string | null> {
+  if (files.length > 1) return 'Выберите только один файл.'
+  const total = files.reduce((sum, file) => sum + file.size, 0)
+  if (total > APPLICATION_FILE_MAX_BYTES)
+    return `Размер резюме — ${formatBytesRu(total)}. Можно приложить до 10 МБ — пожалуйста, отправьте файл поменьше.`
+  const check = await checkApplicationFiles(files)
+  if (check.ok) return null
+  if (check.reason === 'empty')
+    return `Файл «${check.name}» пуст — пожалуйста, выберите его ещё раз.`
+  if (check.reason === 'type')
+    return `Мы не принимаем файлы такого типа, или содержимое «${check.name}» не соответствует названию файла. ${WRONG_KIND_RU}`
+  return 'Выберите только один файл.'
+}
+
+/** The careers form's labels (CareersForm.tsx), each beside the English it replaces. */
+export const CAREERS_LABELS_RU = {
+  name: 'Имя',
+  phone: 'Телефон',
+  countryCode: 'Код страны',
+  email: 'Электронная почта',
+  whatYouDo: 'Чем вы занимаетесь',
+  whatDoYouDo: 'Чем именно вы занимаетесь?',
+  years: 'Опыт работы, лет',
+  note: 'Что ещё нам стоит знать',
+  cv: 'Резюме',
+}
+
+/** The roles' labels by their English value, which is what the form sends. */
+export const ROLE_LABELS_RU: Readonly<Record<string, string>> = {
+  'Stitching and machining': 'Пошив и работа на машинах',
+  Cutting: 'Раскрой',
+  Printing: 'Печать',
+  'Quality checking': 'Контроль качества',
+  'Merchandising and coordination': 'Мерчендайзинг и координация',
+  'Pattern making and design': 'Конструирование и дизайн',
+  Administration: 'Администрирование',
+  other: 'Другое',
 }

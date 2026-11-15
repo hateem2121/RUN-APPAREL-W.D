@@ -245,7 +245,7 @@ export function FamilyLanding({
               <h2 className="display display--section">
                 {ru ? (
                   <>
-                    Проверьте изделие до раскроя <span className="serif-accent">образца.</span>
+                    Проверьте изделие <span className="serif-accent">до&nbsp;раскроя образца.</span>
                   </>
                 ) : (
                   <>

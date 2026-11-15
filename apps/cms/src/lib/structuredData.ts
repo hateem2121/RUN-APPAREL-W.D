@@ -421,7 +421,7 @@ export function guideArticleJsonLd(
 ) {
   // The byline is the English path's; a Russian guide's own address is /ru… (2026-11-15).
   const byline = bylineFor(guide.path)
-  return articleJsonLd({
+  const article = articleJsonLd({
     path: locale === 'ru' ? ruPath(guide.path) : guide.path,
     headline: guide.title,
     description: guide.description,
@@ -441,6 +441,8 @@ export function guideArticleJsonLd(
           }
         : null,
   })
+  // The Russian page says it is Russian (Russian section); the English data is unchanged.
+  return locale === 'ru' ? { ...article, inLanguage: 'ru' } : article
 }
 
 /**
@@ -464,11 +466,12 @@ export function caseStudiesJsonLd(studies: ReadonlyArray<{ path: string; headlin
 }
 
 /** The contact page, tied back to the organisation node rather than redescribing it. */
-export function contactPageJsonLd(settings: PublicSiteSettings) {
+export function contactPageJsonLd(settings: PublicSiteSettings, locale: Locale = 'en') {
   return {
     '@context': 'https://schema.org',
     '@type': 'ContactPage',
-    url: `${SITE_ORIGIN}/contact`,
+    url: `${SITE_ORIGIN}${locale === 'ru' ? ruPath('/contact') : '/contact'}`,
+    ...(locale === 'ru' ? { inLanguage: 'ru' } : {}),
     mainEntity: {
       '@id': `${SITE_ORIGIN}/#organization`,
       '@type': 'Organization',
@@ -515,8 +518,11 @@ export function definedTermSetJsonLd(
  */
 
 /** /about, as an `AboutPage` about the existing organization node. */
-export function aboutPageJsonLd(page: { title: string; description: string; path: string }) {
-  const url = `${SITE_ORIGIN}${page.path}`
+export function aboutPageJsonLd(
+  page: { title: string; description: string; path: string },
+  locale: Locale = 'en',
+) {
+  const url = `${SITE_ORIGIN}${locale === 'ru' ? ruPath(page.path) : page.path}`
   return {
     '@context': 'https://schema.org',
     '@type': 'AboutPage',
@@ -527,6 +533,7 @@ export function aboutPageJsonLd(page: { title: string; description: string; path
     about: { '@id': `${SITE_ORIGIN}/#organization` },
     mainEntity: { '@id': `${SITE_ORIGIN}/#organization` },
     isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+    ...(locale === 'ru' ? { inLanguage: 'ru' } : {}),
   }
 }
 
@@ -543,8 +550,9 @@ export type FactoryPagePhoto = {
 export function factoryPageJsonLd(
   page: { title: string; description: string; path: string },
   photos: readonly FactoryPagePhoto[],
+  locale: Locale = 'en',
 ) {
-  const url = `${SITE_ORIGIN}${page.path}`
+  const url = `${SITE_ORIGIN}${locale === 'ru' ? ruPath(page.path) : page.path}`
   const image = photos.map((photo) => ({
     '@type': 'ImageObject',
     url: `${SITE_ORIGIN}${photo.src}`,
@@ -562,6 +570,7 @@ export function factoryPageJsonLd(
     about: { '@id': `${SITE_ORIGIN}/#organization` },
     ...(image.length > 0 ? { primaryImageOfPage: image[0], image } : {}),
     isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
+    ...(locale === 'ru' ? { inLanguage: 'ru' } : {}),
   }
 }
 

@@ -34,6 +34,14 @@ export const RU_MENU_LINKS = ru(SITE_MENU_LINKS)
 export const RU_THEME_NAMES = { toDark: 'Включить тёмную тему', toLight: 'Включить светлую тему' }
 export const RU_THEME_WORDS = { toDark: 'Тёмная тема', toLight: 'Светлая тема' }
 
+/** The factory page's photo viewer (FactoryPhotoViewer, a client island). */
+export const RU_PHOTO_VIEWER = {
+  close: 'Закрыть фото',
+  photos: 'Фото производства',
+  previous: 'Предыдущее фото',
+  next: 'Следующее фото',
+}
+
 /** The home page's live garment and its showcase (ProofShowcase, LiveGarment: client islands). */
 export const RU_PROOF_WORDS = {
   placeholder: '[ 3D-модель ]',

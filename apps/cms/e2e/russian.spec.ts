@@ -1,3 +1,4 @@
+import { RU_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
 import { expect, test } from './offlineMedia'
 
 /**
@@ -105,6 +106,46 @@ test.describe('the language links', () => {
     await expect(page.locator('.notch__menu a[hreflang="ru"]')).toHaveAttribute('href', RU_GUIDE)
     await page.goto(RU_GUIDE)
     await expect(page.locator('.notch__menu a[hreflang="en"]')).toHaveAttribute('href', GUIDE)
+  })
+})
+
+/**
+ * EVERY RUSSIAN PAGE THE SITEMAP LISTS (2026-11-15), read from the same list (`RU_PAGE_SOURCES`):
+ * a /ru address the sitemap names but nothing draws, or draws in English, fails here. Each must
+ * answer 200 as Russian, with a Cyrillic headline, its canonical on its own /ru address, and no
+ * sideways scroll on a 375px phone (Russian words run longer than English ones).
+ */
+test.describe('every Russian page', () => {
+  for (const path of RU_PAGE_SOURCES) {
+    test(`${path} is a Russian page that fits a phone`, async ({ page }) => {
+      await page.setViewportSize({ width: 375, height: 812 })
+      const response = await page.goto(path)
+      expect(response?.status(), path).toBe(200)
+      await expect(page.locator('html')).toHaveAttribute('lang', 'ru')
+      await expect(page.locator('h1').first()).toHaveText(CYRILLIC)
+      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+        'href',
+        new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
+      )
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth,
+      )
+      expect(overflow, `${path} scrolls sideways`).toBeLessThanOrEqual(0)
+    })
+  }
+})
+
+test.describe('the Russian contact form', () => {
+  test('carries lang=ru, so the server answers on /ru/contact', async ({ page }) => {
+    await page.goto('/ru/contact')
+    await expect(page.locator('#inquiry-form input[name="lang"]')).toHaveValue('ru')
+    await page.goto('/contact')
+    await expect(page.locator('#inquiry-form input[name="lang"]')).toHaveCount(0)
+  })
+
+  test('an old ?family= address forwards to the Russian buyer page', async ({ page }) => {
+    const response = await page.goto('/ru/products?family=teamwear-uniforms')
+    expect(response?.url()).toMatch(/\/ru\/custom-teamwear-manufacturer$/)
   })
 })
 

@@ -107,7 +107,7 @@ export function HomeHero({ locale = 'en' }: { locale?: Locale } = {}) {
         {/* The definition every profile opens with (owner, 2026-10-11); `HomeHero.test.ts` holds it. */}
         {ru ? (
           <p className="site-lede">
-            RUN APPAREL — {WHAT_WE_ARE_RU}: {WHAT_WE_MAKE_RU} на заказ для брендов, команд и
+            RUN APPAREL — {WHAT_WE_ARE_RU}: {WHAT_WE_MAKE_RU} — на заказ для брендов, команд и
             организаций, которые идут только вперёд.
           </p>
         ) : (

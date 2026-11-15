@@ -1,6 +1,10 @@
 import { IntentLink as Link } from './IntentLink'
 import { CASE_STUDIES_HUB, CASE_STUDIES_PATH } from '../../lib/caseStudies'
+import { CASE_STUDIES_HUB_RU } from '../../lib/caseStudies.ru'
 import type { CaseStudyView } from '../../lib/caseStudyPublic'
+import { IN_ENGLISH_RU } from '../../lib/journal.ru'
+import { t } from '../../lib/i18n/ui'
+import type { Locale } from '../../lib/locale'
 import { FAMILY_PAGE_ACTION } from '../../lib/familyPages'
 import { formatPostDate } from '../../lib/journal'
 import { articleJsonLd, breadcrumbTrailJsonLd, caseStudiesJsonLd } from '../../lib/structuredData'
@@ -18,11 +22,20 @@ import { JsonLd } from './JsonLd'
  * the site's one primary button, carries `noindex` (the route's metadata) and is left out of the
  * sitemap, llms.txt and every link list. The first published case study switches all of that on.
  */
-export function CaseStudyIndex({ studies }: { studies: readonly CaseStudyView[] }) {
-  const trail = [{ name: CASE_STUDIES_HUB.title, path: CASE_STUDIES_PATH }]
+export function CaseStudyIndex({
+  studies,
+  locale = 'en',
+}: {
+  studies: readonly CaseStudyView[]
+  /** Russian section (2026-11-15): a Russian hub; the case studies are English, labelled so. */
+  locale?: Locale
+}) {
+  const ru = locale === 'ru'
+  const hub = ru ? CASE_STUDIES_HUB_RU : CASE_STUDIES_HUB
+  const trail = [{ name: hub.title, path: CASE_STUDIES_PATH }]
   return (
     <>
-      <JsonLd data={breadcrumbTrailJsonLd(trail)} />
+      <JsonLd data={breadcrumbTrailJsonLd(trail, locale)} />
       {studies.length > 0 ? (
         <JsonLd
           data={caseStudiesJsonLd(
@@ -34,12 +47,11 @@ export function CaseStudyIndex({ studies }: { studies: readonly CaseStudyView[] 
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
-          <Breadcrumb trail={trail} />
-          <p className="label">{CASE_STUDIES_HUB.eyebrow}</p>
+          <Breadcrumb trail={trail} locale={locale} />
+          <p className="label">{hub.eyebrow}</p>
           {/* `hero-legal`: this headline never swaps fonts mid-visit (site.css, 2026-10-01). */}
           <h1 className="display display--hero hero-legal">
-            {CASE_STUDIES_HUB.heading}{' '}
-            <span className="serif-accent">{CASE_STUDIES_HUB.headingAccent}</span>
+            {hub.heading} <span className="serif-accent">{hub.headingAccent}</span>
           </h1>
         </div>
       </section>
@@ -47,7 +59,7 @@ export function CaseStudyIndex({ studies }: { studies: readonly CaseStudyView[] 
       {/* Three questions, each answered first (C9, owner approved 2026-11-06), before and after the
           first case study: the heading in its half, the answer and its points beside it, as a
           guide's section is drawn, with an anchor each so a buyer can be sent to one. */}
-      {CASE_STUDIES_HUB.questions.map((question) => (
+      {hub.questions.map((question) => (
         <section className="site-section" data-site-reveal key={question.id}>
           <div className="site-container prose prose--guide spread">
             <h2 id={question.id} className="display display--section">
@@ -76,14 +88,19 @@ export function CaseStudyIndex({ studies }: { studies: readonly CaseStudyView[] 
             <div className="site-container">
               <ul className="journal-grid">
                 {studies.map((study, index) => (
-                  <CaseStudyCard key={study.slug} study={study} lead={index === 0} />
+                  <CaseStudyCard
+                    key={study.slug}
+                    study={study}
+                    lead={index === 0}
+                    locale={locale}
+                  />
                 ))}
               </ul>
             </div>
           </section>
           <section className="site-section" data-site-reveal>
             <div className="site-container">
-              <SiteClosing />
+              <SiteClosing locale={locale} />
             </div>
           </section>
         </>
@@ -91,18 +108,18 @@ export function CaseStudyIndex({ studies }: { studies: readonly CaseStudyView[] 
         <section className="site-section" data-site-reveal>
           <div className="site-container case-first">
             <ol className="journal-topics">
-              {CASE_STUDIES_HUB.includes.map((part) => (
+              {hub.includes.map((part) => (
                 <li className="journal-topics__item" key={part}>
                   {part}
                 </li>
               ))}
             </ol>
             <div className="section-head case-first__ask">
-              <h2 className="display display--section">{CASE_STUDIES_HUB.firstStory}</h2>
+              <h2 className="display display--section">{hub.firstStory}</h2>
               <div className="section-head__words">
                 <div className="site-actions">
                   <Link className="btn btn--primary" href="/contact#inquiry">
-                    {FAMILY_PAGE_ACTION}
+                    {ru ? t('ru', 'Start a conversation') : FAMILY_PAGE_ACTION}
                   </Link>
                 </div>
               </div>
@@ -115,7 +132,15 @@ export function CaseStudyIndex({ studies }: { studies: readonly CaseStudyView[] 
 }
 
 /** One case study on the hub: one link, on its title, as the Journal's cards. */
-function CaseStudyCard({ study, lead }: { study: CaseStudyView; lead: boolean }) {
+function CaseStudyCard({
+  study,
+  lead,
+  locale = 'en',
+}: {
+  study: CaseStudyView
+  lead: boolean
+  locale?: Locale
+}) {
   const picture = study.images[0] ?? study.share
   return (
     <li className={`panel journal-card${lead ? ' journal-card--lead' : ''}`}>
@@ -136,6 +161,7 @@ function CaseStudyCard({ study, lead }: { study: CaseStudyView; lead: boolean })
           {study.facts.slice(0, 2).map((fact) => (
             <span key={fact.label}>{fact.value}</span>
           ))}
+          {locale === 'ru' ? <span>{IN_ENGLISH_RU}</span> : null}
         </p>
         <h2
           className={

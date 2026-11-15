@@ -14,7 +14,7 @@
  * child, and both Russian words state exactly that relationship.
  */
 export const FOOTER_RU: Readonly<Record<string, string>> = {
-  'Start a conversation': 'Начать разговор',
+  'Start a conversation': 'Обсудить проект',
   'Have a garment that needs making properly?': 'Есть изделие, которое нужно сшить на совесть?',
   'Send a tech pack, a sketch, or just the idea.': 'Пришлите техпакет, эскиз или просто идею.',
   'Reply within 24 hours': 'Ответим в течение 24 часов',

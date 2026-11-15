@@ -24,7 +24,10 @@ export const PRESS_FACTS_RU: readonly { label: string; value: string }[] = [
   { label: 'Семейное производство с', value: FAMILY_SINCE },
   { label: 'Родственная компания', value: 'DURUS INDUSTRIES' },
   { label: 'Сотрудники', value: `Около ${fact('People')}` },
-  { label: 'Мощность', value: `${ruFigure(fact('Pieces per month'))} изделий в месяц` },
+  {
+    label: 'Производственная мощность',
+    value: `${ruFigure(fact('Pieces per month'))} изделий в месяц`,
+  },
   { label: 'Под крышей', value: `${ruFigure(fact('Sq m'))} кв. м` },
   { label: 'Минимальный заказ', value: `${fact('Minimum')} изделий на модель` },
   { label: 'Образец', value: `Обычно ${fact('Working days')} рабочих дней` },

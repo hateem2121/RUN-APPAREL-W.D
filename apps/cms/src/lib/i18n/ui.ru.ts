@@ -11,8 +11,8 @@ export const UI_RU: Readonly<Record<string, string>> = {
   // The closing block on guides and articles (ArticleParts.tsx)
   'Tell us what you’re making.': 'Расскажите, что вам нужно сшить.',
   'Send the styles, quantities and specs you have. A sketch is enough to start. We reply within 24 hours.':
-    'Пришлите модели, количества и ТЗ, какие есть. Для начала достаточно эскиза. Ответим в течение 24 часов.',
-  'Start a conversation': 'Начать разговор',
+    'Пришлите то, что уже есть: модели, объёмы, ТЗ. Для начала достаточно эскиза. Ответим в течение 24 часов.',
+  'Start a conversation': 'Обсудить проект',
   // The order steps (OrderSteps.tsx)
   Stage: 'Этап',
   Step: 'Шаг',
@@ -41,7 +41,7 @@ export const UI_RU: Readonly<Record<string, string>> = {
   'Questions buyers ask': 'Вопросы заказчиков',
   'More answers in the FAQ': 'Другие ответы — в разделе «Вопросы и ответы»',
   'Send the styles, quantities and specs you have. A sketch is enough to start. We reply within 24 hours, and the quote is free and commits you to nothing.':
-    'Пришлите модели, количества и ТЗ, какие есть. Для начала достаточно эскиза. Ответим в течение 24 часов; расчёт бесплатный и ни к чему вас не обязывает.',
+    'Пришлите то, что уже есть: модели, объёмы, ТЗ. Для начала достаточно эскиза. Ответим в течение 24 часов; расчёт бесплатный и ни к чему вас не обязывает.',
   Email: 'Написать на',
   'Other ranges': 'Другие направления',
   Sport: 'Вид спорта',
@@ -54,15 +54,15 @@ export const UI_RU: Readonly<Record<string, string>> = {
   More: 'Подробнее',
   'Every topic': 'Все темы',
   '[ Glossary ]': '[ Глоссарий ]',
-  'Terms by letter': 'Термины по буквам',
+  'Terms by letter': 'Термины по алфавиту',
   '[ Contact ]': '[ Контакты ]',
   'Reach us directly by email or on WhatsApp, whichever suits you. We reply within 24 hours.':
     'Напишите нам на почту или в WhatsApp — как вам удобнее. Ответим в течение 24 часов.',
   'Email us': 'Написать на почту',
   'WhatsApp us': 'Написать в WhatsApp',
-  'What helps us reply faster': 'Что поможет ответить быстрее',
+  'What helps us reply faster': 'Что поможет нам ответить быстрее',
   'Styles and quantities, your target fabric or a reference garment, any artwork, and the date you need it by. None of it is required to start the conversation.':
-    'Модели и количества, нужная ткань или изделие-референс, макеты и срок, к которому нужен заказ. Для начала разговора ничего из этого не обязательно.',
+    'Модели и объёмы, нужная ткань или изделие-референс, макеты и срок, к которому нужен заказ. Для начала разговора ничего из этого не требуется.',
   'Asking about': 'Вопрос об изделии',
   Name: 'Имя',
   'Job title': 'Должность',
@@ -78,7 +78,7 @@ export const UI_RU: Readonly<Record<string, string>> = {
   'New programs, quotes and samples.': 'Новые проекты, расчёты и образцы.',
   '[ Call or WhatsApp ]': '[ Звонок или WhatsApp ]',
   'Call this number': 'Позвонить по этому номеру',
-  'Fastest for a quick question.': 'Быстрее всего для короткого вопроса.',
+  'Fastest for a quick question.': 'Самый быстрый способ задать короткий вопрос.',
   'Where we are': 'Где мы находимся',
   '[ 3D product references ]': '[ 3D-модели изделий ]',
   'These are development references, not a shop. Open one to turn the garment, inspect the construction and see exactly how the artwork sits before a sample is ever cut.':
@@ -87,7 +87,7 @@ export const UI_RU: Readonly<Record<string, string>> = {
     'Модели сейчас обновляются. Напишите нам — пришлём актуальный набор напрямую.',
   'Product families on this page': 'Разделы продукции на этой странице',
   'One standard means one factory, one set of hands and one set of tolerances. Every family below is cut, stitched and finished on the same site, to the same specification, whether it is a hundred pieces or a hundred thousand.':
-    'Один стандарт — это одна фабрика, одни руки и одни допуски. Каждое направление ниже кроят, шьют и отделывают на одном производстве, по одной спецификации, будь то сто изделий или сто тысяч.',
+    'Один стандарт — это одна фабрика, одни и те же мастера и одни допуски. Изделия каждого направления ниже кроят, шьют и отделывают на одном производстве, по одной спецификации, будь то сто изделий или сто тысяч.',
   'We can build a 3D reference of your garment on request, before a sample is cut.':
     'По запросу мы сделаем 3D-модель вашего изделия ещё до раскроя образца.',
   'Confirmed capacity, not marketing. If any of these matters to your program, ask and we will put it in writing.':

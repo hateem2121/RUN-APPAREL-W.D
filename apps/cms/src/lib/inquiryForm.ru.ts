@@ -19,15 +19,16 @@ export function formatBytesRu(size: number): string {
 
 export const LIMIT_RU = `${MAX_TOTAL_BYTES / (1024 * 1024)} МБ`
 
-export const REQUIRED_KEY_RU = 'Поля со * обязательны. Остальное поможет нам ответить быстрее.'
+export const REQUIRED_KEY_RU =
+  'Поля, отмеченные *, обязательны. Остальные помогут нам ответить быстрее.'
 
 /** Each subject's label by its English value, which is what the form sends. */
 export const SUBJECT_LABELS_RU: Readonly<Record<(typeof SUBJECTS)[number], string>> = {
-  'Request a quote': 'Запросить расчёт',
+  'Request a quote': 'Запросить расчёт стоимости',
   'Develop a new product': 'Разработать новое изделие',
   Samples: 'Образцы',
-  'Private label & branding': 'Собственная марка и брендирование',
-  'Repeat or bulk order': 'Повторный или крупный заказ',
+  'Private label & branding': 'Private label и брендирование',
+  'Repeat or bulk order': 'Повторный или серийный заказ',
 }
 export const SUBJECT_OTHER_LABEL_RU = 'Другое…'
 export const SUMMARY_HEADING_RU = 'Проверьте перед отправкой:'
@@ -73,7 +74,7 @@ export function pickProblemRu(files: readonly { size: number }[]): string | null
     return `Выбрано файлов: ${files.length}. Можно приложить не больше ${MAX_FILES}. Остальные пришлите на почту или вставьте в сообщение ссылку WeTransfer или Google Drive.`
   const total = files.reduce((sum, file) => sum + file.size, 0)
   if (total > MAX_TOTAL_BYTES)
-    return `Эти файлы весят ${formatBytesRu(total)}. Всего можно приложить до ${LIMIT_RU}. Для файлов побольше вставьте в сообщение ссылку WeTransfer или Google Drive.`
+    return `Общий размер этих файлов — ${formatBytesRu(total)}. Всего можно приложить до ${LIMIT_RU}. Для более крупных файлов вставьте в сообщение ссылку WeTransfer или Google Drive.`
   return null
 }
 
@@ -81,7 +82,7 @@ export const ACCEPTED_KINDS_RU =
   'фотографии (JPG, PNG, WebP, HEIC), PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), Keynote, файлы Illustrator и Photoshop'
 
 export const FILE_BOX_NOTE_RU =
-  'Фото, PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), Keynote, Illustrator или Photoshop. Файл больше? Вставьте в сообщение ссылку WeTransfer или Google Drive.'
+  'Фото, PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), Keynote, Illustrator или Photoshop. Файл слишком большой? Вставьте в сообщение ссылку WeTransfer или Google Drive.'
 
 /** `pickedFileProblem` in Russian. */
 export async function pickedFileProblemRu(files: readonly File[]): Promise<string | null> {
@@ -91,13 +92,13 @@ export async function pickedFileProblemRu(files: readonly File[]): Promise<strin
   if (check.ok) return null
   if (check.reason === 'empty') return `Файл «${check.name}» пустой. Выберите его ещё раз.`
   if (check.reason === 'type')
-    return `Файл «${check.name}» — неподдерживаемого типа, или его содержимое не совпадает с расширением. Мы принимаем: ${ACCEPTED_KINDS_RU}.`
+    return `Файл «${check.name}» — неподдерживаемого формата, или его содержимое не соответствует расширению. Мы принимаем: ${ACCEPTED_KINDS_RU}.`
   return pickProblemRu(files)
 }
 
 const NOT_SENT_RU = 'Сообщение не отправлено.'
 
-const WRONG_KIND_RU = `${NOT_SENT_RU} Один из файлов неподдерживаемого типа или не читается. Мы принимаем: ${ACCEPTED_KINDS_RU}.`
+const WRONG_KIND_RU = `${NOT_SENT_RU} Один из файлов неподдерживаемого формата, или его не удалось прочитать. Мы принимаем: ${ACCEPTED_KINDS_RU}.`
 
 const FILE_REASONS_RU: Record<string, string> = {
   'too-many': `${NOT_SENT_RU} Можно приложить не больше ${MAX_FILES} файлов. Отправьте ещё раз с меньшим числом файлов или пришлите остальные на почту.`,
@@ -113,7 +114,7 @@ export function inquiryNoticeRu(query: {
   reason?: string
 }): Notice | null {
   if (query.sent) {
-    return { kind: 'ok', text: 'Спасибо. Ваш запрос у нас. Ответим в течение 24 часов.' }
+    return { kind: 'ok', text: 'Спасибо. Мы получили ваш запрос и ответим в течение 24 часов.' }
   }
   if (!query.error) return null
   if (query.error === 'files') {
@@ -133,6 +134,6 @@ export function inquiryNoticeRu(query: {
   }
   return {
     kind: 'bad',
-    text: 'Какое-то поле формы не заполнено. Проверьте и отправьте ещё раз.',
+    text: 'Одно из полей формы не заполнено. Проверьте форму и отправьте её ещё раз.',
   }
 }

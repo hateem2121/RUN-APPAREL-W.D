@@ -26,7 +26,12 @@ import { fileURLToPath } from 'node:url'
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
 const CYRILLIC = /[Ѐ-ӿ]/
 
-/** The Russian words files: every `*.ru*.ts` under apps/cms/src, the i18n tables, the Russian routes. */
+/**
+ * Every source file under apps/cms/src that holds Russian: the `*.ru*.ts` words files, the i18n
+ * tables, the Russian routes, AND the components that write a Russian line beside its English one
+ * (a headline pair, a label). Chosen by content since 2026-11-15, so a Russian line written in a
+ * component is checked as surely as one in a words file.
+ */
 export function russianFiles(root = ROOT) {
   const out = []
   const walk = (dir) => {
@@ -35,14 +40,7 @@ export function russianFiles(root = ROOT) {
       if (statSync(path).isDirectory()) {
         if (name !== 'node_modules') walk(path)
       } else if (/\.tsx?$/.test(name) && !/\.test\./.test(name)) {
-        const rel = relative(root, path)
-        if (
-          /\.ru(\.[a-z])?\.ts$|\.ru\.client\.ts$/.test(name) ||
-          rel.includes('lib/i18n/') ||
-          rel.includes('app/(ru)/') ||
-          rel.endsWith('app/not-found.tsx')
-        )
-          out.push(path)
+        if (CYRILLIC.test(readFileSync(path, 'utf8'))) out.push(path)
       }
     }
   }

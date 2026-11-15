@@ -1,5 +1,7 @@
 import { IntentLink as Link } from './IntentLink'
 import { POLICY_ACTION, POLICY_CLOSING, type Policy } from '../../lib/policies'
+import type { Locale } from '../../lib/locale'
+import { POLICY_ACTION_RU, POLICY_CLOSING_RU } from '../../lib/policies.ru'
 import { breadcrumbTrailJsonLd } from '../../lib/structuredData'
 import { Breadcrumb } from './Breadcrumb'
 import { Byline } from './Byline'
@@ -19,22 +21,24 @@ import { OnThisPage } from './OnThisPage'
  * owner's own, word for word (F20-12a).
  */
 
-export function PolicyPage({ policy }: { policy: Policy }) {
+export function PolicyPage({ policy, locale = 'en' }: { policy: Policy; locale?: Locale }) {
+  // Russian section (2026-11-15): `policy` is then the Russian policy (policies.ru.ts).
+  const ru = locale === 'ru'
   const trail = [
-    { name: 'Policies', path: '/policies' },
+    { name: ru ? 'Политики' : 'Policies', path: '/policies' },
     { name: policy.title, path: policy.path },
   ]
   return (
     <>
-      <JsonLd data={breadcrumbTrailJsonLd(trail)} />
+      <JsonLd data={breadcrumbTrailJsonLd(trail, locale)} />
 
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
           {/* `hero-legal`: this headline never swaps fonts mid-visit (site.css, 2026-10-01).
               `display--long` where the headline runs long on a phone (base.css, VA-45). */}
-          <Breadcrumb trail={trail} />
-          <p className="label">[ Policy ]</p>
+          <Breadcrumb trail={trail} locale={locale} />
+          <p className="label">{ru ? '[ Политика ]' : '[ Policy ]'}</p>
           <h1
             className={`display display--hero hero-legal${policy.headingAccent.length + policy.heading.length >= 36 ? ' display--long' : ''}`}
           >
@@ -43,7 +47,7 @@ export function PolicyPage({ policy }: { policy: Policy }) {
           <p className="site-lede">{policy.lede}</p>
           {/* "Written by HR, RUN APPAREL" beside the date the owner approved the words (2026-10-08;
               the date was a line of its own before). `bylines.test.ts` holds it to lastReviewed. */}
-          <Byline path={policy.path} dateLabel="Last reviewed" />
+          <Byline path={policy.path} dateLabel="Last reviewed" locale={locale} />
         </div>
       </section>
 
@@ -51,6 +55,7 @@ export function PolicyPage({ policy }: { policy: Policy }) {
         <div className="site-container legal">
           <OnThisPage
             sections={policy.sections.map(({ id, heading }) => ({ id, title: heading }))}
+            locale={locale}
           />
           <div className="prose legal__body">
             {policy.sections.map((s) => (
@@ -59,14 +64,14 @@ export function PolicyPage({ policy }: { policy: Policy }) {
                   {s.heading}
                 </h2>
                 {s.blocks.map((block) => (
-                  <Block key={blockKey(block)} block={block} />
+                  <Block key={blockKey(block)} block={block} locale={locale} />
                 ))}
               </div>
             ))}
-            <p className="policy-closing">{POLICY_CLOSING}</p>
+            <p className="policy-closing">{ru ? POLICY_CLOSING_RU : POLICY_CLOSING}</p>
             <div className="site-actions">
               <Link className="btn btn--ghost" href="/contact#inquiry">
-                {POLICY_ACTION}
+                {ru ? POLICY_ACTION_RU : POLICY_ACTION}
               </Link>
             </div>
           </div>

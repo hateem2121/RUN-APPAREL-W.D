@@ -13,15 +13,26 @@ import { SiteClosing } from './ArticleParts'
  * short links in the left corner with the rest of the row empty (measured 9% of a 1312px column at
  * 1440, 2026-10-07); beside the heading it finishes the column the button starts.
  */
-export function CompanyClosing({ links }: { links: CompanyContentType['links'] }) {
+export function CompanyClosing({
+  links,
+  locale = 'en',
+}: {
+  links: CompanyContentType['links']
+  /** Russian section (2026-11-15). */
+  locale?: 'en' | 'ru'
+}) {
+  const ru = locale === 'ru'
   return (
     <section className="site-section" data-site-reveal>
       <div className="site-container">
-        <SiteClosing>
-          <nav className="see-also company-closing__more" aria-label="More about us">
+        <SiteClosing locale={locale}>
+          <nav
+            className="see-also company-closing__more"
+            aria-label={ru ? 'Ещё о компании' : 'More about us'}
+          >
             <div className="see-also__group">
               <h3 className="product-card__name" id="more-about-us">
-                More about us
+                {ru ? 'Ещё о компании' : 'More about us'}
               </h3>
               <ul className="see-also__list">
                 {links.map((link) => (

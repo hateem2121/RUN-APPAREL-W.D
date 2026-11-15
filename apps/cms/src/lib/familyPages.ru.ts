@@ -338,6 +338,6 @@ export const FAMILY_PAGES_RU: readonly FamilyPage[] = [
 /** `FAMILY_SOON` in Russian: the same link, the label and the ask in Russian. */
 export const FAMILY_SOON_RU = {
   label: '[ спросите нас ]',
-  ask: 'Спросите, что мы шьём',
+  ask: 'Спросите, что мы производим',
   href: '/contact',
 } as const

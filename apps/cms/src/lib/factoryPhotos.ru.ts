@@ -39,7 +39,7 @@ export const FACTORY_PHOTO_TEXT_RU: Readonly<Record<string, FactoryPhotoTextRu>>
   inspection: { alt: INSPECTION_ALT, caption: 'Контроль под лампой' },
   stitching: { alt: STITCHING_ALT, caption: 'Швейный цех' },
   lab: {
-    alt: 'Два лаборанта в халатах за рабочими столами, рядом световая камера для оценки цвета и лабораторная печь.',
+    alt: 'Два лаборанта в халатах за рабочими столами, рядом световая кабина для оценки цвета и сушильный шкаф.',
     caption: 'Испытательная лаборатория',
   },
   tagging: { alt: TAGGING_ALT, caption: 'Навешивание бирок' },
@@ -65,7 +65,7 @@ export const FACTORY_PHOTO_TEXT_RU: Readonly<Record<string, FactoryPhotoTextRu>>
 
 /** `HERO_PHOTO.alt`: the home hero, the stitching floor. */
 export const HERO_PHOTO_ALT_RU =
-  'Ряды швейных машин в швейном цехе, операторы в красных рубашках за работой, в проходе красные ящики с кроеными деталями.'
+  'Ряды швейных машин в цехе пошива, операторы в красных рубашках за работой, в проходе красные ящики с кроеными деталями.'
 
 /** `CONTACT_HERO_PHOTO.alt`: the showroom. */
 export const CONTACT_HERO_PHOTO_ALT_RU =

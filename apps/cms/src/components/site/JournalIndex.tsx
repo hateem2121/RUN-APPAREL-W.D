@@ -6,7 +6,9 @@ import {
   JOURNAL_PATH,
   JOURNAL_RSS_PATH,
 } from '../../lib/journal'
+import { IN_ENGLISH_RU, JOURNAL_CLUSTER_NAMES_RU, JOURNAL_HUB_RU } from '../../lib/journal.ru'
 import type { JournalPostView } from '../../lib/journalPublic'
+import type { Locale } from '../../lib/locale'
 import { blogJsonLd, breadcrumbTrailJsonLd } from '../../lib/structuredData'
 import { ArticleImage, SiteClosing } from './ArticleParts'
 import { Breadcrumb } from './Breadcrumb'
@@ -25,11 +27,20 @@ import { JsonLd } from './JsonLd'
  * scripting off, and the choice is kept in no address, so no thin filter pages exist. Drawn only
  * when the posts span two topics or more.
  */
-export function JournalIndex({ posts }: { posts: readonly JournalPostView[] }) {
-  const trail = [{ name: JOURNAL_HUB.title, path: JOURNAL_PATH }]
+export function JournalIndex({
+  posts,
+  locale = 'en',
+}: {
+  posts: readonly JournalPostView[]
+  /** Russian section (2026-11-15): a Russian hub listing the English posts, each labelled so. */
+  locale?: Locale
+}) {
+  const ru = locale === 'ru'
+  const hub = ru ? JOURNAL_HUB_RU : JOURNAL_HUB
+  const trail = [{ name: hub.title, path: JOURNAL_PATH }]
   return (
     <>
-      <JsonLd data={breadcrumbTrailJsonLd(trail)} />
+      <JsonLd data={breadcrumbTrailJsonLd(trail, locale)} />
       {posts.length > 0 ? (
         <JsonLd
           data={blogJsonLd(posts.map((post) => ({ path: post.path, headline: post.title })))}
@@ -39,16 +50,16 @@ export function JournalIndex({ posts }: { posts: readonly JournalPostView[] }) {
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
-          <Breadcrumb trail={trail} />
-          <p className="label">{JOURNAL_HUB.eyebrow}</p>
+          <Breadcrumb trail={trail} locale={locale} />
+          <p className="label">{hub.eyebrow}</p>
           {/* `hero-legal`: this headline never swaps fonts mid-visit (site.css, 2026-10-01). */}
           <h1 className="display display--hero hero-legal">
-            {JOURNAL_HUB.heading} <span className="serif-accent">{JOURNAL_HUB.headingAccent}</span>
+            {hub.heading} <span className="serif-accent">{hub.headingAccent}</span>
           </h1>
           {posts.length > 0 ? (
             <p className="journal-feed">
               <a className="prose__link" href={JOURNAL_RSS_PATH}>
-                RSS feed
+                {ru ? 'RSS-лента (на английском)' : 'RSS feed'}
               </a>
             </p>
           ) : null}
@@ -57,13 +68,17 @@ export function JournalIndex({ posts }: { posts: readonly JournalPostView[] }) {
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          {posts.length > 0 ? <JournalList posts={posts} /> : <JournalTopics />}
+          {posts.length > 0 ? (
+            <JournalList posts={posts} locale={locale} />
+          ) : (
+            <JournalTopics locale={locale} />
+          )}
         </div>
       </section>
 
       <section className="site-section" data-site-reveal>
         <div className="site-container">
-          <SiteClosing />
+          <SiteClosing locale={locale} />
         </div>
       </section>
     </>
@@ -71,19 +86,20 @@ export function JournalIndex({ posts }: { posts: readonly JournalPostView[] }) {
 }
 
 /** The five topics, ruled across the page: what the Journal is for, before its first post. */
-function JournalTopics() {
+function JournalTopics({ locale }: { locale: Locale }) {
   return (
     <ol className="journal-topics">
       {JOURNAL_CLUSTERS.map((cluster) => (
         <li className="journal-topics__item" key={cluster.value}>
-          {cluster.label}
+          {locale === 'ru' ? JOURNAL_CLUSTER_NAMES_RU[cluster.value] : cluster.label}
         </li>
       ))}
     </ol>
   )
 }
 
-function JournalList({ posts }: { posts: readonly JournalPostView[] }) {
+function JournalList({ posts, locale }: { posts: readonly JournalPostView[]; locale: Locale }) {
+  const ru = locale === 'ru'
   const present = JOURNAL_CLUSTERS.flatMap((cluster) => {
     const count = posts.filter((post) => post.cluster?.value === cluster.value).length
     return count > 0 ? [{ ...cluster, count }] : []
@@ -91,7 +107,7 @@ function JournalList({ posts }: { posts: readonly JournalPostView[] }) {
   const grid = (
     <ul className="journal-grid">
       {posts.map((post, index) => (
-        <JournalCard key={post.slug} post={post} lead={index === 0} />
+        <JournalCard key={post.slug} post={post} lead={index === 0} locale={locale} />
       ))}
     </ul>
   )
@@ -111,10 +127,16 @@ function JournalList({ posts }: { posts: readonly JournalPostView[] }) {
   return (
     <div className="journal-scope">
       <fieldset className="journal-filter">
-        <legend className="visually-hidden">Topic</legend>
+        <legend className="visually-hidden">{ru ? 'Тема' : 'Topic'}</legend>
         <div className="filter-bar filter-bar--scroll">
-          {chip('all', 'All', posts.length)}
-          {present.map((cluster) => chip(cluster.value, cluster.label, cluster.count))}
+          {chip('all', ru ? 'Все' : 'All', posts.length)}
+          {present.map((cluster) =>
+            chip(
+              cluster.value,
+              ru ? JOURNAL_CLUSTER_NAMES_RU[cluster.value] : cluster.label,
+              cluster.count,
+            ),
+          )}
         </div>
       </fieldset>
       {grid}
@@ -127,7 +149,22 @@ function JournalList({ posts }: { posts: readonly JournalPostView[] }) {
  * `GuideCard.tsx`): the picture and the words are plain beside it. The first post is drawn
  * large, its picture the page's largest paint.
  */
-function JournalCard({ post, lead }: { post: JournalPostView; lead: boolean }) {
+function JournalCard({
+  post,
+  lead,
+  locale,
+}: {
+  post: JournalPostView
+  lead: boolean
+  locale: Locale
+}) {
+  const ru = locale === 'ru'
+  const cluster = post.cluster
+    ? ru
+      ? (JOURNAL_CLUSTER_NAMES_RU[post.cluster.value as keyof typeof JOURNAL_CLUSTER_NAMES_RU] ??
+        post.cluster.label)
+      : post.cluster.label
+    : null
   return (
     <li
       className={`panel journal-card${lead ? ' journal-card--lead' : ''}`}
@@ -147,8 +184,9 @@ function JournalCard({ post, lead }: { post: JournalPostView; lead: boolean }) {
       ) : null}
       <div className="journal-card__words">
         <p className="journal-card__meta">
-          {post.cluster ? <span>{post.cluster.label}</span> : null}
-          <time dateTime={post.publishedAt}>{formatPostDate(post.publishedAt)}</time>
+          {cluster ? <span>{cluster}</span> : null}
+          <time dateTime={post.publishedAt}>{formatPostDate(post.publishedAt, locale)}</time>
+          {ru ? <span>{IN_ENGLISH_RU}</span> : null}
         </p>
         <h2
           className={
@@ -157,7 +195,7 @@ function JournalCard({ post, lead }: { post: JournalPostView; lead: boolean }) {
               : 'product-card__name journal-card__title'
           }
         >
-          <Link className="journal-card__link" href={post.path}>
+          <Link className="journal-card__link" href={post.path} hrefLang={ru ? 'en' : undefined}>
             {post.title}
           </Link>
         </h2>

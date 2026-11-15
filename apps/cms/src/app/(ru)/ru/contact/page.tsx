@@ -9,7 +9,7 @@ import { buildMetadata } from '../../../../lib/seo'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Контакты: производитель одежды под брендом в Сиалкоте',
+  title: 'Контакты: пошив одежды под брендом в Сиалкоте',
   description: CONTACT_DESCRIPTION_RU,
   path: '/contact',
   locale: 'ru',

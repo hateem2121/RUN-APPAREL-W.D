@@ -39,4 +39,4 @@ export const ABOUT_RU: AboutCopy = {
 }
 
 /** `GROUND_ALT` (AboutSection.tsx): the roof photo behind the block. */
-export const GROUND_ALT_RU = 'Производство сверху: крыша покрыта солнечными панелями.'
+export const GROUND_ALT_RU = 'Вид на производство сверху: крыша покрыта солнечными панелями.'
