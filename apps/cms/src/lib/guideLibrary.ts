@@ -93,6 +93,10 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
             kind: 'list',
             items: [
               'The record sits on the SECP’s eServices site, eservices.secp.gov.pk. Ask the factory for the link to its record, and check that the link opens there.',
+              // Owner, 2026-11-15: the weekly source check (issue #394) timed out on both SECP
+              // eServices pages from GitHub's US runner, while from Pakistan the name search
+              // answered 200 in 0.36 s with its real page. Only what was measured is claimed.
+              'The eServices site may not open outside Pakistan: when we checked on 15 November 2026 it loaded from Pakistan and did not answer from the United States. If it does not load where you are, ask someone in Pakistan, such as your inspection agent, to open the record for you.',
               'A certificate of incorporation issued from 1 January 2021 carries a QR code and a link to check it against SECP’s own record.',
               'The SECP’s name search is a different tool, for checking whether a name is available.',
               'Anyone can check the FBR’s list of active taxpayers online, by text message with the company’s seven-digit NTN, or by downloading the list.',
