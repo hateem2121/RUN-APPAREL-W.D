@@ -25,7 +25,20 @@ async function watch(page: Page) {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => false })
     const w = window as unknown as { __gone?: number; __pictured?: number; __asked?: number }
-    const tick = () => {
+    /*
+     * Recorded when the page CHANGES, not once a frame. Each reading used to be taken in a
+     * requestAnimationFrame loop, and a frame runs only before a repaint. On main run 43688095997
+     * (15 Nov 2026, viewer-webkit, both tries) CI's WebKit painted nothing from 1.9 s to 5.1 s while
+     * the 3D engine started: the trace's screen recording has no frame in that stretch, and
+     * model-viewer itself logged "rAF timed out in updateSource" at 2.7 s. The screen did its job
+     * (the picture was in at 1,851 ms, the trace's copy of the page at 1,994 ms carries
+     * "preloader preloader--exit", and by 3,014 ms the screen is gone), but its 800 ms wipe began
+     * and ended between two frames, so no frame saw it and "gone" stayed empty for 10 s. Timers and
+     * scripts kept running, so a MutationObserver (called in a microtask right after the change,
+     * DOM Standard) and the picture's own load event see every step whether or not the browser
+     * paints. Same recorder as motion-and-layout.spec.ts's MO-10.
+     */
+    const check = () => {
       // "gone" is when the wipe STARTS: the moment the page under it begins to show.
       if (document.querySelector('.preloader--exit') && w.__gone === undefined) {
         w.__gone = performance.now()
@@ -35,15 +48,21 @@ async function watch(page: Page) {
       const picture = document.querySelector<HTMLImageElement>(
         '.stage__placeholder, .stage__picture',
       )
-      // The stage's picture is drawn in the same render that starts the wait (App.tsx), so its
-      // first frame is when the 1.5 s allowance began.
+      // The stage's picture is drawn in the same render that starts the wait (App.tsx), so the
+      // moment it enters the page is when the 1.5 s allowance began.
       if (picture && w.__asked === undefined) w.__asked = performance.now()
       if (picture?.complete && picture.naturalWidth > 0 && w.__pictured === undefined) {
         w.__pictured = performance.now()
       }
-      requestAnimationFrame(tick)
     }
-    requestAnimationFrame(tick)
+    new MutationObserver(check).observe(document, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+    })
+    // A picture that finishes loading changes no markup, so its load event says it is in. That event
+    // does not bubble, hence the capture listener on the document.
+    document.addEventListener('load', check, true)
   })
 }
 
