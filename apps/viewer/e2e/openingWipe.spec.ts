@@ -11,24 +11,27 @@ test('the opening wipe is drawn with translate, never with clip-path', async ({ 
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => false })
-    // Read the styles in the first frame the wipe runs, inside the page: CI's WebKit removed the
-    // screen before a read from the test could reach it (PR #383, 12 Nov 2026).
+    // Read the styles the moment the wipe starts, inside the page: CI's WebKit removed the screen
+    // before a read from the test could reach it (PR #383, 12 Nov 2026). Read on the change itself,
+    // not in a requestAnimationFrame loop: a frame runs only before a repaint, and CI's WebKit can
+    // go seconds without one while the 3D engine starts, so the whole 800 ms wipe can fall between
+    // two frames. Measured in the trace of main run 43688095997 (15 Nov 2026), where it failed
+    // openingWaitsForPicture.spec.ts; this test failed with the same symptom, "the wipe never
+    // started", on main run 43483985688 attempt 1 (mobile Safari).
     const w = window as unknown as { __wipe?: Record<string, string> }
-    const tick = () => {
+    const observer = new MutationObserver(() => {
       const screen = document.querySelector<HTMLElement>('.preloader.preloader--exit')
-      if (screen) {
-        const sheet = screen.querySelector<HTMLElement>('.preloader__sheet')
-        const props = (el: Element) => getComputedStyle(el).transitionProperty
-        w.__wipe = {
-          screen: props(screen),
-          sheet: sheet ? props(sheet) : 'no sheet',
-          clip: getComputedStyle(screen).clipPath,
-        }
-        return
+      if (!screen) return
+      const sheet = screen.querySelector<HTMLElement>('.preloader__sheet')
+      const props = (el: Element) => getComputedStyle(el).transitionProperty
+      w.__wipe = {
+        screen: props(screen),
+        sheet: sheet ? props(sheet) : 'no sheet',
+        clip: getComputedStyle(screen).clipPath,
       }
-      requestAnimationFrame(tick)
-    }
-    requestAnimationFrame(tick)
+      observer.disconnect()
+    })
+    observer.observe(document, { subtree: true, childList: true, attributes: true })
   })
   await page.goto('/n001/wine')
   await expect
