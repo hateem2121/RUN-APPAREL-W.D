@@ -1,4 +1,4 @@
-import { SITE_BAR_LOGO, SITE_MENU_ID, SITE_MENU_NAME, SITE_NAV_LABEL } from '@run-apparel/shared'
+import { SITE_MENU_ID, SITE_MENU_NAME, SITE_NAV_LABEL } from '@run-apparel/shared'
 import { IntentLink as Link } from './IntentLink'
 import { NavLinks } from './NavLinks'
 import { ThemeSwitch } from './ThemeSwitch'
@@ -65,23 +65,7 @@ export function SiteHeader({ wordmark }: { wordmark: string }) {
             Translate, which could turn the name into "LAUF BEKLEIDUNG". The garment names and
             codes, the footer's mark and its legal line carry it too, on both apps. */}
         <Link className="notch__wordmark" href="/" translate="no">
-          {/* The 2027 logo (owner, 2026-11-15: "use it everywhere"), no background, in its colours
-              for this dark bar (`SITE_BAR_LOGO`). `alt` is the CMS name, so the link is still
-              called "RUN APPAREL" by a screen reader and by both aria snapshots. The file is in
-              both apps' public/; printing swaps it for the light one (notch.css, `.notch__logo`). */}
-          {/* biome-ignore lint/performance/noImgElement: a 3 KB SVG at a fixed 81 x 28, the same file the garment pages draw; next/image has nothing to resize (no `sharp` on Workers, ProductPoster.tsx measures why). */}
-          <img
-            className="notch__logo"
-            src={SITE_BAR_LOGO.src}
-            alt={wordmark}
-            width={SITE_BAR_LOGO.width}
-            height={SITE_BAR_LOGO.height}
-            // LOW, so React does not preload it (19.3.1 adds <link rel=preload as=image> for any
-            // server-rendered <img> that is not lazy or low; CI, PR #397: one extra preload on every
-            // page failed familyHero.spec and perfBudgets.spec). The page's own picture keeps the
-            // bandwidth; a 3 KB logo still arrives at once.
-            fetchPriority="low"
-          />
+          {wordmark}
         </Link>
 
         <nav className="notch__nav" aria-label={SITE_NAV_LABEL}>

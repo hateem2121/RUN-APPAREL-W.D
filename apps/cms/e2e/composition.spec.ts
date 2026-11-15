@@ -41,8 +41,7 @@ test.describe('FA-A-71 — the loudest thing above the fold is the headline', ()
   /**
    * MEASURED 2026-09-06: on every page the largest, heaviest element above the fold is
    * the page's own headline, ahead of the wordmark and the navigation. Re-measured here
-   * at 1280×900: `h1` 69.12px, `.notch__wordmark` 16px, `.nav-link` 10px. Since 2026-11-15 the
-   * bar starts with the 2027 logo, a picture 28px tall with no text of its own.
+   * at 1280×900: `h1` 69.12px, `.notch__wordmark` 16px, `.nav-link` 10px.
    *
    * The failure this catches is not a typo. It is the ordinary drift where a bar gains a
    * larger wordmark or a "NEW" ribbon, and the first thing a visitor's eye lands on

@@ -676,11 +676,9 @@ describe('the notch', () => {
     // failing. Measured at 320px: the fit broke at THIRTEEN characters and the default
     // wordmark is eleven.
     expect(barCss()).toMatch(/\.notch\s*\{[\s\S]*?flex-wrap: nowrap/)
-    // Since the 2027 logo (2026-11-15) the CMS name is the picture's `alt`, so the bar's width
-    // no longer follows the name: the picture has a fixed box, and the link never shrinks it.
-    // (Until then the name ended in an ellipsis, with `min-width: 0` so it could shrink.)
-    expect(barCss()).toMatch(/\.notch__logo\s*\{[^}]*width: 81px;[^}]*height: 28px/)
-    expect(barCss()).toMatch(/\.notch__wordmark\s*\{[^}]*flex-shrink: 0/)
+    expect(barCss()).toMatch(/\.notch__wordmark\s*\{[^}]*text-overflow: ellipsis/)
+    // min-width: 0 is required or the flex item refuses to shrink and overflows instead
+    expect(barCss()).toMatch(/\.notch__wordmark\s*\{[^}]*min-width: 0/)
   })
 
   it('keeps the card placeholder on --bg, where its label has the most margin', () => {

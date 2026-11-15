@@ -2,7 +2,6 @@ import {
   closeMenuOnLeave,
   holdPageWhileOpen,
   markMenuClosing,
-  SITE_BAR_LOGO,
   SITE_MENU_ID,
   SITE_MENU_LINKS,
   SITE_MENU_NAME,
@@ -116,18 +115,7 @@ export function Header({ wordmark }: HeaderProps) {
           company; the garment's name and code carry it too (ProductIdentity.tsx).
         */}
         <a className="notch__wordmark" href={SITE_ORIGIN} translate="no">
-          {/* The 2027 logo, as the website's header draws it (SiteHeader.tsx says why the colours
-              and the alt). On wear-run.com this path is the website's own file; this app's
-              public/run-mark.svg is the same bytes, for its own host and its browser tests. */}
-          <img
-            className="notch__logo"
-            src={SITE_BAR_LOGO.src}
-            alt={wordmark}
-            width={SITE_BAR_LOGO.width}
-            height={SITE_BAR_LOGO.height}
-            // Low, as the website's header (SiteHeader.tsx says why): the garment is the picture that matters.
-            fetchPriority="low"
-          />
+          {wordmark}
         </a>
         <nav className="notch__nav" aria-label={SITE_NAV_LABEL}>
           <button type="button" className="notch__menu-btn" popoverTarget={SITE_MENU_ID}>
