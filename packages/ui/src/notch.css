@@ -979,6 +979,11 @@
     .notch__menu:popover-open > :nth-child(4) {
       animation-delay: calc(var(--stagger) * 3);
     }
+
+    /* The website's language link (Russian section, 2026-11-15) makes its menu five rows. */
+    .notch__menu:popover-open > :nth-child(5) {
+      animation-delay: calc(var(--stagger) * 4);
+    }
   }
 
   /* Wide screens: the SAME list, inline — the browser's hide rule undone. */

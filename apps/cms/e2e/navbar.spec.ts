@@ -48,9 +48,11 @@ test.describe('navigation without JavaScript', () => {
        */
       await page.setViewportSize({ width, height: 800 })
       await page.goto(path)
-      const links = page.locator(`${MENU} a`)
-      // Products, Contact and Guides, the phone menu's own (VA-37).
+      // Products, Contact and Guides, the phone menu's own (VA-37), and since the Russian section
+      // (2026-11-15) one language link («Русский» here), counted on its own so the three stay three.
+      const links = page.locator(`${MENU} a:not([hreflang])`)
       await expect(links).toHaveCount(3)
+      await expect(page.locator(`${MENU} a[hreflang]`)).toHaveCount(1)
       // ⚠️ BUG 1, DESIGNED OUT: an author `display` beat the browser's hide rule, so the "closed"
       // menu showed its links. Closed must really be closed.
       await expect(page.locator(OPEN)).toHaveCount(0)
@@ -86,7 +88,8 @@ test.describe('navigation without JavaScript', () => {
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/')
-    const links = page.locator(`${MENU} a`)
+    // The three page links; the language link is the phone menu's, like Guides (LanguageLink.tsx).
+    const links = page.locator(`${MENU} a:not([hreflang])`)
     await expect(links).toHaveCount(3)
     for (let index = 0; index < 2; index++) await expect(links.nth(index)).toBeVisible()
     // Guides belongs to the phone menu only: the wide bar's one-row fit is measured for two.
@@ -179,7 +182,7 @@ test.describe('the open phone menu', () => {
     })
   }
 
-  test('the rows: four, 52px, 15px, one hairline apart, in one column under the name (VA-37, VA-52)', async ({
+  test('the rows: five, 52px, 15px, one hairline apart, in one column under the name (VA-37, VA-52)', async ({
     page,
   }) => {
     /*
@@ -228,15 +231,22 @@ test.describe('the open phone menu', () => {
         }),
       }
     }, MENU)
-    expect(m.rows.map((row) => row.href)).toEqual(['/products', '/contact', '/guides', null])
+    // The fourth row is the page's Russian twin since the Russian section (2026-11-15).
+    expect(m.rows.map((row) => row.href)).toEqual([
+      '/products',
+      '/contact',
+      '/guides',
+      '/ru/products',
+      null,
+    ])
     for (const row of m.rows) {
       expect(row.height, `${row.words}: under 52px`).toBeGreaterThanOrEqual(51.5)
       expect(row.fontSize, `${row.words}: not 15px`).toBe('15px')
       expect(Math.abs(row.start - m.name), `${row.words}: not under the name`).toBeLessThan(1)
     }
-    expect(m.rows.slice(0, 3).map((row) => row.hairline)).toEqual(['1px', '1px', '1px'])
-    expect(m.rows[3]?.hairline, 'a hairline under the last row').toBe('0px')
-    const theSwitch = m.rows[3]
+    expect(m.rows.slice(0, 4).map((row) => row.hairline)).toEqual(['1px', '1px', '1px', '1px'])
+    expect(m.rows[4]?.hairline, 'a hairline under the last row').toBe('0px')
+    const theSwitch = m.rows[4]
     expect(theSwitch?.outline, 'the switch still draws its pill outline').toBe('0px')
     expect(theSwitch?.words, 'the switch does not say what it does').toMatch(/^light mode$/i)
   })

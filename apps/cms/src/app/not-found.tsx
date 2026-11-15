@@ -1,7 +1,5 @@
 import '@run-apparel/ui/archivo.css'
 import '@fontsource/instrument-serif/400-italic.css'
-// The Russian line below (Russian section, 2026-11-15): Cyrillic in the brand faces, fetched only here.
-import '@run-apparel/ui/cyrillic.css'
 // ORDER IS LOAD-BEARING — the same four-import cascade (frontend)/layout.tsx uses.
 import '@run-apparel/ui/tokens.css'
 import '@run-apparel/ui/base.css'
@@ -149,7 +147,10 @@ export default function NotFound() {
               {/*
                 ⚠️ ONE 404 FOR BOTH LANGUAGES (Russian section, 2026-11-15). This root file cannot
                 tell /ru/x from /x (it reads no request), and a route-group 404 does not
-                server-render (the comment at the top), so a Russian visitor gets this line.
+                server-render (the comment at the top), so a Russian visitor gets this line. It is
+                drawn in the device's font: importing cyrillic.css here made every English 404
+                download a Cyrillic face and stopped fontSwap.spec's control from reproducing its
+                jump (CI, PR #398), and the design keeps those faces off English pages.
               */}
               <p className="site-lede" lang="ru">
                 Страница не найдена. Русская версия сайта:{' '}

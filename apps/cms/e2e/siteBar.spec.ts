@@ -12,6 +12,24 @@ import {
  * everywhere. The one I prefer is at wear-run.help"). apps/viewer/e2e/siteBar.spec.ts runs the
  * same checks against the same constants, so a bar that drifts on either host fails on THAT host.
  */
+/**
+ * The site's open phone menu is the garment pages' plus ONE link: the page in Russian, before the
+ * switch (Russian section; owner, 2026-11-15, kept it in the phone menu). The garment pages have no
+ * Russian twin, so the shared template (packages/shared/src/siteBar.ts) leaves it out and this is the
+ * one named difference. The wide and closed bars are the shared template unchanged.
+ */
+function siteBarSnapshot(state: Parameters<typeof siteBarAriaSnapshot>[0], wordmark: string) {
+  const template = siteBarAriaSnapshot(state, wordmark)
+  if (state !== 'phone-open') return template
+  const lines = template.split('\n')
+  const theSwitch = lines.pop() ?? ''
+  return [
+    ...lines,
+    `${theSwitch.slice(0, theSwitch.indexOf('button'))}link "Русский"`,
+    theSwitch,
+  ].join('\n')
+}
+
 test.describe('one menu bar on both hosts — the site', () => {
   test('renders the shared accessibility tree: wide, and on a phone closed and open', async ({
     page,
@@ -20,12 +38,12 @@ test.describe('one menu bar on both hosts — the site', () => {
     await page.goto('/')
     const wordmark = (await page.locator('.notch__logo').getAttribute('alt'))?.trim() ?? ''
     const bar = page.locator('header.notch-shell')
-    await expect(bar).toMatchAriaSnapshot(siteBarAriaSnapshot('wide', wordmark))
+    await expect(bar).toMatchAriaSnapshot(siteBarSnapshot('wide', wordmark))
     await page.setViewportSize({ width: 390, height: 800 })
-    await expect(bar).toMatchAriaSnapshot(siteBarAriaSnapshot('phone-closed', wordmark))
+    await expect(bar).toMatchAriaSnapshot(siteBarSnapshot('phone-closed', wordmark))
     await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
     await expect(page.locator(`#${SITE_MENU_ID}:popover-open`)).toHaveCount(1)
-    await expect(bar).toMatchAriaSnapshot(siteBarAriaSnapshot('phone-open', wordmark))
+    await expect(bar).toMatchAriaSnapshot(siteBarSnapshot('phone-open', wordmark))
   })
 
   for (const scheme of ['light', 'dark'] as const) {

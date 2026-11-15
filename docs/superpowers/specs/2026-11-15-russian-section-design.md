@@ -118,8 +118,10 @@ The companion faces are an owner decision (below).
   `x-default` → English) on both twins; each Russian page's canonical is itself.
 - The sitemap lists both languages with alternates.
 - Organization JSON-LD stays one node; Russian pages declare `inLanguage: "ru"`.
-- A language link in the header and footer: "Русский" on English pages, "English" on Russian pages,
-  pointing at the twin.
+- A language link in the phone menu: "Русский" on English pages, "English" on Russian pages,
+  pointing at the twin. The footer carries «English» on Russian pages only (owner, 2026-11-15, after
+  CI): on English pages a «Русский» there wrapped the bottom row at 768px, shrank the footer's quiet
+  band below its 48px floor and made the footer differ from the garment pages'.
 
 ### Contact form
 

@@ -332,18 +332,23 @@ export function SiteFooter({
               ),
             )}
             {/*
-              The other language (Russian section, 2026-11-15): its HOME, not this page's twin. The
-              footer is the same on every page (owner, 2026-10-17; SiteFooter.test.ts), so it
-              cannot name the page it sits on. The phone menu's link goes to the twin.
+              «English», on RUSSIAN pages only (owner, 2026-11-15, after CI): on English pages a
+              «Русский» here wrapped this row at 768px, the quiet band fell to 24px against its 48px
+              floor (footer.spec.ts, DS-09), and the footer stopped matching the garment pages'
+              (VA-31). English pages offer Russian in the phone menu (LanguageLink.tsx), and Yandex
+              sends Russian searchers to /ru through hreflang. It goes to the English HOME, not this
+              page's twin: the footer is the same on every page (owner, 2026-10-17).
             */}
-            <a
-              className="nav-link"
-              href={chrome.lang === 'ru' ? '/' : '/ru'}
-              hrefLang={chrome.otherLanguage.hrefLang}
-              lang={chrome.otherLanguage.hrefLang}
-            >
-              {chrome.otherLanguage.label}
-            </a>
+            {chrome.lang === 'ru' ? (
+              <a
+                className="nav-link"
+                href="/"
+                hrefLang={chrome.otherLanguage.hrefLang}
+                lang={chrome.otherLanguage.hrefLang}
+              >
+                {chrome.otherLanguage.label}
+              </a>
+            ) : null}
           </div>
         </div>
 

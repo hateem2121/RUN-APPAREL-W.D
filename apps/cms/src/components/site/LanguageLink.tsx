@@ -5,8 +5,9 @@ import { isRussianPath } from '../../lib/i18n/islandWords'
 import { enPathOf, hasRussianTwin, type Locale, ruPath } from '../../lib/locale'
 
 /**
- * The same page in the other language (Russian section, 2026-11-15), in the phone menu and the
- * footer's bottom row: "Русский" on an English page, "English" on a Russian one.
+ * The same page in the other language (Russian section, 2026-11-15), in the phone menu: "Русский" on
+ * an English page, "English" on a Russian one. The footer's «English» (Russian pages only, owner
+ * 2026-11-15) is SiteFooter.tsx's own; the English footer has no language link.
  *
  * ⚠️ A PLAIN `<a>`, NOT `IntentLink`. The two languages have different root layouts
  * (`<html lang>`), so the browser loads the other page whole either way; the router would only
