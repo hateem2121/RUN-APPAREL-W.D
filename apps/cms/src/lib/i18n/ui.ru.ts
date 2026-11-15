@@ -9,7 +9,7 @@ export const UI_RU: Readonly<Record<string, string>> = {
   'Last checked': 'Последняя проверка',
   'Last reviewed': 'Последний пересмотр',
   // The closing block on guides and articles (ArticleParts.tsx)
-  'Tell us what you’re making.': 'Расскажите, что вы шьёте.',
+  'Tell us what you’re making.': 'Расскажите, что вам нужно сшить.',
   'Send the styles, quantities and specs you have. A sketch is enough to start. We reply within 24 hours.':
     'Пришлите модели, количества и ТЗ, какие есть. Для начала достаточно эскиза. Ответим в течение 24 часов.',
   'Start a conversation': 'Начать разговор',
