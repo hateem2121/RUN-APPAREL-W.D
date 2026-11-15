@@ -90,6 +90,50 @@ describe('buildMetadata', () => {
  * modified times and author (Next's generateMetadata docs, 16.4.0, updated 2026-08-19), its own
  * share picture of at least 1200 × 630, and X's large card. Pinterest, LinkedIn and X read these.
  */
+describe('buildMetadata in two languages (Russian section, 2026-11-15)', () => {
+  const ru = buildMetadata({
+    title: 'Контакты',
+    description: 'Описание',
+    path: '/contact',
+    locale: 'ru',
+  })
+  const en = buildMetadata({ title: 'Contact', description: 'About', path: '/contact' })
+
+  it('gives a Russian page its own canonical under /ru and the ru_RU locale', () => {
+    expect(ru.alternates?.canonical).toBe(`${SITE_ORIGIN}/ru/contact`)
+    expect(ru.openGraph && 'locale' in ru.openGraph && ru.openGraph.locale).toBe('ru_RU')
+    expect(ru.openGraph && 'url' in ru.openGraph && ru.openGraph.url).toBe(
+      `${SITE_ORIGIN}/ru/contact`,
+    )
+  })
+
+  it('pairs both twins with hreflang, x-default pointing at English', () => {
+    const pair = {
+      en: `${SITE_ORIGIN}/contact`,
+      ru: `${SITE_ORIGIN}/ru/contact`,
+      'x-default': `${SITE_ORIGIN}/contact`,
+    }
+    expect(ru.alternates?.languages).toEqual(pair)
+    expect(en.alternates?.languages).toEqual(pair)
+  })
+
+  it('leaves the English page otherwise as it was', () => {
+    expect(en.alternates?.canonical).toBe(`${SITE_ORIGIN}/contact`)
+    expect(en.openGraph && 'locale' in en.openGraph && en.openGraph.locale).toBe('en_US')
+  })
+
+  it('the Russian home is /ru, and its English twin the bare origin', () => {
+    const home = buildMetadata({ title: 't', description: 'd', path: '/', locale: 'ru' })
+    expect(home.alternates?.canonical).toBe(`${SITE_ORIGIN}/ru`)
+    expect(home.alternates?.languages).toMatchObject({ en: SITE_ORIGIN, ru: `${SITE_ORIGIN}/ru` })
+  })
+
+  it('declares no pair for a page with no Russian twin', () => {
+    const post = buildMetadata({ title: 't', description: 'd', path: '/journal/a-post' })
+    expect(post.alternates?.languages).toBeUndefined()
+  })
+})
+
 describe('buildArticleMetadata', () => {
   const image = {
     url: 'https://media.wear-run.com/share.jpg',
