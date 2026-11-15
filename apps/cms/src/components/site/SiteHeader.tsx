@@ -87,9 +87,9 @@ export function SiteHeader({
             <span className="visually-hidden">{chrome.menuName}</span>
           </button>
           <div className="notch__menu" id={SITE_MENU_ID} popover="auto">
-            <NavLinks navLinks={chrome.navLinks} menuLinks={chrome.menuLinks} />
-            <LanguageLink lang={chrome.lang} menu />
-            <ThemeSwitch names={chrome.themeNames} words={chrome.themeWords} />
+            <NavLinks />
+            <LanguageLink menu />
+            <ThemeSwitch />
           </div>
         </nav>
       </div>

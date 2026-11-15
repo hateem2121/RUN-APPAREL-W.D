@@ -14,7 +14,6 @@ import { formatAddress } from '../../lib/structuredData'
 import { CHROME, type ChromeWords } from '../../lib/i18n/chrome'
 import { ruFooter } from '../../lib/i18n/footerRu'
 import { ConsentLink } from './ConsentLink'
-import { LanguageLink } from './LanguageLink'
 import { FooterClock } from './FooterClock'
 import { FooterGlow } from './FooterGlow'
 import { FooterInView } from './FooterInView'
@@ -332,8 +331,19 @@ export function SiteFooter({
                 </Link>
               ),
             )}
-            {/* The same page in the other language (Russian section, 2026-11-15). */}
-            <LanguageLink lang={chrome.lang} />
+            {/*
+              The other language (Russian section, 2026-11-15): its HOME, not this page's twin. The
+              footer is the same on every page (owner, 2026-10-17; SiteFooter.test.ts), so it
+              cannot name the page it sits on. The phone menu's link goes to the twin.
+            */}
+            <a
+              className="nav-link"
+              href={chrome.lang === 'ru' ? '/' : '/ru'}
+              hrefLang={chrome.otherLanguage.hrefLang}
+              lang={chrome.otherLanguage.hrefLang}
+            >
+              {chrome.otherLanguage.label}
+            </a>
           </div>
         </div>
 

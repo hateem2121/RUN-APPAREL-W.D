@@ -8,6 +8,7 @@ import {
   SITE_MENU_LINKS,
   SITE_NAV_LINKS,
 } from '@run-apparel/shared'
+import { isRussianPath, RU_MENU_LINKS, RU_NAV_LINKS } from '../../lib/i18n/islandWords'
 import { IntentLink as Link } from './IntentLink'
 import { LinkPending } from './LinkPending'
 import { usePathname } from 'next/navigation'
@@ -33,15 +34,12 @@ import { useEffect } from 'react'
  * WHY NOT MIDDLEWARE, the other server-side route to a pathname: it would run on every
  * request to this Worker, including `/admin` and `/api/*`, to decorate two links.
  */
-export function NavLinks({
-  navLinks = SITE_NAV_LINKS,
-  menuLinks = SITE_MENU_LINKS,
-}: {
-  /** The Russian section passes its /ru links (lib/i18n/chrome.ts); English keeps the shared ones. */
-  navLinks?: readonly { readonly href: string; readonly label: string }[]
-  menuLinks?: readonly { readonly href: string; readonly label: string }[]
-} = {}) {
+export function NavLinks() {
   const pathname = usePathname()
+  // The Russian section's links (2026-11-15), chosen by the page's own address: no props here.
+  const [navLinks, menuLinks] = isRussianPath(pathname)
+    ? [RU_NAV_LINKS, RU_MENU_LINKS]
+    : [SITE_NAV_LINKS, SITE_MENU_LINKS]
 
   /*
    * ⚠️ A NEXT LINK DOES NOT CLOSE THE MENU. The header lives in the layout, which Next keeps

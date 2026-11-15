@@ -2,6 +2,8 @@
 
 import { THEME_SWITCH_NAMES, THEME_SWITCH_WORDS } from '@run-apparel/shared'
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { isRussianPath, RU_THEME_NAMES, RU_THEME_WORDS } from '../../lib/i18n/islandWords'
 import { THEME_STORAGE_KEY } from '../../lib/themeBoot'
 import { PHONE_QUERY, THEME_COLOR } from '../../lib/themeColor'
 
@@ -85,14 +87,11 @@ function setTheme(theme: Theme) {
  * ⚠️ IT WRITES STORAGE ONLY WHEN PRESSED. A plain visit leaves nothing on the device
  * (e2e/headers.spec.ts); lib/themeBoot.ts only reads.
  */
-export function ThemeSwitch({
-  names = THEME_SWITCH_NAMES,
-  words = THEME_SWITCH_WORDS,
-}: {
-  /** The Russian section passes its own (lib/i18n/chrome.ts); English keeps the shared words. */
-  names?: { readonly toDark: string; readonly toLight: string }
-  words?: { readonly toDark: string; readonly toLight: string }
-} = {}) {
+export function ThemeSwitch() {
+  // The Russian section's words (2026-11-15), chosen by the page's own address: no props here.
+  const russian = isRussianPath(usePathname())
+  const names = russian ? RU_THEME_NAMES : THEME_SWITCH_NAMES
+  const words = russian ? RU_THEME_WORDS : THEME_SWITCH_WORDS
   const [title, setTitle] = useState<string | undefined>(undefined)
 
   useEffect(() => {

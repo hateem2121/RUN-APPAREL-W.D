@@ -545,7 +545,11 @@ describe('the notch', () => {
     //
     // The header renders one field. Anything wider than a string re-opens the leak.
     const header = code(CMS_ROOT, 'src', 'components', 'site', 'SiteHeader.tsx')
-    expect(header).toMatch(/export function SiteHeader\(\{\s*wordmark\s*\}: \{\s*wordmark: string/)
+    // One string field, plus (Russian section, 2026-11-15) the static chrome words. SiteHeader is a
+    // SERVER component, so neither is serialised; the leak this guards is `settings`, below.
+    expect(header).toMatch(
+      /export function SiteHeader\(\{\s*wordmark,\s*chrome = CHROME\.en,\s*\}: \{\s*wordmark: string\s*(?:\/\*\*[^*]*\*\/\s*)?chrome\?: ChromeWords\s*\}/,
+    )
     expect(header).not.toMatch(/settings/)
   })
 
@@ -711,7 +715,10 @@ describe('the notch', () => {
     const headerFiles =
       code(CMS_ROOT, 'src', 'components', 'site', 'SiteHeader.tsx') +
       code(CMS_ROOT, 'src', 'components', 'site', 'NavLinks.tsx')
-    expect(headerFiles).toMatch(/SITE_NAV_LINKS\.map/)
+    // Since the Russian section (2026-11-15) NavLinks picks the list by language; English is still
+    // the shared list itself, and the Russian one is built from it (lib/i18n/islandWords.ts).
+    expect(headerFiles).toMatch(/navLinks\.map/)
+    expect(headerFiles).toMatch(/: \[SITE_NAV_LINKS, SITE_MENU_LINKS\]/)
     expect(headerFiles, 'a literal nav path in the header is a second copy').not.toMatch(
       /['"]\/(products|contact)['"]/,
     )

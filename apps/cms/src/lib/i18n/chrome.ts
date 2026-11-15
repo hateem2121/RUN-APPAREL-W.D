@@ -14,6 +14,7 @@ import {
   THEME_SWITCH_WORDS,
 } from '@run-apparel/shared'
 import { type Locale, ruPath } from '../locale'
+import { RU_MENU_LINKS, RU_NAV_LINKS, RU_THEME_NAMES, RU_THEME_WORDS } from './islandWords'
 
 /**
  * THE WEBSITE'S OWN WORDS AROUND EVERY PAGE, IN BOTH LANGUAGES (Russian section, 2026-11-15).
@@ -134,10 +135,11 @@ const RU: ChromeWords = {
   skipLink: 'Перейти к содержанию',
   navLabel: 'Основное меню',
   menuName: 'Меню',
-  navLinks: SITE_NAV_LINKS.map(ruLink),
-  menuLinks: SITE_MENU_LINKS.map(ruLink),
-  themeNames: { toDark: 'Включить тёмную тему', toLight: 'Включить светлую тему' },
-  themeWords: { toDark: 'Тёмная тема', toLight: 'Светлая тема' },
+  // The menu and theme words live with the client islands that draw them (islandWords.ts).
+  navLinks: RU_NAV_LINKS,
+  menuLinks: RU_MENU_LINKS,
+  themeNames: RU_THEME_NAMES,
+  themeWords: RU_THEME_WORDS,
   footer: {
     eyebrow: 'С чего начать',
     contact: 'Контакты',

@@ -1,6 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { isRussianPath } from '../../lib/i18n/islandWords'
 import { enPathOf, hasRussianTwin, type Locale, ruPath } from '../../lib/locale'
 
 /**
@@ -28,8 +29,10 @@ export function twinOf(pathname: string, lang: Locale): string {
   return hasRussianTwin(pathname) ? ruPath(pathname) : ruPath('/')
 }
 
-export function LanguageLink({ lang, menu = false }: { lang: Locale; menu?: boolean }) {
+export function LanguageLink({ menu = false }: { menu?: boolean }) {
   const pathname = usePathname() || '/'
+  // The page's own language, from its address, like NavLinks: nothing to serialise but a flag.
+  const lang: Locale = isRussianPath(pathname) ? 'ru' : 'en'
   const other: Locale = lang === 'ru' ? 'en' : 'ru'
   return (
     <a

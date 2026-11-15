@@ -3,6 +3,8 @@ import {
   SITE_FOOTER_LINKS,
   SITE_FOOTER_MADE,
   SITE_FOOTER_WORDS,
+  SITE_MENU_NAME,
+  SITE_NAV_LABEL,
   SITE_NAV_LINKS,
 } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
@@ -18,6 +20,8 @@ describe('the chrome words in two languages (Russian section, 2026-11-15)', () =
     expect(CHROME.en.made).toBe(SITE_FOOTER_MADE)
     expect(CHROME.en.consent).toBe(CONSENT_COPY)
     expect(CHROME.en.skipLink).toBe('Skip to main content')
+    expect(CHROME.en.navLabel).toBe(SITE_NAV_LABEL)
+    expect(CHROME.en.menuName).toBe(SITE_MENU_NAME)
   })
 
   it('Russian has every key English has, in every group', () => {
