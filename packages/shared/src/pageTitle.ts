@@ -40,7 +40,7 @@ export interface GarmentTitleParts {
   /**
    * The page shows the garment's MAIN colour, the one the sitemap lists (`isDefault`). Only that
    * page drops the colour of a title too long (owner, 2026-11-15); the others keep it, so no two
-   * colour pages share one title.
+   * colour pages share one title, and drop the type instead when they must (15 Nov, evening).
    */
   isDefaultColour?: boolean
 }
@@ -81,7 +81,21 @@ export function garmentPageTitle(parts: GarmentTitleParts): string {
     const plain = coreWith('')
     return fits(branded(plain)) ? branded(plain) : plain
   }
-  // Every other colour: lose the brand (it is beside every result anyway) rather than let the
-  // cut fall on the garment type; the colour keeps this page's title its own.
+  // Every other colour: lose the brand (it is beside every result anyway); the colour keeps this
+  // page's title its own.
+  if (fits(core)) return core
+  /*
+   * Still too long: lose the TYPE and keep the colour (owner, 15 Nov 2026 evening). Measured as
+   * Googlebot that evening, 77 of the 168 colour pages outside the sitemap were over 60 even
+   * without the brand, up to 86. Losing the colour instead would have given those pages their
+   * main colour's title (24 distinct titles for 77 pages) and failed AC-11 (a11y.spec.ts: every
+   * colour page has a title of its own, WCAG 2.4.2), so the owner chose this: all 77 then fit,
+   * at 54 characters at most, every title still its own. The main colour's page keeps the type,
+   * so a searcher matching on the type still finds the garment.
+   */
+  if (type && colour && !nameAlreadySays(name, type)) {
+    const named = `${name} — ${colour}`
+    return fits(branded(named)) ? branded(named) : named
+  }
   return core
 }
