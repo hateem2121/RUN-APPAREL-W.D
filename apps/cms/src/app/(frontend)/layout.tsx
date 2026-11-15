@@ -125,7 +125,11 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: {
       icon: settings.logoUrl
         ? [{ url: settings.logoUrl, type: settings.logoMimeType ?? undefined }]
-        : [{ url: DEFAULT_ICON, type: 'image/svg+xml' }],
+        : [
+            { url: DEFAULT_ICON, type: 'image/svg+xml' },
+            // Google Search reads no SVG and asks for a favicon over 48px (2026-11-15).
+            { url: '/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
+          ],
       /*
        * ⚠️ DECLARED, BECAUSE UNLIKE /favicon.ico THIS ONE IS NOT REQUESTED BY CONVENTION.
        * iOS reads a real file when someone adds the site to their home screen, and it

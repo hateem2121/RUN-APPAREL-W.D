@@ -30,9 +30,9 @@
  *
  * ⚠️ DO NOT PASS A `density` TO sharp (IM-09, 2026-09-24). This script used to render
  * at `density: 384` to get a clean raster from the OLD placeholder's tiny 32-unit
- * viewBox. The real mark's viewBox is 8671 units (`apps/cms/public/icon.svg`), and
- * sharp scales an SVG by density/72 — 384/72 * 8671 asks for a 46,245 pixel wide
- * raster and sharp refuses outright with "Input image exceeds pixel limit". The
+ * viewBox. The mark of that day had an 8671-unit viewBox (the 2027 mark of 2026-11-15
+ * has 1024), and sharp scales an SVG by density/72 — 384/72 * 8671 asked for a 46,245
+ * pixel wide raster and sharp refused outright with "Input image exceeds pixel limit". The
  * default renders it at its natural size, which downsamples cleanly; `gen-icons.mjs`
  * carries the same rule for the identical reason.
  */
@@ -87,16 +87,22 @@ async function main() {
   // case). The SVG output below keeps the query: it is what a modern browser
   // actually reads.
   const rasterSvg = svg.replace(/@media[^{]*\{[\s\S]*?\}\s*\}/, '')
+  // The home-screen icon takes the DARK picture: its rules unwrapped so they follow and win, because
+  // iOS fills a transparent touch icon with black (2026-11-15; gen-icons.mjs, `darkOf`).
+  const darkSvg = svg.replace(/@media[^{]*\{([\s\S]*?\})\s*\}/, '$1')
   mkdirSync(PUBLIC_DIR, { recursive: true })
 
   const targets = [
     { name: 'favicon.ico', build: async () => icoFromPng(await render(32)) },
     { name: 'favicon.svg', build: async () => Buffer.from(svg, 'utf8') },
-    { name: 'apple-touch-icon.png', build: () => render(180) },
+    { name: 'apple-touch-icon.png', build: () => render(180, darkSvg) },
+    // Google Search reads no SVG favicon and asks for one larger than 48px ("Define a favicon to
+    // show in search results", updated 2026-10-27), so it gets a 96px PNG (2026-11-15).
+    { name: 'favicon-96x96.png', build: () => render(96) },
   ]
 
-  async function render(size) {
-    return sharp(Buffer.from(rasterSvg, 'utf8'))
+  async function render(size, picture = rasterSvg) {
+    return sharp(Buffer.from(picture, 'utf8'))
       .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png({ compressionLevel: 9 })
       .toBuffer()

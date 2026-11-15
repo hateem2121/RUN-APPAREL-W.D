@@ -1,6 +1,6 @@
 import { expect, type Page, test } from '@playwright/test'
 import {
-  SITE_BAR_WORDMARK,
+  SITE_BAR_LOGO,
   SITE_MENU_ID,
   SITE_MENU_NAME,
   siteBarAriaSnapshot,
@@ -31,7 +31,7 @@ test.describe('one menu bar on both hosts — the viewer', () => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/n001/wine')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    const wordmark = (await page.locator('.notch__wordmark').innerText()).trim()
+    const wordmark = (await page.locator('.notch__logo').getAttribute('alt'))?.trim() ?? ''
     const bar = page.locator('header.notch-shell')
     await expect(bar).toMatchAriaSnapshot(siteBarAriaSnapshot('wide', wordmark))
     await page.setViewportSize({ width: 390, height: 800 })
@@ -42,7 +42,7 @@ test.describe('one menu bar on both hosts — the viewer', () => {
   })
 
   for (const scheme of ['light', 'dark'] as const) {
-    test(`${scheme}: sets the name exactly as the contract says (TY-08, XS-01)`, async ({
+    test(`${scheme}: draws the logo exactly as the contract says (owner, 2026-11-15)`, async ({
       page,
     }) => {
       await page.goto('/n001/wine')
@@ -50,28 +50,28 @@ test.describe('one menu bar on both hosts — the viewer', () => {
       await page.emulateMedia({ colorScheme: scheme })
       await page.goto('/n001/wine')
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-      await page.evaluate(() => document.fonts.ready.then(() => true))
-      const m = await page.locator('.notch__wordmark').evaluate((element) => {
-        const style = getComputedStyle(element)
-        const bar = element.closest('.notch')
+      const logo = page.locator('.notch__logo')
+      /*
+       * LOADED, not just present: an <img> whose file is missing still has its box, because
+       * width and height are set, so only naturalWidth tells a drawn logo from a blank plate.
+       * Waits for the load, since the picture is fetched after the markup arrives.
+       */
+      await expect
+        .poll(() => logo.evaluate((img) => (img as HTMLImageElement).naturalWidth))
+        .toBeGreaterThan(0)
+      const m = await logo.evaluate((img) => {
+        const box = img.getBoundingClientRect()
         return {
-          family: style.fontFamily,
-          fontWeight: style.fontWeight,
-          fontStretch: style.fontStretch,
-          fontSize: style.fontSize,
-          letterSpacing: style.letterSpacing,
-          colour: style.color,
-          barColour: bar ? getComputedStyle(bar).color : '',
+          path: new URL((img as HTMLImageElement).src).pathname,
+          width: Math.round(box.width),
+          height: Math.round(box.height),
         }
       })
-      expect({
-        fontWeight: m.fontWeight,
-        fontStretch: m.fontStretch,
-        fontSize: m.fontSize,
-        letterSpacing: m.letterSpacing,
-      }).toEqual(SITE_BAR_WORDMARK)
-      expect(m.family).toMatch(/^"?Archivo Variable"?/)
-      expect(m.colour, "the name is not in the bar's own text colour").toBe(m.barColour)
+      expect(m).toEqual({
+        path: SITE_BAR_LOGO.src,
+        width: SITE_BAR_LOGO.width,
+        height: SITE_BAR_LOGO.height,
+      })
     })
   }
 })

@@ -279,10 +279,11 @@ describe('the owner can replace the tab icon from the CMS', () => {
       expect(body.endsWith('-'), 'an XML comment body may not end with a hyphen').toBe(false)
     }
     /*
-     * The other half of the same fix. The ground is transparent by the owner's choice, so
-     * one fixed colour disappears against one of the two tab strips — the mark has to
-     * follow the theme. Verified in Chromium 2026-09-16: rgb(29,31,26) on light and
-     * rgb(205,243,69) on dark.
+     * The other half of the same fix. The ground is transparent by the owner's choice (2026-09-16,
+     * and again for the 2027 logo on 2026-11-15: a background "does not look good"), so one
+     * fixed colour disappears against one of the two tab strips — the mark has to follow the
+     * theme. Verified in Chromium 2026-09-16: rgb(29,31,26) on light and rgb(205,243,69) on dark.
+     * The 2027 mark keeps both: ink letters on light, volt letters on dark (the owner's option 3).
      */
     expect(svg).toMatch(/@media \(prefers-color-scheme: dark\)/)
     expect(svg).toContain('#1d1f1a')
@@ -675,9 +676,11 @@ describe('the notch', () => {
     // failing. Measured at 320px: the fit broke at THIRTEEN characters and the default
     // wordmark is eleven.
     expect(barCss()).toMatch(/\.notch\s*\{[\s\S]*?flex-wrap: nowrap/)
-    expect(barCss()).toMatch(/\.notch__wordmark\s*\{[^}]*text-overflow: ellipsis/)
-    // min-width: 0 is required or the flex item refuses to shrink and overflows instead
-    expect(barCss()).toMatch(/\.notch__wordmark\s*\{[^}]*min-width: 0/)
+    // Since the 2027 logo (2026-11-15) the CMS name is the picture's `alt`, so the bar's width
+    // no longer follows the name: the picture has a fixed box, and the link never shrinks it.
+    // (Until then the name ended in an ellipsis, with `min-width: 0` so it could shrink.)
+    expect(barCss()).toMatch(/\.notch__logo\s*\{[^}]*width: 81px;[^}]*height: 28px/)
+    expect(barCss()).toMatch(/\.notch__wordmark\s*\{[^}]*flex-shrink: 0/)
   })
 
   it('keeps the card placeholder on --bg, where its label has the most margin', () => {
