@@ -74,10 +74,25 @@ describe('garmentPageTitle', () => {
     const main = garmentPageTitle({ ...aggressor, isDefaultColour: true })
     expect(main).toBe("THE AGGRESSOR JERSEY MEN — Men's American Football Jersey")
     expect(main.length).toBeLessThanOrEqual(PAGE_TITLE_MAX)
-    // Another colour's page keeps its colour, as before, so the two titles differ.
-    expect(garmentPageTitle(aggressor)).toBe(
-      "THE AGGRESSOR JERSEY MEN — Men's American Football Jersey, Grass Court / Croquet Mint",
-    )
+    // Another colour's page keeps its colour, so the two titles differ. Over 60 even without the
+    // brand (84 here), it loses the TYPE instead (owner, 15 Nov evening): AC-11 needs every colour
+    // page's title to be its own, which losing the colour would break.
+    const other = garmentPageTitle(aggressor)
+    expect(other).toBe('THE AGGRESSOR JERSEY MEN — Grass Court / Croquet Mint')
+    expect(other.length).toBeLessThanOrEqual(PAGE_TITLE_MAX)
+    expect(other).not.toBe(main)
+    // Without the type the brand fits again, so it comes back (66 with the type, no brand).
+    expect(
+      garmentPageTitle({
+        ...aggressor,
+        productName: 'THE AGGRESSOR JERSEY',
+        colour: 'Rally Coral',
+      }),
+    ).toBe('THE AGGRESSOR JERSEY — Rally Coral | RUN APPAREL')
+    // A colour page whose title fits without the brand keeps its type, as before.
+    expect(
+      garmentPageTitle({ ...aggressor, productName: 'THE AGGRESSOR', colour: 'Rally Coral' }),
+    ).toBe("THE AGGRESSOR — Men's American Football Jersey, Rally Coral")
     // Without its colour the brand fits again: kept, exactly at 60.
     const beeflex = garmentPageTitle({
       ...base,
