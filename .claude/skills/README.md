@@ -75,23 +75,23 @@ the keystroke point 4 is about.
 |---|---|---|
 | `performance-optimization` | `addyosmani/agent-skills` @ `301b02b12bff` | MIT |
 | `observability-and-instrumentation` | `addyosmani/agent-skills` @ `a06bc63b3f8b` | MIT |
-| `emil-design-eng` | `emilkowalski/skills` @ `f1090bec2771` | MIT |
-| `review-animations` | `emilkowalski/skills` @ `f1090bec2771` | MIT |
+| `emil-design-eng` | `emilkowalski/skills` @ `64eb3deb9a5f` | MIT |
+| `review-animations` | `emilkowalski/skills` @ `64eb3deb9a5f` | MIT |
 | `vercel-react-best-practices` | `vercel-labs/agent-skills` @ `b8caa260a420` | MIT |
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` @ `b8caa260a420` | MIT |
 | `vercel-react-view-transitions` | `vercel-labs/agent-skills` @ `1a2c79d4e6c4` | MIT |
 | `web-design-guidelines` | `vercel-labs/agent-skills` @ `b8caa260a420` | **unstated** — local only since 2026-09-10 |
 | `writing-guidelines` | `vercel-labs/agent-skills` @ `b8caa260a420` | **unstated** — local only since 2026-09-10 |
 | `motion` | `motiondivision/ai-kit` @ `1140efe9ad5e` | **unstated** — local only since 2026-09-10 |
-| `seo-audit` | `coreyhaines31/marketingskills` @ `e85f3cbc2e4a` | MIT |
-| `ai-seo` | `coreyhaines31/marketingskills` @ `88c79f6528a9` | MIT |
-| `schema` | `coreyhaines31/marketingskills` @ `1efedbc5148b` | MIT |
-| `site-architecture` | `coreyhaines31/marketingskills` @ `1efedbc5148b` | MIT |
-| `programmatic-seo` | `coreyhaines31/marketingskills` @ `88c79f6528a9` | MIT |
-| `content-strategy` | `coreyhaines31/marketingskills` @ `88c79f6528a9` | MIT |
-| `copywriting` | `coreyhaines31/marketingskills` @ `88c79f6528a9` | MIT |
-| `copy-editing` | `coreyhaines31/marketingskills` @ `88c79f6528a9` | MIT |
-| `cro` | `coreyhaines31/marketingskills` @ `1efedbc5148b` | MIT |
+| `seo-audit` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
+| `ai-seo` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
+| `schema` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
+| `site-architecture` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
+| `programmatic-seo` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
+| `content-strategy` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
+| `copywriting` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
+| `copy-editing` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
+| `cro` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
 
 ⚠️ **THE THREE "UNSTATED" ROWS ARE NOT IN THE PUBLIC REPOSITORY — since 2026-09-10.**
 The repository went public on 2026-09-09, and a file with no licence carries no
