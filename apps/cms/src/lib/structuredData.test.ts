@@ -59,6 +59,26 @@ describe('organisation', () => {
     expect(contactPageJsonLd(settings()).mainEntity['@id']).toBe(org['@id'])
   })
 
+  /*
+   * 2026-11-16 (owner): the Health Audit's rule gives 2 points for local-business data on the
+   * home page, and the site had none. Google's LocalBusiness guide (read 2026-11-16) requires
+   * only `name` and `address`, says LocalBusiness is a subtype of Organization, and takes several
+   * types as an array, so the ONE company node carries both rather than a second node declaring
+   * a second company. Organization stays first and present, which the logo and the @id links rely on.
+   */
+  it('is one node that is both the Organization and a LocalBusiness with a street address', () => {
+    const org = organizationJsonLd(settings())
+    expect(org['@type']).toEqual(['Organization', 'LocalBusiness'])
+    expect(org.name).toBe(SITE_NAME)
+    expect(org.address).toEqual({
+      '@type': 'PostalAddress',
+      streetAddress: POSTAL_ADDRESS.street,
+      addressLocality: POSTAL_ADDRESS.locality,
+      postalCode: POSTAL_ADDRESS.postalCode,
+      addressCountry: POSTAL_ADDRESS.country,
+    })
+  })
+
   // Polish X14: the old picture showed the address of before the domain move.
   it('pictures the company with the home page’s share card, not the old one', () => {
     expect(organizationJsonLd(settings()).image).toBe(`${SITE_ORIGIN}/share/home.jpg?v=2`)
