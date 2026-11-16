@@ -14,6 +14,7 @@ import {
   type ViewerApiSuccess,
 } from '@run-apparel/shared'
 import type { OgCard } from './og-cards'
+import { PREVIEW_RU } from './preview.ru'
 import { richTextParagraphs } from './richText'
 
 /**
@@ -188,21 +189,21 @@ function buildDescription(payload: ViewerApiSuccess, lang: Locale = 'en'): strin
   const tail = p.modelComingSoon
     ? count > 1
       ? ru
-        ? `Расцветок: ${count}. 3D-просмотр скоро появится.`
+        ? PREVIEW_RU.colourwaysComingSoon(count)
         : `See all ${count} colorways. 3D view coming soon.`
       : ru
-        ? '3D-просмотр скоро появится.'
+        ? PREVIEW_RU.comingSoon
         : '3D view coming soon.'
     : count > 1
       ? ru
-        ? `Все расцветки (${count}) в\u00a03D.`
+        ? PREVIEW_RU.allColourwaysIn3d(count)
         : `See all ${count} colorways in 3D.`
       : ru
-        ? 'Поверните и рассмотрите образец в\u00a03D.'
+        ? PREVIEW_RU.rotateIn3d
         : 'Rotate and zoom this reference in 3D.'
   // "Shown in Wine." rather than prefixing the specs: the specs are what a trade
   // buyer scans for, and pushing them behind the colour buries the useful half.
-  const shown = colour ? (ru ? `Расцветка: ${colour}.` : `Shown in ${colour}.`) : ''
+  const shown = colour ? (ru ? PREVIEW_RU.shownIn(colour) : `Shown in ${colour}.`) : ''
   // The product code leads (2026-10-25): it left the card's title, and it is what is printed
   // on the tag and quoted back in an email. Unless the title already carries it, which is
   // the case for a garment with no garment type yet.
@@ -386,7 +387,9 @@ function buildCrawlerBody(
   if (label) parts.push(`<p>${esc(label)}</p>`)
   parts.push(`<h1>${esc(p.productName.trim())}</h1>`)
   const colour = selected.displayName.trim()
-  if (colour) parts.push(`<p>${ru ? 'Расцветка' : 'Shown in'}${ru ? ':' : ''} ${esc(colour)}.</p>`)
+  if (colour) {
+    parts.push(`<p>${ru ? PREVIEW_RU.shownIn(esc(colour)) : `Shown in ${esc(colour)}.`}</p>`)
+  }
 
   if (image) {
     const size =
@@ -398,13 +401,10 @@ function buildCrawlerBody(
   if (description) parts.push(`<p>${esc(description)}</p>`)
 
   const specs: Array<[string, string]> = [
-    [ru ? 'Состав ткани' : 'Fabric composition', p.fabricComposition.trim()],
-    [ru ? 'Плотность' : 'Weight', p.gsm.trim()],
-    [ru ? 'Посадка' : 'Fit', p.garmentFit.trim()],
-    [
-      ru ? 'Функциональные свойства' : 'Performance features',
-      p.performanceFeatures.join(', ').trim(),
-    ],
+    [ru ? PREVIEW_RU.fabricComposition : 'Fabric composition', p.fabricComposition.trim()],
+    [ru ? PREVIEW_RU.weight : 'Weight', p.gsm.trim()],
+    [ru ? PREVIEW_RU.fit : 'Fit', p.garmentFit.trim()],
+    [ru ? PREVIEW_RU.performance : 'Performance features', p.performanceFeatures.join(', ').trim()],
   ]
   const rows = specs
     .filter(([, value]) => value)
@@ -420,7 +420,7 @@ function buildCrawlerBody(
         `<li><a href="${esc(`${origin}${buildViewerPath(p.slug, c.slug, prefix)}`)}">${esc(c.displayName.trim())}</a></li>`,
     )
   if (colours.length > 1) {
-    parts.push(`<h2>${ru ? 'Расцветки' : 'Colorways'}</h2><ul>${colours.join('')}</ul>`)
+    parts.push(`<h2>${ru ? PREVIEW_RU.colourways : 'Colorways'}</h2><ul>${colours.join('')}</ul>`)
   }
 
   // The garment's own customization section (CustomisationSection.tsx), owner 2026-10-26 (site
@@ -437,7 +437,7 @@ function buildCrawlerBody(
     .map((step) => ({ number: step.number, title: step.title.trim(), body: step.body.trim() }))
     .filter((step) => step.title || step.body)
   if (intro.length > 0 || steps.length > 0) {
-    parts.push(ru ? '<h2>От идеи до производства.</h2>' : '<h2>From idea to production.</h2>')
+    parts.push(`<h2>${ru ? PREVIEW_RU.fromIdea : 'From idea to production.'}</h2>`)
     for (const paragraph of intro) parts.push(`<p>${esc(paragraph)}</p>`)
     if (steps.length > 0) {
       const items = steps.map((step) => {
@@ -467,27 +467,25 @@ function buildCrawlerBody(
         `<li><a href="${esc(`${origin}${buildViewerPath(garment.slug, garment.colourSlug, ru ? RU_GARMENT_PATH_PREFIX : GARMENT_PATH_PREFIX)}`)}">${esc(garment.productName.trim())}</a></li>`,
     )
     const list = cards.length > 0 ? `<ul>${cards.join('')}</ul>` : ''
-    const seeAll = ru
-      ? `Все модели категории «${familyName(category)}» в\u00a03D`
-      : seeAllInCategoryLabel(category)
+    const seeAll = ru ? PREVIEW_RU.seeAllIn(familyName(category)) : seeAllInCategoryLabel(category)
     const all = `<a href="${esc(site(categoryPath(category)))}">${esc(seeAll)}</a>`
     // The product line's own page keeps its English label: its Russian twin carries its own title.
     const own = line ? ` · <a href="${esc(site(line.path))}">${esc(line.label)}</a>` : ''
-    const heading = ru ? `Ещё: ${familyName(category)} в\u00a03D.` : `More ${category} in 3D.`
+    const heading = ru ? PREVIEW_RU.moreIn(familyName(category)) : `More ${category} in 3D.`
     parts.push(`<h2>${esc(heading)}</h2>${list}<p>${all}${own}</p>`)
   }
 
   // The website's own pages, only where they exist: the old viewer host just forwards.
   if (onSite) {
     const links = [
-      `<a href="${esc(site(GARMENT_PATH_PREFIX))}">${ru ? 'Вся продукция' : 'All products'}</a>`,
+      `<a href="${esc(site(GARMENT_PATH_PREFIX))}">${ru ? PREVIEW_RU.allProducts : 'All products'}</a>`,
     ]
     if (category) {
       links.push(`<a href="${esc(site(categoryPath(category)))}">${esc(familyName(category))}</a>`)
     }
     const company = payload.siteSettings.companyName.trim() || 'RUN APPAREL'
     links.push(
-      `<a href="${esc(site('/contact'))}">${ru ? 'Связаться с' : 'Contact'} ${esc(company)}</a>`,
+      `<a href="${esc(site('/contact'))}">${ru ? PREVIEW_RU.contact(esc(company)) : `Contact ${esc(company)}`}</a>`,
     )
     parts.push(`<p>${links.join(' · ')}</p>`)
   }
@@ -514,8 +512,8 @@ function buildBreadcrumbJsonLd(
   const ru = context.lang === 'ru'
   const site = (enPath: string) => `${context.origin}${ru ? ruPath(enPath) : enPath}`
   const steps: Array<[string, string]> = [
-    [ru ? 'Главная' : 'Home', ru ? site('/') : `${context.origin}/`],
-    [ru ? 'Продукция' : 'Products', site(GARMENT_PATH_PREFIX)],
+    [ru ? PREVIEW_RU.home : 'Home', ru ? site('/') : `${context.origin}/`],
+    [ru ? PREVIEW_RU.products : 'Products', site(GARMENT_PATH_PREFIX)],
   ]
   if (category) {
     steps.push([ru ? (FAMILY_RU[category] ?? category) : category, site(categoryPath(category))])

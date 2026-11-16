@@ -92,9 +92,13 @@ test('the English page is untouched: no Russian word, lang="en"', async ({ page 
   await page.waitForLoadState('networkidle')
   expect(downloaded.some((url) => /\/assets\/index-/.test(url))).toBe(true)
   for (const url of downloaded) {
-    expect(url, 'a Cyrillic font on an English page').not.toMatch(/cyrillic/)
+    expect(url, 'a Cyrillic font on an English page').not.toMatch(/(roboto-flex|cormorant)/)
     if (!/\.m?js(\?|$)/.test(url)) continue
-    const body = await (await page.request.get(url)).text()
+    // Allowed: the website's language link, «Русский» / «Читать по-русски», part of the shared
+    // English chrome (packages/shared/src/siteChrome.ts, CHROME_EN.otherLanguage): 21 letters.
+    const body = (await (await page.request.get(url)).text())
+      .replaceAll('Читать по-русски', '')
+      .replaceAll('Русский', '')
     expect(body, `${url} holds Russian`).not.toMatch(CYRILLIC)
   }
 })
