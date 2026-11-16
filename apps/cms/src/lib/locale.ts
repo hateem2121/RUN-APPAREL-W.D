@@ -9,7 +9,7 @@
 
 import { RU_PREFIX } from '@run-apparel/shared'
 
-export { type Locale, RU_PREFIX, ruPath } from '@run-apparel/shared'
+export { type Locale, ruPath } from '@run-apparel/shared'
 
 /** The inverse of `ruPath`. Throws on a path that is not Russian rather than guessing. */
 export function enPathOf(path: string): string {
