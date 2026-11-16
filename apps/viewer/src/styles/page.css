@@ -3596,3 +3596,16 @@ summary.spec-item__row:focus-visible {
   flex-wrap: wrap;
   gap: 10px;
 }
+
+/*
+ * THE LANGUAGE LINK IN THE BAR (2026-11-16, the Russian garment pages): the same rule, width and
+ * reasoning as the website's (apps/cms/src/app/(frontend)/site.css, `.nav-link--language`, fitted
+ * 2026-11-15 in Chromium and Firefox WITH this link, PR #404). The two bars are one design
+ * (notch.css, XS-02), so the width measured there holds here: below it the link waits in the
+ * phone menu (`nav-link--menu`), and the bar keeps its measured one-row fit.
+ */
+@media (width >= 720px) and (width >= calc(208px + 19.75rem)) {
+  .nav-link--language {
+    display: inline-flex;
+  }
+}

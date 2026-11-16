@@ -274,6 +274,20 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
                 </a>
               ),
             )}
+            {/*
+              «English», on Russian pages only, to the English home: the website's Russian footer
+              (SiteFooter.tsx, owner 2026-11-15; the English footer has none, it wrapped at 768px).
+            */}
+            {c.lang === 'ru' ? (
+              <a
+                className="nav-link"
+                href={`${SITE_ORIGIN}/`}
+                hrefLang={c.otherLanguage.hrefLang}
+                lang={c.otherLanguage.hrefLang}
+              >
+                {c.otherLanguage.label}
+              </a>
+            ) : null}
           </div>
         </div>
 

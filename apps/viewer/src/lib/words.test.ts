@@ -3,8 +3,10 @@ import {
   categoryName,
   chrome,
   footerLine,
+  garmentTwinPath,
   garmentTypeName,
   pageLocale,
+  productLineLabel,
   registerRussian,
   russian,
   sitePath,
@@ -103,5 +105,25 @@ describe('the page language follows the address', () => {
     expect(footerLine('A line the owner typed today')).toBe('A line the owner typed today')
     window.history.replaceState({}, '', '/products/rxps/wine')
     expect(footerLine('Reply within 24 hours')).toBe('Reply within 24 hours')
+  })
+})
+
+describe('the same garment in the other language', () => {
+  it('swaps the folder and keeps the garment and colour', () => {
+    expect(garmentTwinPath('/products/rxps/wine')).toBe('/ru/products/rxps/wine')
+    expect(garmentTwinPath('/ru/products/rxps/wine')).toBe('/products/rxps/wine')
+    // The old viewer host's bare address has no folder: its Russian twin is the website's.
+    expect(garmentTwinPath('/rxps/wine')).toBe('/ru/products/rxps/wine')
+  })
+
+  it('names the soccer-ball page in Russian on a Russian page only', () => {
+    window.history.replaceState({}, '', '/ru/products/kaizen/white')
+    expect(productLineLabel('/custom-soccer-ball-manufacturer', 'Custom soccer balls')).toBe(
+      'Футбольные мячи на заказ',
+    )
+    window.history.replaceState({}, '', '/products/kaizen/white')
+    expect(productLineLabel('/custom-soccer-ball-manufacturer', 'Custom soccer balls')).toBe(
+      'Custom soccer balls',
+    )
   })
 })

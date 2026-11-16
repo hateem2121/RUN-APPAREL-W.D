@@ -33,6 +33,20 @@ export const SITE_NAV_LINKS = [
  */
 export const SITE_MENU_LINKS = [{ href: '/guides', label: 'Guides' }] as const
 
+/**
+ * The link to the same page in Russian, on every English page of BOTH hosts: after the bar's
+ * links (and Guides, in the phone menu), before the switch. The website has had it since
+ * 2026-11-15; the garment pages since they got Russian twins (owner, 2026-11-16, PR #408). The
+ * wide bar shows it only where it fits (`.nav-link--language`, site.css and the viewer's
+ * page.css, measured); at the contract suites' 1280px it does. siteChrome.ts uses this as
+ * CHROME_EN.otherLanguage.
+ */
+export const SITE_OTHER_LANGUAGE_EN = {
+  label: 'Русский',
+  hrefLang: 'ru',
+  name: 'Читать по-русски',
+} as const
+
 /** The navigation landmark's name. */
 export const SITE_NAV_LABEL = 'Main'
 
@@ -84,14 +98,15 @@ const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$
 export function siteBarAriaSnapshot(state: SiteBarState, wordmark: string): string {
   const links = SITE_NAV_LINKS.map(({ label }) => `link ${JSON.stringify(label)}`)
   const menuLinks = SITE_MENU_LINKS.map(({ label }) => `link ${JSON.stringify(label)}`)
+  const language = `link ${JSON.stringify(SITE_OTHER_LANGUAGE_EN.label)}`
   const menu = `button ${JSON.stringify(SITE_MENU_NAME)}`
   const theSwitch = `button /^(${escapeRegExp(THEME_SWITCH_NAMES.toDark)}|${escapeRegExp(THEME_SWITCH_NAMES.toLight)})$/`
   const items =
     state === 'wide'
-      ? [...links, theSwitch]
+      ? [...links, language, theSwitch]
       : state === 'phone-closed'
         ? [menu]
-        : [menu, ...links, ...menuLinks, theSwitch]
+        : [menu, ...links, ...menuLinks, language, theSwitch]
   return [
     '- banner:',
     '  - /children: equal',

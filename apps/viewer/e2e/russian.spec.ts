@@ -24,7 +24,9 @@ test('the Russian page speaks Russian around an untranslated garment', async ({ 
 
   // The site's links lead to the Russian site; the bar's links too.
   const hrefs = await page
-    .locator('header a[href^="https://wear-run.com/"], footer a[href^="https://wear-run.com/"]')
+    .locator(
+      'header a[href^="https://wear-run.com/"]:not([hreflang]), footer a[href^="https://wear-run.com/"]:not([hreflang])',
+    )
     .evaluateAll((all) => all.map((a) => new URL(a.getAttribute('href') ?? '').pathname))
   expect(hrefs.length).toBeGreaterThan(5)
   for (const path of hrefs) expect(path, path).toMatch(/^\/ru(\/|$)/)
@@ -87,7 +89,12 @@ test('the English page is untouched: no Russian word, lang="en"', async ({ page 
   await page.goto('/products/n001/wine')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
-  const text = await page.locator('body').innerText()
+  // Every word but the language link, «Русский», which an English page offers on purpose.
+  const text = await page.locator('body').evaluate((body) => {
+    const copy = body.cloneNode(true) as HTMLElement
+    for (const link of copy.querySelectorAll('[hreflang="ru"]')) link.remove()
+    return copy.textContent ?? ''
+  })
   expect(text).not.toMatch(CYRILLIC)
   await page.waitForLoadState('networkidle')
   expect(downloaded.some((url) => /\/assets\/index-/.test(url))).toBe(true)
@@ -125,4 +132,25 @@ test('the specification headings and notes are Russian, the values as the CMS ty
   const notes = await page.locator('.spec-item__note').allTextContents()
   expect(notes.length).toBeGreaterThan(0)
   for (const note of notes) expect(note).toMatch(CYRILLIC)
+})
+
+test('each language offers the same garment in the other, and the Russian footer offers English', async ({
+  page,
+}) => {
+  await page.goto('/products/n001/wine')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  const toRussian = page.locator('header a.nav-link--language')
+  await expect(toRussian).toHaveText('Русский')
+  await expect(toRussian).toHaveAttribute('href', 'https://wear-run.com/ru/products/n001/wine')
+  await expect(page.locator('footer a[hreflang]')).toHaveCount(0)
+
+  await page.goto(RU)
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  const toEnglish = page.locator('header a.nav-link--language')
+  await expect(toEnglish).toHaveText('English')
+  await expect(toEnglish).toHaveAttribute('href', 'https://wear-run.com/products/n001/wine')
+  await expect(page.locator('footer a[hreflang="en"]')).toHaveAttribute(
+    'href',
+    'https://wear-run.com/',
+  )
 })

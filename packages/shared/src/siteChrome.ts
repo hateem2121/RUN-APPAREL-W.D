@@ -4,6 +4,7 @@ import {
   SITE_MENU_NAME,
   SITE_NAV_LABEL,
   SITE_NAV_LINKS,
+  SITE_OTHER_LANGUAGE_EN,
   THEME_SWITCH_NAMES,
   THEME_SWITCH_WORDS,
 } from './siteBar.ts'
@@ -111,5 +112,5 @@ export const CHROME_EN: ChromeWords = {
   loading: 'Loading',
   loadingPage: (title) => `Loading ${title}…`,
   opensAt: (open, day) => `Opens ${day ? `${day} ` : ''}${open} ${SITE_FOOTER_WORDS.clockZone}`,
-  otherLanguage: { label: 'Русский', hrefLang: 'ru', name: 'Читать по-русски' },
+  otherLanguage: SITE_OTHER_LANGUAGE_EN,
 }

@@ -135,6 +135,14 @@ export const CHROME_RU: ChromeWords = {
 export const CHROME: Readonly<Record<Locale, ChromeWords>> = { en: CHROME_EN, ru: CHROME_RU }
 
 /**
+ * A product line page's link label in Russian, keyed by its path (`PRODUCT_LINE_PAGES`,
+ * categoryPages.ts): the Russian twin's own heading (`apps/cms/src/lib/familyPages.ru.ts`).
+ */
+export const PRODUCT_LINE_LABELS_RU: Readonly<Record<string, string>> = {
+  '/custom-soccer-ball-manufacturer': 'Футбольные мячи на заказ',
+}
+
+/**
  * THE FOOTER'S CMS-HELD WORDS, IN RUSSIAN (Russian section, 2026-11-15).
  *
  * The footer's question, tab, promise, capacity lines and standards lines are the owner's, typed

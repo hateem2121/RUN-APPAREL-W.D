@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react'
 import { diagnostic } from '../lib/diagnostic'
 import { SITE_ORIGIN } from '../lib/siteLinks'
 import { reloadOnChunkFailure } from '../lib/staleChunkReload'
-import { categoryName, pageLocale, sitePath } from '../lib/locale'
+import { categoryName, pageLocale, productLineLabel, sitePath } from '../lib/locale'
 import { words } from '../lib/words'
 
 /*
@@ -119,7 +119,7 @@ export function RelatedGarments({ data }: { data: ViewerApiSuccess }) {
         </a>
         {line ? (
           <a className="btn btn--ghost" href={`${SITE_ORIGIN}${sitePath(line.path)}`}>
-            {line.label}
+            {productLineLabel(line.path, line.label)}
           </a>
         ) : null}
       </div>

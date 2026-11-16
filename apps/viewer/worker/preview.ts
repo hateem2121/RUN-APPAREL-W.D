@@ -7,6 +7,7 @@ import {
   garmentPageTitle,
   type Locale,
   PAGE_TITLE_BRAND,
+  PRODUCT_LINE_LABELS_RU,
   productLinePage,
   RU_GARMENT_PATH_PREFIX,
   ruPath,
@@ -469,8 +470,8 @@ function buildCrawlerBody(
     const list = cards.length > 0 ? `<ul>${cards.join('')}</ul>` : ''
     const seeAll = ru ? PREVIEW_RU.seeAllIn(familyName(category)) : seeAllInCategoryLabel(category)
     const all = `<a href="${esc(site(categoryPath(category)))}">${esc(seeAll)}</a>`
-    // The product line's own page keeps its English label: its Russian twin carries its own title.
-    const own = line ? ` · <a href="${esc(site(line.path))}">${esc(line.label)}</a>` : ''
+    const lineLabel = line && ru ? (PRODUCT_LINE_LABELS_RU[line.path] ?? line.label) : line?.label
+    const own = line ? ` · <a href="${esc(site(line.path))}">${esc(lineLabel ?? '')}</a>` : ''
     const heading = ru ? PREVIEW_RU.moreIn(familyName(category)) : `More ${category} in 3D.`
     parts.push(`<h2>${esc(heading)}</h2>${list}<p>${all}${own}</p>`)
   }

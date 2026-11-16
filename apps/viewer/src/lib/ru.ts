@@ -1,4 +1,11 @@
-import { CHROME_RU, FAMILY_RU, GARMENT_TYPE_RU, ruFooter, specGroupsRu } from '@run-apparel/shared'
+import {
+  CHROME_RU,
+  FAMILY_RU,
+  GARMENT_TYPE_RU,
+  PRODUCT_LINE_LABELS_RU,
+  ruFooter,
+  specGroupsRu,
+} from '@run-apparel/shared'
 import type { RussianPack } from './locale'
 import { WORDS_RU } from './words.ru'
 
@@ -13,5 +20,6 @@ export const RU_PACK: RussianPack = {
   footerLine: ruFooter,
   familyName: (english) => FAMILY_RU[english] ?? english,
   garmentType: (english) => GARMENT_TYPE_RU[english] ?? english,
+  productLineLabel: (path, english) => PRODUCT_LINE_LABELS_RU[path] ?? english,
   specGroups: specGroupsRu,
 }

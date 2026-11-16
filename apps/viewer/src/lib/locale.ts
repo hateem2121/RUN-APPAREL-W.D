@@ -35,6 +35,8 @@ export type RussianPack = {
   readonly familyName: (english: string) => string
   /** A garment type's Russian name, or the type itself (`GARMENT_TYPE_RU`). */
   readonly garmentType: (english: string) => string
+  /** A product line page's link label in Russian, or the English label (`PRODUCT_LINE_LABELS_RU`). */
+  readonly productLineLabel: (path: string, english: string) => string
   /** The four spec groups with Russian headings and notes (`specNotes.ru.ts`). */
   readonly specGroups: (product: ViewerProduct) => SpecGroup[]
 }
@@ -78,6 +80,21 @@ export function categoryName(english: string): string {
 /** A garment type in the page's language, for the page title (`GARMENT_TYPE_RU`). */
 export function garmentTypeName(english: string): string {
   return russian()?.garmentType(english) ?? english
+}
+
+/** A product line page's link label in the page's language. */
+export function productLineLabel(path: string, english: string): string {
+  return russian()?.productLineLabel(path, english) ?? english
+}
+
+/**
+ * The same garment page in the other language (2026-11-16): `/products/x/y` ↔ `/ru/products/x/y`.
+ * The old viewer host's bare `/x/y` has no folder, so its Russian twin is the website's.
+ */
+export function garmentTwinPath(pathname: string): string {
+  if (pathname.startsWith('/ru/products/')) return pathname.slice('/ru'.length)
+  if (pathname.startsWith('/products/')) return `/ru${pathname}`
+  return `/ru/products${pathname}`
 }
 
 /** A website path in the page's language: `/contact` → `/ru/contact` on a Russian page. */
