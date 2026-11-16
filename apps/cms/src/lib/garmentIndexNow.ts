@@ -1,4 +1,4 @@
-import { buildViewerPath, GARMENT_PATH_PREFIX } from '@run-apparel/shared'
+import { buildViewerPath, GARMENT_PATH_PREFIX, RU_GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import type { CollectionAfterChangeHook } from 'payload'
 import { isAddressableColourway } from './colourwayAccess'
 import { pingIndexNowFromLiveAdmin } from './journalHooks'
@@ -11,7 +11,8 @@ import { SITE_ORIGIN } from './seo'
  * (`scripts/indexnow-paths.mjs`), which never sees a CMS save.
  *
  * WHICH ADDRESSES: every colour page of the garment (each its own canonical page) and /products,
- * whose card shows its name and picture. IndexNow takes added, updated AND removed addresses
+ * whose card shows its name and picture, each with its Russian twin under `/ru/products` (owner,
+ * 2026-11-16: the Russian garment pages are real pages, so a change reaches both languages). IndexNow takes added, updated AND removed addresses
  * (indexnow.org/documentation), so a garment taken off the site sends the pages that just went,
  * and a search engine learns of the 404 now instead of at its next visit.
  */
@@ -35,10 +36,12 @@ export function garmentIndexNowUrls(
   )
   if (colours.length === 0) return []
   return [
-    ...colours.map(
-      (colour) => `${origin}${buildViewerPath(slug, String(colour.slug), GARMENT_PATH_PREFIX)}`,
-    ),
+    ...colours.flatMap((colour) => [
+      `${origin}${buildViewerPath(slug, String(colour.slug), GARMENT_PATH_PREFIX)}`,
+      `${origin}${buildViewerPath(slug, String(colour.slug), RU_GARMENT_PATH_PREFIX)}`,
+    ]),
     `${origin}${GARMENT_PATH_PREFIX}`,
+    `${origin}${RU_GARMENT_PATH_PREFIX}`,
   ]
 }
 

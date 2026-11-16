@@ -395,7 +395,8 @@ describe('copy rules', () => {
     const page = stripComments(
       readFileSync(join(CMS_ROOT, 'src', 'components', 'site', 'ProductCardItem.tsx'), 'utf8'),
     )
-    expect(page).toContain('garmentPages={GARMENT_PAGES}')
+    // The folder follows the page's language since 2026-11-16: /ru cards link /ru/products/…
+    expect(page).toContain('garmentPages={garmentPagesFor(locale)}')
     expect(page).toContain('productSlug={product.slug}')
     const gallery = stripComments(
       readFileSync(join(CMS_ROOT, 'src', 'components', 'site', 'CardGallery.tsx'), 'utf8'),
@@ -431,7 +432,8 @@ describe('copy rules', () => {
           // (2026-09-28), so that counts as a link to the viewer from this file.
           links:
             (source.match(/\$\{GARMENT_PAGES\}\//g) ?? []).length +
-            (source.match(/garmentPages=\{GARMENT_PAGES\}/g) ?? []).length +
+            (source.match(/garmentPages=\{(?:GARMENT_PAGES|garmentPagesFor\(locale\))\}/g) ?? [])
+              .length +
             // ...and each picture link CardGallery builds is one more.
             (source.match(/href=\{colourHref\(/g) ?? []).length,
           cues: (source.match(/<ViewerCue(?: locale=\{[^}]*\})? \/>/g) ?? []).length,

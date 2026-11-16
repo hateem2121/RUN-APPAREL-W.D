@@ -124,7 +124,9 @@ export async function ProductsPageView({
       {all.length > 0 ? (
         <JsonLd
           data={
-            ru ? productListJsonLd(all, 'RUN APPAREL: 3D-модели изделий') : productListJsonLd(all)
+            ru
+              ? productListJsonLd(all, 'RUN APPAREL: 3D-модели изделий', locale)
+              : productListJsonLd(all)
           }
         />
       ) : null}

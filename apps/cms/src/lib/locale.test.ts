@@ -38,10 +38,16 @@ describe('hasRussianTwin', () => {
     expect(hasRussianTwin('/case-studies/some-study')).toBe(false)
   })
 
-  it('is false for the 3D garment pages, which stay English (design, non-goals)', () => {
-    expect(hasRussianTwin('/products/rxps/wine')).toBe(false)
-    expect(hasRussianTwin('/products/rxps')).toBe(false)
+  it('is true for the 3D garment pages, which have a Russian page since 2026-11-16', () => {
+    expect(hasRussianTwin('/products/rxps/wine')).toBe(true)
+    expect(hasRussianTwin('/products/rxps/wine/')).toBe(true)
+    expect(hasRussianTwin('/products/rxps')).toBe(true)
     expect(hasRussianTwin('/products')).toBe(true)
+    expect(ruPath('/products/rxps/wine')).toBe('/ru/products/rxps/wine')
+  })
+
+  it('is false for a path under /products that is no garment page', () => {
+    expect(hasRussianTwin('/products/rxps/wine/extra')).toBe(false)
   })
 })
 
