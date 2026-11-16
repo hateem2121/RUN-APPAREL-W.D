@@ -1,5 +1,6 @@
 import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { useId, useState } from 'react'
+import { words } from '../lib/words'
 
 /**
  * Open on a roomy screen, closed on a phone.
@@ -43,9 +44,10 @@ export function CustomisationSection({ data }: { data: ViewerApiSuccess }) {
         and a screen reader gets the words as written rather than a shouted line (MDN, text-transform,
         read 2026-10-02: it changes the drawing, not the text). `sectionLabels.test.tsx` holds it.
       */}
-      <p className="section-number">&#8470;02 · Customization</p>
+      <p className="section-number">{words().customisationNumber}</p>
       <h2 id="customise-heading" className="display display--section">
-        FROM IDEA TO <span className="serif-accent">production</span>.
+        {words().fromIdeaTo[0]}
+        <span className="serif-accent">{words().fromIdeaTo[1]}</span>.
       </h2>
       {product.customisationIntroHtml ? (
         // The only writer is an authenticated CMS editor, and the HTML is produced
@@ -60,10 +62,7 @@ export function CustomisationSection({ data }: { data: ViewerApiSuccess }) {
           dangerouslySetInnerHTML={{ __html: product.customisationIntroHtml }}
         />
       ) : (
-        <p className="customise__intro">
-          Send us a finished design, a tech pack, artwork, a reference image, or simply an idea. Our
-          team develops it with you into a production-ready garment.
-        </p>
+        <p className="customise__intro">{words().customisationIntro}</p>
       )}
       {product.customisationSteps.length > 0 && (
         <>
@@ -74,7 +73,7 @@ export function CustomisationSection({ data }: { data: ViewerApiSuccess }) {
             aria-controls={panelId}
             onClick={() => setOpen((value) => !value)}
           >
-            How we build your product <span aria-hidden="true">{open ? '−' : '+'}</span>
+            {words().howWeBuild} <span aria-hidden="true">{open ? '−' : '+'}</span>
           </button>
           <div
             id={panelId}

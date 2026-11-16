@@ -3,12 +3,12 @@ import {
   type FooterHours,
   type FooterSettings,
   isOpenAt,
-  opensLabel,
-  SITE_FOOTER_WORDS,
+  nextOpening,
   splitLastWord,
   worksClock,
 } from '@run-apparel/shared'
 import { useEffect, useState } from 'react'
+import { chrome, footerLine, sitePath } from '../lib/locale'
 import { SITE_ORIGIN } from '../lib/siteLinks'
 
 /**
@@ -28,7 +28,7 @@ import { SITE_ORIGIN } from '../lib/siteLinks'
 /** The volt tab on the slab's edge, to the website's Contact page (this page is never Contact). */
 export function FooterTab({ label }: { label: string }) {
   return (
-    <a className="site-footer__tab" href={`${SITE_ORIGIN}/contact`}>
+    <a className="site-footer__tab" href={`${SITE_ORIGIN}${sitePath('/contact')}`}>
       <span className="site-footer__tab-label">{label}</span>
       <span className="site-footer__tab-arrow" aria-hidden="true">
         →
@@ -39,19 +39,19 @@ export function FooterTab({ label }: { label: string }) {
 
 /** The question, its two lines and the clock, then the band that holds the slab one screen tall. */
 export function FooterQuestion({ footer }: { footer: FooterSettings }) {
-  const q = splitLastWord(footer.ctaQuestion)
+  const q = splitLastWord(footerLine(footer.ctaQuestion))
   return (
     <>
       <div className="footer-cta">
         <div>
-          <p className="footer-eyebrow">{SITE_FOOTER_WORDS.eyebrow}</p>
+          <p className="footer-eyebrow">{chrome().footer.eyebrow}</p>
           <h2 className="footer-q">
             {q.head}
             <em>{q.last}</em>
             {q.tail}
           </h2>
-          <p className="footer-derisk">{footer.ctaSubline}</p>
-          <p className="footer-dim">{footer.ctaPromise}</p>
+          <p className="footer-derisk">{footerLine(footer.ctaSubline)}</p>
+          <p className="footer-dim">{footerLine(footer.ctaPromise)}</p>
         </div>
         <div className="footer-side">
           <FooterClock hours={footer.capacity.hours} />
@@ -75,15 +75,20 @@ function FooterClock({ hours }: { hours: FooterHours | null }) {
     <>
       <span className="footer-clock">
         <i aria-hidden="true" />
-        <span className="footer-clock__city">{SITE_FOOTER_WORDS.clockCity}</span>
+        <span className="footer-clock__city">{chrome().footer.clockCity}</span>
         <span className="footer-clock__time">
           <span>{now ? worksClock(now) : '--:--'}</span>
-          <small>{SITE_FOOTER_WORDS.clockZone}</small>
+          <small>{chrome().footer.clockZone}</small>
         </span>
       </span>
       {open === null || !hours || !now ? null : (
         <span className="footer-status" data-state={open ? 'open' : 'closed'}>
-          {open ? SITE_FOOTER_WORDS.openNow : opensLabel(hours, now)}
+          {open
+            ? chrome().footer.openNow
+            : chrome().opensAt(
+                hours.open,
+                nextOpening(hours, now).daysAhead === 0 ? undefined : nextOpening(hours, now).day,
+              )}
         </span>
       )}
     </>

@@ -3,15 +3,10 @@ import {
   holdPageWhileOpen,
   markMenuClosing,
   SITE_MENU_ID,
-  SITE_MENU_LINKS,
-  SITE_MENU_NAME,
-  SITE_NAV_LABEL,
-  SITE_NAV_LINKS,
-  THEME_SWITCH_NAMES,
-  THEME_SWITCH_WORDS,
 } from '@run-apparel/shared'
 import { useEffect, useRef, useState } from 'react'
 import { startBarAutoHide } from '../lib/barAutoHide'
+import { chrome, sitePath } from '../lib/locale'
 import { SITE_ORIGIN } from '../lib/siteLinks'
 import { appliedTheme, type Theme, toggleTheme } from '../lib/theme'
 
@@ -40,6 +35,7 @@ interface HeaderProps {
  * band starts where the bar and the label row under it end, and --header-h is that measured start.
  */
 export function Header({ wordmark }: HeaderProps) {
+  const c = chrome()
   // Lazy init from the already-applied theme (client-only SPA), so the tooltip is right on
   // first paint. The NAME and the ICON are chosen by CSS (notch.css), not by this state.
   const [theme, setThemeState] = useState<Theme>(() => appliedTheme())
@@ -94,7 +90,7 @@ export function Header({ wordmark }: HeaderProps) {
   const shell = useRef<HTMLElement>(null)
   useEffect(() => (shell.current ? startBarAutoHide(shell.current) : undefined), [])
 
-  const title = theme === 'dark' ? THEME_SWITCH_NAMES.toLight : THEME_SWITCH_NAMES.toDark
+  const title = theme === 'dark' ? c.themeNames.toLight : c.themeNames.toDark
 
   return (
     <header className="notch-shell" ref={shell}>
@@ -114,17 +110,21 @@ export function Header({ wordmark }: HeaderProps) {
           `translate="no"` (polish X27, 2026-10-04): a browser's Translate must not rename the
           company; the garment's name and code carry it too (ProductIdentity.tsx).
         */}
-        <a className="notch__wordmark" href={SITE_ORIGIN} translate="no">
+        <a
+          className="notch__wordmark"
+          href={`${SITE_ORIGIN}${sitePath('/') === '/' ? '' : sitePath('/')}`}
+          translate="no"
+        >
           {wordmark}
         </a>
-        <nav className="notch__nav" aria-label={SITE_NAV_LABEL}>
+        <nav className="notch__nav" aria-label={c.navLabel}>
           <button type="button" className="notch__menu-btn" popoverTarget={SITE_MENU_ID}>
             <span className="notch__icon" aria-hidden="true">
               <span className="notch__icon-line" />
               <span className="notch__icon-line" />
               <span className="notch__icon-line" />
             </span>
-            <span className="visually-hidden">{SITE_MENU_NAME}</span>
+            <span className="visually-hidden">{c.menuName}</span>
           </button>
           <div className="notch__menu" id={SITE_MENU_ID} popover="auto">
             {/*
@@ -132,7 +132,7 @@ export function Header({ wordmark }: HeaderProps) {
               visitor is in (VA-37: nothing in the menu said where you were). `true`, not `page`:
               the link is the section, not this page.
             */}
-            {SITE_NAV_LINKS.map(({ href, label }) => (
+            {c.navLinks.map(({ href, label }) => (
               <a
                 className="nav-link"
                 key={href}
@@ -142,7 +142,7 @@ export function Header({ wordmark }: HeaderProps) {
                 {label}
               </a>
             ))}
-            {SITE_MENU_LINKS.map(({ href, label }) => (
+            {c.menuLinks.map(({ href, label }) => (
               <a className="nav-link nav-link--menu" key={href} href={`${SITE_ORIGIN}${href}`}>
                 {label}
               </a>
@@ -163,9 +163,9 @@ export function Header({ wordmark }: HeaderProps) {
                   />
                 </svg>
                 <span className="theme-toggle__words" aria-hidden="true">
-                  {THEME_SWITCH_WORDS.toDark}
+                  {c.themeWords.toDark}
                 </span>
-                <span className="visually-hidden">{THEME_SWITCH_NAMES.toDark}</span>
+                <span className="visually-hidden">{c.themeNames.toDark}</span>
               </span>
               <span className="theme-toggle__face theme-toggle__face--to-light">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -178,9 +178,9 @@ export function Header({ wordmark }: HeaderProps) {
                   />
                 </svg>
                 <span className="theme-toggle__words" aria-hidden="true">
-                  {THEME_SWITCH_WORDS.toLight}
+                  {c.themeWords.toLight}
                 </span>
-                <span className="visually-hidden">{THEME_SWITCH_NAMES.toLight}</span>
+                <span className="visually-hidden">{c.themeNames.toLight}</span>
               </span>
             </button>
           </div>

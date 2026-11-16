@@ -18,12 +18,29 @@ export interface TimeLeft {
   read(fraction: number, now: number): string
 }
 
-export function createTimeLeft(): TimeLeft {
+/** The clock's words; English unless a Russian page passes its own (lib/words.ts, 2026-11-16). */
+export type TimeLeftWords = {
+  readonly estimating: string
+  readonly almostDone: string
+  readonly secondsLeft: string
+  readonly aboutMin: (minutes: number) => string
+  readonly aboutSec: (seconds: number) => string
+}
+
+export const TIME_LEFT_EN: TimeLeftWords = {
+  estimating: ESTIMATING,
+  almostDone: 'Almost done',
+  secondsLeft: 'Seconds left',
+  aboutMin: (minutes) => `About ${minutes} min left`,
+  aboutSec: (seconds) => `About ${seconds} sec left`,
+}
+
+export function createTimeLeft(say: TimeLeftWords = TIME_LEFT_EN): TimeLeft {
   const history: Array<[number, number]> = []
   let shown: number | null = null
   let shownAt = 0
   let sampledAt = Number.NEGATIVE_INFINITY
-  let line = ESTIMATING
+  let line = say.estimating
 
   return {
     read(fraction, now) {
@@ -31,7 +48,7 @@ export function createTimeLeft(): TimeLeft {
       if (now - sampledAt < SAMPLE_MS) return line
       sampledAt = now
       history.push([now, fraction])
-      line = ESTIMATING
+      line = say.estimating
       if (fraction < FIRST_AT) return line
       let i = history.length - 1
       while (i > 0 && now - (history[i]?.[0] ?? now) < WINDOW_MS) i--
@@ -49,11 +66,11 @@ export function createTimeLeft(): TimeLeft {
       line =
         value < 5
           ? fraction >= ALMOST_DONE_AT
-            ? 'Almost done'
-            : 'Seconds left'
+            ? say.almostDone
+            : say.secondsLeft
           : value >= 90
-            ? `About ${Math.ceil(value / 60)} min left`
-            : `About ${value} sec left`
+            ? say.aboutMin(Math.ceil(value / 60))
+            : say.aboutSec(value)
       return line
     },
   }

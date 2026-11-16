@@ -8,6 +8,8 @@ import { useEffect, useState } from 'react'
 import { diagnostic } from '../lib/diagnostic'
 import { SITE_ORIGIN } from '../lib/siteLinks'
 import { reloadOnChunkFailure } from '../lib/staleChunkReload'
+import { categoryName, pageLocale, sitePath } from '../lib/locale'
+import { words } from '../lib/words'
 
 /*
  * ⚠️ THE CARDS ARE A DYNAMIC IMPORT, WITH A STYLESHEET OF THEIR OWN (`RelatedCards.tsx`,
@@ -98,18 +100,25 @@ export function RelatedGarments({ data }: { data: ViewerApiSuccess }) {
   if (!shown) return null
   return (
     <section className="related" aria-labelledby="related-heading" data-reveal>
-      <p className="section-number">&#8470;03 · More from this category</p>
+      <p className="section-number">{words().moreFromCategory}</p>
       <h2 id="related-heading" className="display display--section">
-        More <span className="serif-accent">{category}</span> in 3D.
+        {words().moreIn(categoryName(category))[0]}
+        <span className="serif-accent">{words().moreIn(categoryName(category))[1]}</span>
+        {words().moreIn(categoryName(category))[2]}
       </h2>
       {Cards && related.length > 0 ? <Cards related={related} /> : null}
       <div className="related__links">
         {/* The category's own page, its only list since polish S1 (`categoryPath`). */}
-        <a className="btn btn--ghost related__all" href={`${SITE_ORIGIN}${categoryPath(category)}`}>
-          {seeAllInCategoryLabel(category)}
+        <a
+          className="btn btn--ghost related__all"
+          href={`${SITE_ORIGIN}${sitePath(categoryPath(category))}`}
+        >
+          {pageLocale() === 'ru'
+            ? words().seeAllIn3d(categoryName(category))
+            : seeAllInCategoryLabel(category)}
         </a>
         {line ? (
-          <a className="btn btn--ghost" href={`${SITE_ORIGIN}${line.path}`}>
+          <a className="btn btn--ghost" href={`${SITE_ORIGIN}${sitePath(line.path)}`}>
             {line.label}
           </a>
         ) : null}

@@ -1,5 +1,6 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import {
+  GARMENT_TYPE_RU,
   garmentPageTitle,
   isViewerApiError,
   PAGE_TITLE_BRAND,
@@ -34,6 +35,8 @@ import { PRELOADER_PICTURE_WAIT_MS } from './lib/motion'
 import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
 import { reloadOnChunkFailure } from './lib/staleChunkReload'
 import { useIdentityInAside } from './lib/useIdentityInAside'
+import { chrome, pageLocale } from './lib/locale'
+import { words } from './lib/words'
 import { usePrinting } from './lib/usePrinting'
 
 type AppState =
@@ -80,9 +83,8 @@ type AppState =
  */
 const PAGE_TOP_ID = 'viewer-top'
 
-const RETIRED_FALLBACK =
-  'The colorway printed on your tag is no longer in production. This page is showing the ' +
-  'current default colorway for this garment.'
+/** The page's own retired-colour notice, when the CMS has none (the words are in lib/words.ts). */
+const retiredFallback = () => words().retiredNotice
 
 export default function App() {
   const [state, setState] = useState<AppState>({ kind: 'loading' })
@@ -187,7 +189,7 @@ export default function App() {
         // `||`, not `??`, and deliberately — an empty string is the exact case
         // being fixed here. See RETIRED_FALLBACK above.
         retiredNotice: retired
-          ? response.fallbackMessage || response.product.retiredMessage || RETIRED_FALLBACK
+          ? response.fallbackMessage || response.product.retiredMessage || retiredFallback()
           : null,
       })
       if (loadedFor.current !== response.product.slug) {
@@ -306,7 +308,12 @@ export default function App() {
       document.title = garmentPageTitle({
         productName: state.data.product.productName,
         productCode: state.data.product.productCode,
-        garmentType: state.data.product.garmentType,
+        // A Russian page's title names the type in Russian (GARMENT_TYPE_RU), as its website twin.
+        garmentType:
+          pageLocale() === 'ru'
+            ? (GARMENT_TYPE_RU[state.data.product.garmentType ?? ''] ??
+              state.data.product.garmentType)
+            : state.data.product.garmentType,
         colour: state.selected.displayName,
         brand: PAGE_TITLE_BRAND,
         isDefaultColour: state.selected.isDefault,
@@ -550,7 +557,7 @@ export default function App() {
             tab through the header to reach the garment. Visually hidden until
             focused — see `.skip-link` in the stylesheet. */}
         <a className="skip-link" href="#main-content">
-          Skip to main content
+          {chrome().skipLink}
         </a>
         {/* The cookie choice. ⚠️ STRAIGHT AFTER THE SKIP LINK since 2026-10-01, for the TAB
             ORDER: it was the last element of the page, so a keyboard user met the question
@@ -686,7 +693,7 @@ export default function App() {
             */}
             <div className="stage__more" aria-hidden="true">
               <svg viewBox="0 0 16 10" width="16" height="10" focusable="false">
-                <title>More below</title>
+                <title>{words().moreBelow}</title>
                 <path
                   d="M1 1l7 7 7-7"
                   fill="none"

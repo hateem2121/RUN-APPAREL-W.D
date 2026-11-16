@@ -3,6 +3,11 @@
 // the weight-only build silently flattens every headline back to normal width.
 import '@run-apparel/ui/archivo.css'
 import '@fontsource/instrument-serif/400-italic.css'
+// The Russian garment pages' Cyrillic companions (2026-11-16), the same faces the website's Russian
+// layout imports: declared under the brand's own family names with a Cyrillic-only `unicode-range`,
+// so a browser fetches a file only when a page holds a Cyrillic letter, and an English garment
+// page never does (packages/ui/src/cyrillic.css says why).
+import '@run-apparel/ui/cyrillic.css'
 // tokens + base moved to packages/ui on 2026-09-04 so the public marketing site
 // (apps/cms) renders from the SAME design system rather than a second copy of it.
 // biome.jsonc bans cross-app imports, so a shared workspace is the only way both
@@ -29,6 +34,7 @@ import { initErrorTracking } from './lib/sentry'
 import { initTelemetry } from './lib/telemetry'
 import { initWebVitals } from './lib/webVitals'
 import { preload3DAssets } from './lib/preload3d'
+import { pageLocale } from './lib/locale'
 
 initErrorTracking()
 initTelemetry()
@@ -66,6 +72,11 @@ if ('scrollRestoration' in history) {
 
 // A website card's picture grows INTO this page; leaving it stays instant (polish MO3, page.css).
 keepLeavingInstant()
+
+// The page's language, from its address (lib/locale.ts). The Worker already rewrote it on wear-run.com
+// (worker/pageLanguage.ts); this holds it wherever the shell came from another way, the service
+// worker's offline copy or the e2e fixture server included.
+document.documentElement.lang = pageLocale()
 
 const root = createRoot(document.getElementById('root')!)
 

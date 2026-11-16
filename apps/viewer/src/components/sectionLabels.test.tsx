@@ -4,6 +4,7 @@ import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { type ViewerWords, WORDS } from '../lib/words'
 import { CustomisationSection } from './CustomisationSection'
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -39,12 +40,21 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
-/** Each `<p className="section-number">…</p>` in the garment pages' source: file and label text. */
+/**
+ * Each `<p className="section-number">` in the garment pages' source: file and label text. Since
+ * the Russian garment pages (2026-11-16) a label is a key of `lib/words.ts`, so each one is checked
+ * in BOTH languages: the Russian page's numbers obey the same rule.
+ */
 const LABELS = sourceFiles(SRC).flatMap((path) =>
-  [...readFileSync(path, 'utf8').matchAll(/className="section-number">([^<]*)</g)].map((match) => ({
-    file: path.slice(SRC.length + 1),
-    label: (match[1] ?? '').trim(),
-  })),
+  [
+    ...readFileSync(path, 'utf8').matchAll(/className="section-number">\{words\(\)\.(\w+)\}</g),
+  ].flatMap((match) =>
+    (['en', 'ru'] as const).map((locale) => ({
+      file: path.slice(SRC.length + 1),
+      locale,
+      label: String(WORDS[locale][match[1] as keyof ViewerWords]).trim(),
+    })),
+  ),
 )
 
 let host: HTMLDivElement
@@ -71,7 +81,8 @@ describe('the garment pages’ section labels (VA-39)', () => {
   })
 
   it('finds the labels it is meant to guard (a scan that finds none passes vacuously)', () => {
-    const files = LABELS.map((entry) => entry.file).sort()
+    const files = [...new Set(LABELS.map((entry) => entry.file))].sort()
+    expect(LABELS).toHaveLength(6)
     expect(files).toEqual([
       'components/Contact.tsx',
       'components/CustomisationSection.tsx',

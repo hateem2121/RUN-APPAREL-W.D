@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { LoadPhase } from '../lib/loadProgress'
 import { formatMb, showsIndeterminateSweep } from '../lib/loadProgress'
 import { MOTION_REST_AFTER_MS } from '../lib/motion'
-import { createTimeLeft, ESTIMATING } from '../lib/timeLeft'
+import { createTimeLeft } from '../lib/timeLeft'
 import { LoomMark } from './LoomMark'
+import { words } from '../lib/words'
 
 interface WorkingBlockProps {
   phase: LoadPhase
@@ -36,7 +37,7 @@ export function WorkingBlock({
   retryNote,
 }: WorkingBlockProps) {
   const ref = useRef<HTMLDivElement>(null)
-  const clock = useRef(createTimeLeft())
+  const clock = useRef(createTimeLeft(words().timeLeft))
   const [waking, setWaking] = useState(false)
   const [resting, setResting] = useState(false)
 
@@ -88,9 +89,9 @@ export function WorkingBlock({
   const pick = (sweep || pending) && !reduceMotion
   const left = Math.max(0, bytesTotal - bytesLoaded)
   const when = preparing
-    ? 'Almost ready'
+    ? words().almostReady
     : pending || bytesTotal === 0
-      ? ESTIMATING
+      ? words().timeLeft.estimating
       : clock.current.read(fraction, performance.now())
 
   return (
@@ -100,7 +101,7 @@ export function WorkingBlock({
           2026-08-14 fix in page.css), so this one is not drawn. No value while preparing: working. */}
       <progress
         className="visually-hidden"
-        aria-label="3D model download"
+        aria-label={words().modelDownload}
         max={100}
         {...(!preparing && percent !== null ? { value: percent } : {})}
       />
@@ -113,7 +114,7 @@ export function WorkingBlock({
           <LoomMark id="stage-loom" />
         </span>
         <span className="stage__loading-title">
-          <span>{preparing ? 'Preparing' : 'Working'}</span>
+          <span>{preparing ? words().preparing : words().working}</span>
           <span> · 3D view</span>
         </span>
         <span className="working__pct">
@@ -131,12 +132,14 @@ export function WorkingBlock({
         <span className="working__meta">
           <span>
             {pending
-              ? 'Preparing…'
+              ? words().preparingEllipsis
               : preparing
-                ? `${formatMb(bytesTotal)} MB downloaded`
-                : `${formatMb(bytesLoaded)} MB done`}
+                ? words().mbDownloaded(formatMb(bytesTotal))
+                : words().mbDone(formatMb(bytesLoaded))}
           </span>
-          <span>{started && !preparing && bytesTotal > 0 ? `${formatMb(left)} MB left` : ''}</span>
+          <span>
+            {started && !preparing && bytesTotal > 0 ? words().mbLeft(formatMb(left)) : ''}
+          </span>
           <span>{when}</span>
         </span>
         {retryNote && <span className="stage__loading-detail">{retryNote}</span>}

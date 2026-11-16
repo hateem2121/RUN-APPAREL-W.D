@@ -1,10 +1,15 @@
 import {
   buildViewerPath,
   categoryPath,
+  FAMILY_RU,
   GARMENT_PATH_PREFIX,
+  GARMENT_TYPE_RU,
   garmentPageTitle,
+  type Locale,
   PAGE_TITLE_BRAND,
   productLinePage,
+  RU_GARMENT_PATH_PREFIX,
+  ruPath,
   seeAllInCategoryLabel,
   type ViewerApiSuccess,
 } from '@run-apparel/shared'
@@ -70,6 +75,17 @@ export interface Preview {
   description: string
   /** Absolute; used for og:url AND <link rel="canonical">. */
   url: string
+  /**
+   * The page's language (owner, 2026-11-16: `/ru/products/…` is the Russian copy): `<html lang>`
+   * and `og:locale` follow it.
+   */
+  lang: Locale
+  /**
+   * The same garment and colour in each language, for `<link rel="alternate" hreflang>`, on the
+   * website's folders only (null on the old viewer host, which only forwards). English is also
+   * the `x-default`, as on every other pair on the site.
+   */
+  alternates: { readonly en: string; readonly ru: string } | null
   image: PreviewImage | null
   /**
    * schema.org BreadcrumbList, on the website's garment folder only (null on the old
@@ -99,11 +115,13 @@ function truncate(text: string, limit = MAX_DESCRIPTION): string {
 }
 
 /** The page's own `<title>`, the line a search result shows (`garmentPageTitle`). */
-function buildPageTitle(payload: ViewerApiSuccess): string {
+function buildPageTitle(payload: ViewerApiSuccess, lang: Locale = 'en'): string {
+  const type = payload.product.garmentType
   return garmentPageTitle({
     productName: payload.product.productName,
     productCode: payload.product.productCode,
-    garmentType: payload.product.garmentType,
+    // A Russian page names the type in Russian, as the app's `document.title` does (App.tsx).
+    garmentType: lang === 'ru' ? (GARMENT_TYPE_RU[type ?? ''] ?? type) : type,
     colour: payload.selectedColourway.displayName,
     brand: PAGE_TITLE_BRAND,
     isDefaultColour: payload.selectedColourway.isDefault,
@@ -157,7 +175,7 @@ function buildTitle(pageTitle: string): string {
  * pointing at a retired colour resolves to the default one, and describing the
  * requested colour would name something the visitor never sees.
  */
-function buildDescription(payload: ViewerApiSuccess): string {
+function buildDescription(payload: ViewerApiSuccess, lang: Locale = 'en'): string {
   const p = payload.product
   const colour = payload.selectedColourway.displayName.trim()
   const fabric = [p.fabricComposition.trim(), p.gsm.trim()].filter(Boolean).join(', ')
@@ -166,16 +184,25 @@ function buildDescription(payload: ViewerApiSuccess): string {
   const specs = [p.garmentFit.trim(), fabric].filter(Boolean).join(' · ')
   const count = payload.colourways.length
   // "3D coming soon" (2026-10-08): a page with no model must not promise one in a link preview.
+  const ru = lang === 'ru'
   const tail = p.modelComingSoon
     ? count > 1
-      ? `See all ${count} colorways. 3D view coming soon.`
-      : '3D view coming soon.'
+      ? ru
+        ? `Расцветок: ${count}. 3D-просмотр скоро появится.`
+        : `See all ${count} colorways. 3D view coming soon.`
+      : ru
+        ? '3D-просмотр скоро появится.'
+        : '3D view coming soon.'
     : count > 1
-      ? `See all ${count} colorways in 3D.`
-      : 'Rotate and zoom this reference in 3D.'
+      ? ru
+        ? `Все расцветки (${count}) в\u00a03D.`
+        : `See all ${count} colorways in 3D.`
+      : ru
+        ? 'Поверните и рассмотрите образец в\u00a03D.'
+        : 'Rotate and zoom this reference in 3D.'
   // "Shown in Wine." rather than prefixing the specs: the specs are what a trade
   // buyer scans for, and pushing them behind the colour buries the useful half.
-  const shown = colour ? `Shown in ${colour}.` : ''
+  const shown = colour ? (ru ? `Расцветка: ${colour}.` : `Shown in ${colour}.`) : ''
   // The product code leads (2026-10-25): it left the card's title, and it is what is printed
   // on the tag and quoted back in an email. Unless the title already carries it, which is
   // the case for a garment with no garment type yet.
@@ -266,7 +293,7 @@ export interface PreviewOptions {
    * `/products` when the visitor is on the website's garment folder (wear-run.com,
    * 2026-09-28), `''` on the old viewer host — the canonical URL names the page that loaded.
    */
-  prefix?: '' | typeof GARMENT_PATH_PREFIX
+  prefix?: '' | typeof GARMENT_PATH_PREFIX | typeof RU_GARMENT_PATH_PREFIX
 }
 
 export function buildPreview(payload: ViewerApiSuccess, options: PreviewOptions): Preview {
@@ -279,16 +306,21 @@ export function buildPreview(payload: ViewerApiSuccess, options: PreviewOptions)
   // structured data must describe the page that loads, not the one requested.
   const url = `${origin}${buildViewerPath(payload.product.slug, payload.selectedColourway.slug, prefix)}`
   const image = pickImage(payload, origin, cards)
-  const pageTitle = buildPageTitle(payload)
+  const lang: Locale = prefix === RU_GARMENT_PATH_PREFIX ? 'ru' : 'en'
+  const pageTitle = buildPageTitle(payload, lang)
+  const onSite = prefix !== ''
+  const path = (folder: typeof GARMENT_PATH_PREFIX | typeof RU_GARMENT_PATH_PREFIX) =>
+    `${origin}${buildViewerPath(payload.product.slug, payload.selectedColourway.slug, folder)}`
   return {
     title: buildTitle(pageTitle),
     pageTitle,
-    description: buildDescription(payload),
+    description: buildDescription(payload, lang),
     url,
+    lang,
+    alternates: onSite ? { en: path(GARMENT_PATH_PREFIX), ru: path(RU_GARMENT_PATH_PREFIX) } : null,
     image,
-    breadcrumbJsonLd:
-      prefix === GARMENT_PATH_PREFIX ? buildBreadcrumbJsonLd(payload, { origin, url }) : null,
-    bodyHtml: buildCrawlerBody(payload, { origin, prefix, image }),
+    breadcrumbJsonLd: onSite ? buildBreadcrumbJsonLd(payload, { origin, url, lang }) : null,
+    bodyHtml: buildCrawlerBody(payload, { origin, prefix, image, lang }),
   }
 }
 
@@ -332,19 +364,29 @@ function esc(value: string): string {
  */
 function buildCrawlerBody(
   payload: ViewerApiSuccess,
-  context: { origin: string; prefix: '' | typeof GARMENT_PATH_PREFIX; image: PreviewImage | null },
+  context: {
+    origin: string
+    prefix: '' | typeof GARMENT_PATH_PREFIX | typeof RU_GARMENT_PATH_PREFIX
+    image: PreviewImage | null
+    lang?: Locale
+  },
 ): string {
   const p = payload.product
   const selected = payload.selectedColourway
   const { origin, prefix, image } = context
-  const onSite = prefix === GARMENT_PATH_PREFIX
+  const onSite = prefix !== ''
+  // The Russian copy's own words, the app's (apps/viewer/src/lib/words.ts); the garment's CMS
+  // text stays as the team types it (owner, 2026-11-16).
+  const ru = context.lang === 'ru'
+  const site = (enPath: string) => `${origin}${ru ? ruPath(enPath) : enPath}`
+  const familyName = (category: string) => (ru ? (FAMILY_RU[category] ?? category) : category)
   const parts: string[] = []
 
-  const label = [p.category.trim(), p.productCode.trim()].filter(Boolean).join(' / ')
+  const label = [familyName(p.category.trim()), p.productCode.trim()].filter(Boolean).join(' / ')
   if (label) parts.push(`<p>${esc(label)}</p>`)
   parts.push(`<h1>${esc(p.productName.trim())}</h1>`)
   const colour = selected.displayName.trim()
-  if (colour) parts.push(`<p>Shown in ${esc(colour)}.</p>`)
+  if (colour) parts.push(`<p>${ru ? 'Расцветка' : 'Shown in'}${ru ? ':' : ''} ${esc(colour)}.</p>`)
 
   if (image) {
     const size =
@@ -356,10 +398,13 @@ function buildCrawlerBody(
   if (description) parts.push(`<p>${esc(description)}</p>`)
 
   const specs: Array<[string, string]> = [
-    ['Fabric composition', p.fabricComposition.trim()],
-    ['Weight', p.gsm.trim()],
-    ['Fit', p.garmentFit.trim()],
-    ['Performance features', p.performanceFeatures.join(', ').trim()],
+    [ru ? 'Состав ткани' : 'Fabric composition', p.fabricComposition.trim()],
+    [ru ? 'Плотность' : 'Weight', p.gsm.trim()],
+    [ru ? 'Посадка' : 'Fit', p.garmentFit.trim()],
+    [
+      ru ? 'Функциональные свойства' : 'Performance features',
+      p.performanceFeatures.join(', ').trim(),
+    ],
   ]
   const rows = specs
     .filter(([, value]) => value)
@@ -374,7 +419,9 @@ function buildCrawlerBody(
       (c) =>
         `<li><a href="${esc(`${origin}${buildViewerPath(p.slug, c.slug, prefix)}`)}">${esc(c.displayName.trim())}</a></li>`,
     )
-  if (colours.length > 1) parts.push(`<h2>Colorways</h2><ul>${colours.join('')}</ul>`)
+  if (colours.length > 1) {
+    parts.push(`<h2>${ru ? 'Расцветки' : 'Colorways'}</h2><ul>${colours.join('')}</ul>`)
+  }
 
   // The garment's own customization section (CustomisationSection.tsx), owner 2026-10-26 (site
   // check). Live on R-XPS the phrase "custom cycling skinsuit manufacturer" was only inside the
@@ -390,7 +437,7 @@ function buildCrawlerBody(
     .map((step) => ({ number: step.number, title: step.title.trim(), body: step.body.trim() }))
     .filter((step) => step.title || step.body)
   if (intro.length > 0 || steps.length > 0) {
-    parts.push('<h2>From idea to production.</h2>')
+    parts.push(ru ? '<h2>От идеи до производства.</h2>' : '<h2>From idea to production.</h2>')
     for (const paragraph of intro) parts.push(`<p>${esc(paragraph)}</p>`)
     if (steps.length > 0) {
       const items = steps.map((step) => {
@@ -417,23 +464,31 @@ function buildCrawlerBody(
   if (onSite && category && (related.length > 0 || line)) {
     const cards = related.map(
       (garment) =>
-        `<li><a href="${esc(`${origin}${buildViewerPath(garment.slug, garment.colourSlug, GARMENT_PATH_PREFIX)}`)}">${esc(garment.productName.trim())}</a></li>`,
+        `<li><a href="${esc(`${origin}${buildViewerPath(garment.slug, garment.colourSlug, ru ? RU_GARMENT_PATH_PREFIX : GARMENT_PATH_PREFIX)}`)}">${esc(garment.productName.trim())}</a></li>`,
     )
     const list = cards.length > 0 ? `<ul>${cards.join('')}</ul>` : ''
-    const all = `<a href="${esc(`${origin}${categoryPath(category)}`)}">${esc(seeAllInCategoryLabel(category))}</a>`
-    const own = line ? ` · <a href="${esc(`${origin}${line.path}`)}">${esc(line.label)}</a>` : ''
-    parts.push(`<h2>${esc(`More ${category} in 3D.`)}</h2>${list}<p>${all}${own}</p>`)
+    const seeAll = ru
+      ? `Все модели категории «${familyName(category)}» в\u00a03D`
+      : seeAllInCategoryLabel(category)
+    const all = `<a href="${esc(site(categoryPath(category)))}">${esc(seeAll)}</a>`
+    // The product line's own page keeps its English label: its Russian twin carries its own title.
+    const own = line ? ` · <a href="${esc(site(line.path))}">${esc(line.label)}</a>` : ''
+    const heading = ru ? `Ещё: ${familyName(category)} в\u00a03D.` : `More ${category} in 3D.`
+    parts.push(`<h2>${esc(heading)}</h2>${list}<p>${all}${own}</p>`)
   }
 
   // The website's own pages, only where they exist: the old viewer host just forwards.
   if (onSite) {
-    const products = `${origin}${GARMENT_PATH_PREFIX}`
-    const links = [`<a href="${esc(products)}">All products</a>`]
+    const links = [
+      `<a href="${esc(site(GARMENT_PATH_PREFIX))}">${ru ? 'Вся продукция' : 'All products'}</a>`,
+    ]
     if (category) {
-      links.push(`<a href="${esc(`${origin}${categoryPath(category)}`)}">${esc(category)}</a>`)
+      links.push(`<a href="${esc(site(categoryPath(category)))}">${esc(familyName(category))}</a>`)
     }
     const company = payload.siteSettings.companyName.trim() || 'RUN APPAREL'
-    links.push(`<a href="${esc(`${origin}/contact`)}">Contact ${esc(company)}</a>`)
+    links.push(
+      `<a href="${esc(site('/contact'))}">${ru ? 'Связаться с' : 'Contact'} ${esc(company)}</a>`,
+    )
     parts.push(`<p>${links.join(' · ')}</p>`)
   }
 
@@ -452,15 +507,19 @@ function buildCrawlerBody(
  */
 function buildBreadcrumbJsonLd(
   payload: ViewerApiSuccess,
-  context: { origin: string; url: string },
+  context: { origin: string; url: string; lang?: Locale },
 ): string {
   const category = payload.product.category.trim()
-  const products = `${context.origin}${GARMENT_PATH_PREFIX}`
+  // The Russian copy's trail walks the Russian pages, as its on-page trail does (GarmentTrail.tsx).
+  const ru = context.lang === 'ru'
+  const site = (enPath: string) => `${context.origin}${ru ? ruPath(enPath) : enPath}`
   const steps: Array<[string, string]> = [
-    ['Home', `${context.origin}/`],
-    ['Products', products],
+    [ru ? 'Главная' : 'Home', ru ? site('/') : `${context.origin}/`],
+    [ru ? 'Продукция' : 'Products', site(GARMENT_PATH_PREFIX)],
   ]
-  if (category) steps.push([category, `${context.origin}${categoryPath(category)}`])
+  if (category) {
+    steps.push([ru ? (FAMILY_RU[category] ?? category) : category, site(categoryPath(category))])
+  }
   steps.push([payload.product.productName, context.url])
   const data = {
     '@context': 'https://schema.org',

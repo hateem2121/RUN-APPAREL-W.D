@@ -11,6 +11,7 @@ import { useEffect, useRef } from 'react'
 import { startActionBarStepsAside } from '../lib/actionBarStepsAside'
 import { track } from '../lib/analytics'
 import { SITE_ORIGIN } from '../lib/siteLinks'
+import { words } from '../lib/words'
 
 interface ContactProps {
   settings: ViewerSiteSettings
@@ -64,7 +65,7 @@ function ContactButtons({
         href={buildMailtoUrl(settings.email, enquiry)}
         onClick={() => track('email_clicked')}
       >
-        Email Us
+        {words().emailUs}
       </a>
       <a
         className="btn btn--ghost"
@@ -73,7 +74,7 @@ function ContactButtons({
         rel="noopener noreferrer"
         onClick={() => track('whatsapp_clicked')}
       >
-        WhatsApp Us
+        {words().whatsappUs}
       </a>
     </>
   )
@@ -116,18 +117,16 @@ export function ContactSection({
   }
   return (
     <section className="contact" aria-labelledby="contact-heading" data-reveal>
-      <p className="section-number">&#8470;04 · Start the conversation</p>
+      <p className="section-number">{words().contactNumber}</p>
       <h2 id="contact-heading" className="display display--section">
-        Develop this with <span className="serif-accent">us</span>.
+        {words().developWith[0]}
+        <span className="serif-accent">{words().developWith[1]}</span>.
       </h2>
-      <p className="contact__micro">
-        We have already filled in this {garment.noun ?? 'garment'}&rsquo;s code and colorway. Please
-        add your company, your market and the quantity you need, then send.
-      </p>
+      <p className="contact__micro">{words().filledIn(garment.noun ?? 'garment')}</p>
       <div className="contact__buttons">
         {/* `contact__ask`: what the phone's bar steps aside for (lib/actionBarStepsAside.ts). */}
         <a className={askClass} href={ask} onClick={onAsk}>
-          Ask about this {garment.noun ?? 'garment'}
+          {words().askAbout(garment.noun ?? 'garment')}
         </a>
         <ContactButtons {...props} quiet />
       </div>

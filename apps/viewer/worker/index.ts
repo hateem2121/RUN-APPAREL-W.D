@@ -1,10 +1,6 @@
-import {
-  GARMENT_PATH_PREFIX,
-  isGarmentPagePath,
-  parseViewerPath,
-  viewerApiPath,
-} from '@run-apparel/shared'
+import { garmentPathPrefix, parseViewerPath, viewerApiPath } from '@run-apparel/shared'
 import { CMS_API_ORIGIN, withApiPreload } from './apiPreload'
+import { OG_LOCALE, pageLanguage, withPageLanguage } from './pageLanguage'
 import { withCompression } from './compression'
 import { CRAWLER } from './crawlerAgents'
 import { applyCrawlerCacheHeaders } from './crawlerCacheHeaders'
@@ -266,11 +262,29 @@ function applyPreview(response: Response, preview: Preview, payloadScript: strin
         el.append(preview.bodyHtml, { html: true })
       },
     })
+    // The page's language (pageLanguage.ts): a Russian copy says so to every robot.
+    .on('html', {
+      element(el) {
+        el.setAttribute('lang', preview.lang)
+      },
+    })
+    .on('meta[property="og:locale"]', {
+      element(el) {
+        el.setAttribute('content', OG_LOCALE[preview.lang])
+      },
+    })
     .on('head', {
       element(el) {
         el.append(
           `<meta property="og:url" content="${attr(preview.url)}" />` +
             `<link rel="canonical" href="${attr(preview.url)}" />` +
+            // The same garment and colour in the other language, both ways, English the default,
+            // as every English/Russian pair on the website declares itself (2026-11-16).
+            (preview.alternates
+              ? `<link rel="alternate" hreflang="en" href="${attr(preview.alternates.en)}" />` +
+                `<link rel="alternate" hreflang="ru" href="${attr(preview.alternates.ru)}" />` +
+                `<link rel="alternate" hreflang="x-default" href="${attr(preview.alternates.en)}" />`
+              : '') +
             // No schema.org Product block since D38 (2026-10-11): without a price it could earn
             // no rich result and drew Search Console errors on every garment (preview.ts says
             // more). Home › Products › category › garment, on the website only (preview.ts).
@@ -430,10 +444,13 @@ export default {
       const person = route && request.method === 'GET' ? route : null
       const pending = person ? loadPayload(env, person, url.origin, ctx) : null
       if (pending) ctx.waitUntil(pending.catch(() => null))
-      const [asset, payload] = await Promise.all([
+      const lang = pageLanguage(url.pathname)
+      const [shell, payload] = await Promise.all([
         env.ASSETS.fetch(person ? withoutValidators(request) : request),
         pending ? withinBudget(pending, PERSON_PAYLOAD_BUDGET_MS) : Promise.resolve(null),
       ])
+      // A Russian page's shell says `lang="ru"` (pageLanguage.ts); an English one is untouched.
+      const asset = withPageLanguage(shell, lang)
 
       /**
        * A path that cannot be a product page answers 404 — with the SAME body.
@@ -518,7 +535,11 @@ export default {
         ),
       )
     }
-    if (!payload) return withCompression(request, withDocumentIsolation(withNoTransform(response)))
+    if (!payload) {
+      // No data in time: the shell still says which language it is in (pageLanguage.ts).
+      const shell = withPageLanguage(response, pageLanguage(url.pathname))
+      return withCompression(request, withDocumentIsolation(withNoTransform(shell)))
+    }
     if (!(response.headers.get('content-type') ?? '').includes('text/html')) return response
 
     const transformed = applyPreview(
@@ -528,7 +549,8 @@ export default {
         cards: OG_CARDS,
         // The website hands its /products/<product>/<colour> pages to this Worker
         // unchanged (apps/cms/viewerForward.mjs), so the path says which shape loaded.
-        prefix: isGarmentPagePath(url.pathname) ? GARMENT_PATH_PREFIX : '',
+        // `/ru/products/…` since 2026-11-16: the Russian copy, its own words and its own language.
+        prefix: garmentPathPrefix(url.pathname),
       }),
       embeddedPayloadScript(payload, viewerApiPath(route.productSlug, route.colourSlug)),
     )
