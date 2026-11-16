@@ -82,3 +82,15 @@ test('the English page is untouched: no Russian word, lang="en"', async ({ page 
   const text = await page.locator('body').innerText()
   expect(text).not.toMatch(CYRILLIC)
 })
+
+test('the specification headings and notes are Russian, the values as the CMS typed them', async ({
+  page,
+}) => {
+  await page.goto(RU)
+  const headings = page.locator('.spec-group__heading')
+  await expect(headings.first()).toBeVisible()
+  for (const text of await headings.allInnerTexts()) expect(text).toMatch(CYRILLIC)
+  const notes = await page.locator('.spec-item__note').allTextContents()
+  expect(notes.length).toBeGreaterThan(0)
+  for (const note of notes) expect(note).toMatch(CYRILLIC)
+})
