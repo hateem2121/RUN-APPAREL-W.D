@@ -180,7 +180,15 @@ test.describe('the colourway photo while the model downloads', () => {
       if (new URL(url).pathname.endsWith('/n001-wine-poster.webp')) asked.picture ??= Date.now()
       if (url.endsWith('.glb')) asked.model ??= Date.now()
     })
-    await page.goto('/n001/wine')
+    // ⚠️ NOT THE PAGE'S `load` EVENT (16 Nov 2026). The held picture is an <img> (and the opening
+    // screen's `new Image()`, lib/firstPicture.ts), and an image still being fetched delays its
+    // document's `load` for as long as it is in flight: here, for ever. Both are created only once
+    // the garment's data is in, so `load` fired first only when everything else the page was
+    // fetching had finished before the data and the first render; when it had not, `goto`'s
+    // default `waitUntil: 'load'` waited the whole 120 s (2 of 4 local runs on 15 Nov). What this
+    // test measures is the model's request, which the wait below reads, so `goto` need only
+    // reach the parsed document.
+    await page.goto('/n001/wine', { waitUntil: 'domcontentloaded' })
     await page.waitForFunction(
       () =>
         Boolean((document.querySelector('model-viewer') as { loaded?: boolean } | null)?.loaded),
