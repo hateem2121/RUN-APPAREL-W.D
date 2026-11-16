@@ -15,10 +15,13 @@
  * pictograph, which is also why it never goes inside a heading.
  *
  * `.viewer-cue` in site.css is its look. `locale` (Russian section, 2026-11-15): on a Russian page
- * the same caption in Russian; the 3D viewer it opens stays English, which the words say.
+ * the same caption in Russian. Until 2026-11-16 it added «(на английском)», because the 3D viewer
+ * was English; since PR #408 a Russian card opens the garment's Russian page (`/ru/products/…`,
+ * every card on a Russian page, checked live), so the owner chose the plain words that day. Only
+ * the garment's own CMS text stays English there, and the caption does not mention it.
  */
 export const VIEWER_CUE_WORDS = 'Opens the 3D viewer'
-export const VIEWER_CUE_WORDS_RU = 'Открывает 3D-просмотр (на английском)'
+export const VIEWER_CUE_WORDS_RU = 'Открывает 3D-просмотр'
 
 /** U+2197 NORTH EAST ARROW, then U+FE0E VARIATION SELECTOR-15 (text presentation). */
 export const VIEWER_CUE_ARROW = '\u{2197}\u{FE0E}'
