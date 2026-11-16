@@ -27,7 +27,7 @@ const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
 const CYRILLIC = /[Ѐ-ӿ]/
 
 /**
- * Every source file under apps/cms/src that holds Russian: the `*.ru*.ts` words files, the i18n
+ * Every source file under apps/cms/src and packages/shared/src that holds Russian: the `*.ru*.ts` words files, the i18n
  * tables, the Russian routes, AND the components that write a Russian line beside its English one
  * (a headline pair, a label). Chosen by content since 2026-11-15, so a Russian line written in a
  * component is checked as surely as one in a words file.
@@ -47,6 +47,9 @@ export function russianFiles(root = ROOT) {
     }
   }
   walk(join(root, 'apps/cms/src'))
+  // The site's own words and the garment pages' spec notes moved to packages/shared on 2026-11-16
+  // (`siteChrome.ts`, `specNotes.ru.ts`), where the viewer can read them too: checked the same way.
+  walk(join(root, 'packages/shared/src'))
   return out
 }
 
