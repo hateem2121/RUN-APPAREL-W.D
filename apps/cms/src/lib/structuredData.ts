@@ -85,7 +85,16 @@ export function organizationJsonLd(settings: PublicSiteSettings) {
 
   return {
     '@context': 'https://schema.org',
-    '@type': 'Organization',
+    /*
+     * ALSO A LocalBusiness (owner, 2026-11-16). The site had no local-business data, which the
+     * Health Audit's rules count. Google's LocalBusiness guide (read 2026-11-16) requires only
+     * `name` and `address`, both below, says LocalBusiness is a subtype of Organization, and takes
+     * several types as an array. So this ONE node carries both: a second node would declare a
+     * second company, which `structuredData.test.ts` refuses on the About and Factory pages.
+     * Organization stays first for the logo and the `@id` links. No `geo` or opening hours: the
+     * site shows neither, and nothing is marked up that a visitor cannot see.
+     */
+    '@type': ['Organization', 'LocalBusiness'],
     '@id': `${SITE_ORIGIN}/#organization`,
     /*
      * The site's name, as Google's Organization guide asks ("use the same name and
