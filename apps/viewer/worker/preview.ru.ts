@@ -7,7 +7,7 @@ export const PREVIEW_RU = {
   colourwaysComingSoon: (count: number) => `Расцветок: ${count}. 3D-просмотр скоро появится.`,
   comingSoon: '3D-просмотр скоро появится.',
   allColourwaysIn3d: (count: number) => `Все расцветки (${count}) в\u00a03D.`,
-  rotateIn3d: 'Поверните и рассмотрите образец в\u00a03D.',
+  rotateIn3d: 'Поверните и рассмотрите изделие в\u00a03D.',
   shownIn: (colour: string) => `Расцветка: ${colour}.`,
   fabricComposition: 'Состав ткани',
   weight: 'Плотность',

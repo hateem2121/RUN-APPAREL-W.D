@@ -59,7 +59,7 @@ export const WHAT_WE_MAKE_RU =
  * 100,000 a month, written with a non-breaking space as Russian print has it).
  */
 export const ORGANIZATION_DESCRIPTION_RU =
-  `RUN APPAREL — ${WHAT_WE_ARE_RU}. ` +
-  `${WHAT_WE_MAKE_RU.charAt(0).toUpperCase()}${WHAT_WE_MAKE_RU.slice(1)} шьём под заказ от 50 изделий ` +
-  'на модель, мощности — до 100 000 изделий в месяц. 3D-модель, которую заказчик может ' +
+  `RUN APPAREL\u00a0— ${WHAT_WE_ARE_RU}. ` +
+  `${WHAT_WE_MAKE_RU.charAt(0).toUpperCase()}${WHAT_WE_MAKE_RU.slice(1)}\u00a0— под заказ, от 50 изделий ` +
+  'на модель; мощности\u00a0— до 100\u00a0000 изделий в месяц. 3D-модель, которую заказчик может ' +
   'вращать и осматривать до раскроя образца, предоставляется по запросу.'

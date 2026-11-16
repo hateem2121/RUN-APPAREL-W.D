@@ -23,9 +23,9 @@ export const OG_LOCALE: Readonly<Record<Locale, string>> = { en: 'en_US', ru: 'r
 
 /** The shell's generic words in Russian, the floor until the garment's own replace them. */
 export const RU_SHELL = {
-  title: 'RUN APPAREL — 3D-образец изделия',
+  title: 'RUN APPAREL\u00a0— 3D-модель изделия',
   description:
-    'RUN APPAREL — интерактивный 3D-образец изделия для B2B-партнёров. Поворачивайте, приближайте и\u00a0смотрите расцветки.',
+    'RUN APPAREL\u00a0— интерактивная 3D-модель изделия для B2B-партнёров. Поворачивайте, приближайте и\u00a0смотрите расцветки.',
 } as const
 
 /** The tags this file rewrites, by selector: `pageLanguage.test.ts` checks each is in index.html. */

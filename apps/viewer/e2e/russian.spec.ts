@@ -19,7 +19,7 @@ test('the Russian page speaks Russian around an untranslated garment', async ({ 
   await expect(page.locator('.contact__buttons')).toContainText('Написать на почту')
   await expect(page.getByRole('navigation', { name: 'Навигационная цепочка' })).toBeAttached()
   await expect(page.locator('.product-info__colour-note').first()).toHaveText(
-    'Эти расцветки — примеры. Мы подберём цвета под ваши требования.',
+    'Эти расцветки\u00a0— примеры. Мы воспроизведём ваши собственные цвета по\u00a0вашим требованиям.',
   )
 
   // The site's links lead to the Russian site; the bar's links too.
