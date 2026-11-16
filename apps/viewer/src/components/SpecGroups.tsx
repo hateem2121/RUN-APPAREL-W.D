@@ -1,4 +1,5 @@
 import { type SpecItem, specGroups, type ViewerProduct } from '@run-apparel/shared'
+import { russian } from '../lib/locale'
 
 /**
  * THE GARMENT'S FACTS AS FOUR MATCHING GROUPS OF BULLETS (polish D10, owner-approved 2026-10-03).
@@ -65,7 +66,10 @@ function Bullet({ item }: { item: SpecItem }) {
 export function SpecGroups({ product, placement }: SpecGroupsProps) {
   // `specs` is the CMS's, with the notes. An answer cached before the field existed has none:
   // the same groups are built here from the plain fields, with no notes, so nothing is lost.
-  const groups = product.specs ?? specGroups(product)
+  // A Russian page builds them here in Russian (2026-11-16): the CMS sends the English notes, and
+  // the Russian twins live in the shared package (specNotes.ru.ts), so they need no CMS change.
+  // The garment's own values ("88% Nylon", "Race fit") are CMS text and stay as typed.
+  const groups = russian()?.specGroups(product) ?? product.specs ?? specGroups(product)
   if (groups.length === 0) return null
   const list = (
     <dl className={`spec-groups spec-groups--${placement}`}>

@@ -1,6 +1,5 @@
 import {
   acceptTrackers,
-  CONSENT_COPY,
   CONSENT_OPEN_EVENT,
   type CookieJar,
   declineTrackers,
@@ -13,7 +12,8 @@ import {
   type TrackerWindow,
 } from '@run-apparel/shared'
 import { useEffect, useRef, useState } from 'react'
-import { SITE_PRIVACY_URL } from '../lib/siteLinks'
+import { consentWords, sitePath } from '../lib/locale'
+import { SITE_ORIGIN } from '../lib/siteLinks'
 
 const storage = () => safeStorage(() => window.localStorage)
 const trackerWindow = () => window as unknown as TrackerWindow
@@ -52,6 +52,7 @@ const cookieJar = (): CookieJar => ({
  * gives it back when answered, and Decline removes Google's cookies on every load.
  */
 export function ConsentBanner() {
+  const copy = consentWords()
   const [open, setOpen] = useState(false)
   const card = useRef<HTMLDivElement>(null)
   // Where focus was when the visitor asked for the question; null on a first visit.
@@ -158,14 +159,14 @@ export function ConsentBanner() {
     <section className="consent" aria-label="Cookie choice">
       <div className="consent__card" ref={card} tabIndex={-1}>
         <p className="consent__text">
-          {CONSENT_COPY.text} <a href={`${SITE_PRIVACY_URL}#cookies`}>{CONSENT_COPY.more}</a>
+          {copy.text} <a href={`${SITE_ORIGIN}${sitePath('/privacy')}#cookies`}>{copy.more}</a>
         </p>
         <div className="consent__actions">
           <button type="button" className="btn btn--ghost" onClick={decline}>
-            {CONSENT_COPY.decline}
+            {copy.decline}
           </button>
           <button type="button" className="btn btn--ghost" onClick={accept}>
-            {CONSENT_COPY.accept}
+            {copy.accept}
           </button>
         </div>
       </div>

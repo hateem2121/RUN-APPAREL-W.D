@@ -1,6 +1,8 @@
 import type { ViewerProduct, ViewerColourway } from '@run-apparel/shared'
 import { useId, useLayoutEffect, useRef, useState } from 'react'
 import { longestFittingSentences } from '../lib/sentenceCut'
+import { categoryName } from '../lib/locale'
+import { words } from '../lib/words'
 import { headingWithAccent } from './SerifAccent'
 
 interface ProductIdentityProps {
@@ -11,8 +13,8 @@ interface ProductIdentityProps {
   clampDescription?: boolean
 }
 
-const STANDARD_DESCRIPTION =
-  'This is a development reference, not a finished stock product. We can change the fabric, color, fit, trims, branding and performance details to suit your brand.'
+/** The standard development-reference wording, in the page's language (lib/words.ts). */
+const standardDescription = () => words().developmentReference
 
 /** What the clamped paragraph shows now: whether it overflows three lines, and its summary. */
 interface ClampMeasure {
@@ -141,7 +143,7 @@ function Statement({ text, clamp }: { text: string; clamp: boolean }) {
           aria-controls={id}
           onClick={() => setExpanded((open) => !open)}
         >
-          {expanded ? 'Read less' : 'Read more'}
+          {expanded ? words().readLess : words().readMore}
         </button>
       )}
     </>
@@ -171,11 +173,12 @@ export function ProductIdentityFields({
     <>
       <div className="product-info__labels">
         <span className="label">
-          [ {product.category.toUpperCase()} / <span translate="no">{product.productCode}</span> ]
+          [ {categoryName(product.category).toUpperCase()} /{' '}
+          <span translate="no">{product.productCode}</span> ]
         </span>
         {/* Re-keyed so switching colourway cross-fades the label. */}
         <span className="label product-info__colour" key={selected.slug}>
-          [ COLORWAY {String(selectedIndex + 1).padStart(2, '0')} /{' '}
+          [ {words().colourwayCount} {String(selectedIndex + 1).padStart(2, '0')} /{' '}
           {selected.displayName.toUpperCase()} ]
         </span>
       </div>
@@ -203,7 +206,7 @@ export function ProductIdentityFields({
       {/* Keyed by the garment, so another garment's text is measured afresh and starts closed. */}
       <Statement
         key={product.slug}
-        text={product.shortDescription || STANDARD_DESCRIPTION}
+        text={product.shortDescription || standardDescription()}
         clamp={clampDescription}
       />
       {/*
@@ -217,9 +220,7 @@ export function ProductIdentityFields({
         originally reaching for — without the 31px it used to cost the garment
         on a phone.
       */}
-      <p className="product-info__colour-note">
-        These colorways are examples. We match your own colors to your requirements.
-      </p>
+      <p className="product-info__colour-note">{words().colourwaysAreExamples}</p>
     </>
   )
 }

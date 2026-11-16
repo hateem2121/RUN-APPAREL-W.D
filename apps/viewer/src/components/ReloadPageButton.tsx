@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { words } from '../lib/words'
 
 /** Whether the device says it has a connection, kept current by the browser's own events. */
 export function useOnline(): boolean {
@@ -59,7 +60,7 @@ export function ReloadPageButton({
 }) {
   return (
     <button type="button" className={className} onClick={reload} disabled={!online}>
-      {online ? 'Reload Page' : 'Waiting for Connection…'}
+      {online ? words().reloadPage : words().waitingForConnection}
     </button>
   )
 }
@@ -74,9 +75,7 @@ export function ReloadPageButton({
 export function OfflineReloadNote({ online, className }: { online: boolean; className?: string }) {
   return (
     <p className={className} role="status">
-      {online
-        ? ''
-        : 'This device is offline. The button will work again as soon as the signal returns.'}
+      {online ? '' : words().offlineReloadNote}
     </p>
   )
 }

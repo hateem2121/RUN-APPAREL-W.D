@@ -654,7 +654,11 @@ test.describe('the bar survives a phone', () => {
         .evaluateAll((elements) =>
           elements.map((element) => element.getBoundingClientRect().height),
         )
-      expect(rows, 'the open menu holds Products, Contact, Guides and the switch').toHaveLength(4)
+      // Products, Contact, Guides, «Русский» (the garment's Russian twin, 2026-11-16) and the switch.
+      expect(
+        rows,
+        'the open menu holds Products, Contact, Guides, Русский and the switch',
+      ).toHaveLength(5)
       for (const height of rows) expect(height).toBeGreaterThanOrEqual(43.95)
     })
   }

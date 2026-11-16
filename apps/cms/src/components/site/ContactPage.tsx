@@ -110,7 +110,9 @@ export async function ContactPageView({
    * garment and colour in it. Looked up among the published garments, and only when the address
    * names both (`lib/askAboutGarment.ts` says why words are never echoed from it).
    */
-  const asking = askedGarment(params) ? resolveAskedGarment(params, await getProductCards()) : null
+  const asking = askedGarment(params)
+    ? resolveAskedGarment(params, await getProductCards(), locale)
+    : null
   const [tall640, tall1080] = CONTACT_HERO_PHOTO.widths.heroTall
   const [wide1280, wide1920] = CONTACT_HERO_PHOTO.widths.heroWide
 

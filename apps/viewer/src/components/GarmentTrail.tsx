@@ -1,5 +1,7 @@
 import { categoryPath, type ViewerProduct } from '@run-apparel/shared'
-import { SITE_ORIGIN, SITE_PRODUCTS_URL } from '../lib/siteLinks'
+import { SITE_ORIGIN } from '../lib/siteLinks'
+import { categoryName, sitePath } from '../lib/locale'
+import { words } from '../lib/words'
 
 /**
  * Home › Products › <category> › <garment>: where this garment sits on the website (polish S5,
@@ -22,20 +24,22 @@ export function GarmentTrail({
 }) {
   const category = product.category.trim()
   return (
-    <nav className="trail" aria-label="Breadcrumb">
+    <nav className="trail" aria-label={words().breadcrumb}>
       {/* biome-ignore lint/a11y/noRedundantRoles: Safari drops list semantics under list-style: none unless the role is written out */}
       <ol className="trail__list" role="list">
         <li>
-          <a href={`${SITE_ORIGIN}/`}>Home</a>
+          <a href={`${SITE_ORIGIN}${sitePath('/')}`}>{words().home}</a>
         </li>
         <li>
           <Separator />
-          <a href={SITE_PRODUCTS_URL}>Products</a>
+          <a href={`${SITE_ORIGIN}${sitePath('/products')}`}>{words().products}</a>
         </li>
         {category && (
           <li>
             <Separator />
-            <a href={`${SITE_ORIGIN}${categoryPath(category)}`}>{category}</a>
+            <a href={`${SITE_ORIGIN}${sitePath(categoryPath(category))}`}>
+              {categoryName(category)}
+            </a>
           </li>
         )}
         <li>

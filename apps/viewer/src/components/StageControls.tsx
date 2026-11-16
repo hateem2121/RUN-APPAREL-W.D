@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { words } from '../lib/words'
 
 export type CameraView = 'front' | 'back' | 'side'
 
@@ -70,7 +71,7 @@ export function StageControls({
   return (
     <div className="stage__controls">
       {showCameras && (
-        <div className="stage__views" role="group" aria-label="Camera positions">
+        <div className="stage__views" role="group" aria-label={words().cameraPositions}>
           {CAMERA_VIEWS.map((view) => (
             <button
               key={view}
@@ -81,7 +82,7 @@ export function StageControls({
               disabled={disabled}
               onClick={() => onSelect(view)}
             >
-              {view}
+              {words().cameraViews[view]}
             </button>
           ))}
         </div>

@@ -103,14 +103,14 @@ const SEARCH_WORDING = '2026-11-15T11:30:02+05:00'
 const SOLAR_83 = '2026-11-10T19:10:00+00:00'
 
 export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
-  '/': page(SOLAR_83, 'aab62fa19b12'),
-  '/products': page(SITE_CHECK, '25fc3e27a881'),
-  '/custom-teamwear-manufacturer': page(WAVE_ONE, '01f2facfe679'),
-  '/custom-activewear-manufacturer': page(WAVE_ONE, 'a8181462a86d'),
-  '/custom-outerwear-manufacturer': page(WAVE_ONE, '3270ebdbc454'),
-  '/custom-sports-accessories-manufacturer': page(ORDER_PHOTO, '1deddea4271e'),
-  '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'f3c5987771fd'),
-  '/private-label-casual-wear-manufacturer': page(WAVE_ONE, 'cedfe8245411'),
+  '/': page(SOLAR_83, '34db3fa0a16e'),
+  '/products': page(SITE_CHECK, '7aabee7f0c8d'),
+  '/custom-teamwear-manufacturer': page(WAVE_ONE, 'e6cb83348ba8'),
+  '/custom-activewear-manufacturer': page(WAVE_ONE, '3bfa101bf197'),
+  '/custom-outerwear-manufacturer': page(WAVE_ONE, 'b7a21d97ca68'),
+  '/custom-sports-accessories-manufacturer': page(ORDER_PHOTO, 'e398bebde97d'),
+  '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'bc87be186e59'),
+  '/private-label-casual-wear-manufacturer': page(WAVE_ONE, '4bbc455a4420'),
   '/guides': page(SEARCH_WORDING, '0b0fc05abcb9'),
   '/policies': page(SOLAR_83, '588f4d10159e'),
   '/community': page(SITE_CHECK, '36f3ce5c8098'),
@@ -127,7 +127,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   // "What happens next" beside the form (owner, 2026-11-11). Before: the phone became required
   // (2026-11-10T22:50:33+05:00), the wide AVIF hero (2026-11-04T19:52:09+05:00), and the one phone
   // number (2026-10-26T20:13:15+05:00).
-  '/contact': page('2026-11-11T09:35:13+00:00', '31a2ca68b471'),
+  '/contact': page('2026-11-11T09:35:13+00:00', 'a3ccf58e950d'),
   // Turnstile on the contact form named, with its terms linked (owner, 2026-11-11).
   '/privacy': page('2026-11-11T09:36:24+00:00', '1cb4a67bf54b'),
   '/terms': page(SITE_CHECK, '852a77676dab'),

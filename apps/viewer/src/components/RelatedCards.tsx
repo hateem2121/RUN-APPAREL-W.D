@@ -1,6 +1,7 @@
 import {
   buildViewerPath,
   GARMENT_PATH_PREFIX,
+  garmentPathPrefix,
   nameSegments,
   resizedCardImage,
   type ViewerRelatedGarment,
@@ -42,7 +43,7 @@ export default function RelatedCards({ related }: { related: ViewerRelatedGarmen
         <li key={garment.slug}>
           <a
             className="related__card"
-            href={`${SITE_ORIGIN}${buildViewerPath(garment.slug, garment.colourSlug, GARMENT_PATH_PREFIX)}`}
+            href={`${SITE_ORIGIN}${buildViewerPath(garment.slug, garment.colourSlug, garmentPathPrefix(window.location.pathname) || GARMENT_PATH_PREFIX)}`}
           >
             <div className="related__frame">
               {garment.imageUrl ? (

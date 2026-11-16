@@ -3,6 +3,7 @@ import { Component, lazy, type ReactNode, Suspense, useCallback, useRef, useStat
 import { track } from '../lib/analytics'
 import { diagnostic } from '../lib/diagnostic'
 import { OfflineReloadNote, ReloadPageButton, useOnline } from './ReloadPageButton'
+import { words } from '../lib/words'
 
 /*
  * The dialog is a DYNAMIC import, so base-ui and the zoom code never reach the entry
@@ -58,13 +59,13 @@ function DialogFailedNote({ onClose }: { onClose: () => void }) {
   const online = useOnline()
   return (
     <div className="notice hd-image-failed" role="alert">
-      <span className="label">[ NOTE ]</span>
+      <span className="label">{words().noteLabel}</span>
       <div className="hd-image-failed__body">
-        <span>The full-screen picture did not load. Reload the page to try again.</span>
+        <span>{words().hdFailed}</span>
         <div className="hd-image-failed__actions">
           <ReloadPageButton online={online} className="btn btn--primary" />
           <button type="button" className="btn btn--ghost" onClick={onClose}>
-            Close
+            {words().close}
           </button>
         </div>
         <OfflineReloadNote online={online} className="reload-page__offline" />
@@ -167,7 +168,7 @@ export function HdImageButton({
     track('hd_image_opened', { variant: selected.slug })
   }
 
-  const fullName = `HD image: studio render of ${productName} in ${selected.displayName}`
+  const fullName = words().hdImageName(productName, selected.displayName)
 
   return (
     <>
@@ -177,7 +178,7 @@ export function HdImageButton({
           type="button"
           className="camera-btn hd-image-btn"
           aria-haspopup="dialog"
-          aria-label={`Full screen: studio render of ${productName} in ${selected.displayName}`}
+          aria-label={words().fullScreenName(productName, selected.displayName)}
           onPointerDown={warmFull}
           onPointerEnter={warmFull}
           onFocus={warmFull}
@@ -186,7 +187,8 @@ export function HdImageButton({
           <FrameIcon />
           {/* "FULL" alone below 22rem, as "HD" is: `.hd-image-btn__more` (page.css). */}
           <span>
-            FULL<span className="hd-image-btn__more">{' SCREEN'}</span>
+            {words().fullLabel[0]}
+            <span className="hd-image-btn__more">{words().fullLabel[1]}</span>
           </span>
         </button>
       )}
@@ -195,7 +197,7 @@ export function HdImageButton({
         type="button"
         className="camera-btn hd-image-btn"
         {...(switches ? {} : { 'aria-haspopup': 'dialog' as const })}
-        aria-label={switches && shown ? 'View in 3D' : fullName}
+        aria-label={switches && shown ? words().viewIn3d : fullName}
         onPointerDown={switches ? warmWindow : warmFull}
         onPointerEnter={switches ? warmWindow : warmFull}
         onFocus={switches ? warmWindow : warmFull}
@@ -216,7 +218,7 @@ export function HdImageButton({
             <CubeIcon />
             {/* "3D" alone below 22rem; the name is "View in 3D" either way (VA-09). */}
             <span key="view-in-3d">
-              <span className="hd-image-btn__more">{'VIEW IN '}</span>3D
+              <span className="hd-image-btn__more">{words().viewIn3dLabel}</span>3D
             </span>
           </>
         ) : (
@@ -235,7 +237,7 @@ export function HdImageButton({
                 one line, so the no-break space was never doing that job. The space is a JS string so
                 it is not trimmed as the edge of a JSX line. */}
             <span key="hd-image">
-              HD<span className="hd-image-btn__more">{' IMAGE'}</span>
+              HD<span className="hd-image-btn__more">{words().hdLabelMore}</span>
             </span>
           </>
         )}

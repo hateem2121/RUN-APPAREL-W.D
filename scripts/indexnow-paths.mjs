@@ -18,8 +18,10 @@
  *
  * ⚠️ WHAT IS DELIBERATELY NOT MAPPED. The layout and stylesheet change every page's chrome,
  * not any page's words; announcing all pages for a footer tweak is the over-submission this
- * file exists to stop. Garment pages (`/products/<product>/<colour>`) are DATA in D1, not a
- * commit, so no diff can name them. Journal posts are announced by their own publish hook,
+ * file exists to stop. Garment pages (`/products/<product>/<colour>` and their Russian twins
+ * `/ru/products/<product>/<colour>`, 2026-11-16) are DATA in D1, not a commit, so no diff can name
+ * them; `apps/cms/src/lib/garmentIndexNow.ts` announces both on a CMS save, and the whole-sitemap
+ * fallback of `ping-indexnow.mjs` reads them from the live sitemap, which lists both. Journal posts are announced by their own publish hook,
  * not here.
  *
  * Plain Node, no dependencies, so `ci.yml`'s deploy job can run it before anything else is

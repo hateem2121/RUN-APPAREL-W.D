@@ -1,5 +1,3 @@
-import { SITE_MENU_LINKS, SITE_NAV_LINKS } from '@run-apparel/shared'
-
 /**
  * THE FEW RUSSIAN WORDS THE HEADER'S CLIENT ISLANDS NEED (Russian section, 2026-11-15).
  *
@@ -10,29 +8,13 @@ import { SITE_MENU_LINKS, SITE_NAV_LINKS } from '@run-apparel/shared'
  * Russian chrome stays on the server (chrome.ts, which takes its Russian menu links from here).
  */
 
-/** `/ru` or anything under `/ru/`. Not `/rugby`. */
-export function isRussianPath(pathname: string | null): boolean {
-  return pathname === '/ru' || Boolean(pathname?.startsWith('/ru/'))
-}
-
-const RU_LINK_LABELS: Readonly<Record<string, string>> = {
-  '/products': 'Продукция',
-  '/contact': 'Контакты',
-  '/guides': 'Руководства',
-}
-
-function ru(links: readonly { readonly href: string; readonly label: string }[]) {
-  return links.map(({ href }) => {
-    const label = RU_LINK_LABELS[href]
-    if (!label) throw new Error(`islandWords.ts has no Russian label for ${href}`)
-    return { href: `/ru${href}`, label }
-  })
-}
-
-export const RU_NAV_LINKS = ru(SITE_NAV_LINKS)
-export const RU_MENU_LINKS = ru(SITE_MENU_LINKS)
-export const RU_THEME_NAMES = { toDark: 'Включить тёмную тему', toLight: 'Включить светлую тему' }
-export const RU_THEME_WORDS = { toDark: 'Тёмная тема', toLight: 'Светлая тема' }
+export {
+  isRussianPath,
+  RU_MENU_LINKS,
+  RU_NAV_LINKS,
+  RU_THEME_NAMES,
+  RU_THEME_WORDS,
+} from '@run-apparel/shared'
 
 /** The factory page's photo viewer (FactoryPhotoViewer, a client island). */
 export const RU_PHOTO_VIEWER = {

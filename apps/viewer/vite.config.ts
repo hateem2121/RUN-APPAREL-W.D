@@ -344,6 +344,19 @@ export default defineConfig({
               test: /[/\\]node_modules[/\\](motion|framer-motion|motion-dom|motion-utils)[/\\]/,
             },
             { name: 'lenis', priority: 70, test: /[/\\]node_modules[/\\]lenis[/\\]/ },
+            /**
+             * The shared package's modules the entry uses (`$initial`), as ONE chunk (2026-11-16).
+             * The Russian words chunk (`src/lib/ru.ts`, fetched only on /ru pages) imports them too,
+             * and rolldown 1.2.14 then split them out of the entry into three preloaded chunks.
+             * Grouped, the page preloads one (`e2e/perfBudgets.spec.ts`, PF-16, holds 4). Moving
+             * the dynamic import out of `main.tsx` did not change it (measured).
+             */
+            {
+              name: 'shared',
+              priority: 50,
+              tags: ['$initial'],
+              test: /[/\\]packages[/\\]shared[/\\]src[/\\]/,
+            },
           ],
         },
       },

@@ -3,6 +3,7 @@ import { containedBox, playDye, readDyeTiming, type ViewerColourway } from '@run
 import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { posterPicture } from '../lib/garmentContour'
 import { type Box, IDENTITY, panBy, toggleZoomAt, type View, zoomAt } from '../lib/zoomPan'
+import { words } from '../lib/words'
 // Loaded with this lazy chunk only — see the header of hd-image.css.
 import '../styles/hd-image.css'
 
@@ -367,7 +368,7 @@ export default function HdImageDialog({
         <Dialog.Popup className="hd-image" finalFocus={returnFocusTo}>
           <div className="hd-image__bar">
             <Dialog.Title className="hd-image__title">{title}</Dialog.Title>
-            <Dialog.Close className="hd-image__close" aria-label="Close the studio render">
+            <Dialog.Close className="hd-image__close" aria-label={words().closeRender}>
               <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
                 <path
                   d="M3 3l10 10M13 3L3 13"
@@ -379,9 +380,8 @@ export default function HdImageDialog({
             </Dialog.Close>
           </div>
           <Dialog.Description className="visually-hidden">
-            A CLO 3D studio render, not a photograph. Pinch, double-tap, scroll or press plus and
-            minus to zoom; drag to move around.
-            {canStep ? ' Use the arrows to see the other colours.' : ''}
+            {words().renderHelp}
+            {canStep ? words().useArrows : ''}
           </Dialog.Description>
 
           {/* A tap on the empty space around the picture closes, as a tap on a
@@ -449,7 +449,7 @@ export default function HdImageDialog({
               </div>
             )}
             <p className="hd-image__status" role="status">
-              {loaded ? '' : 'LOADING HD IMAGE'}
+              {loaded ? '' : words().loadingHd}
             </p>
           </div>
 
@@ -459,7 +459,7 @@ export default function HdImageDialog({
                 type="button"
                 className="hd-image__step"
                 data-step="-1"
-                aria-label={`Previous colour: ${previous.displayName}`}
+                aria-label={words().previousColour(previous.displayName)}
                 onClick={() => step(-1)}
               >
                 <svg
@@ -479,7 +479,7 @@ export default function HdImageDialog({
                 type="button"
                 className="hd-image__step"
                 data-step="1"
-                aria-label={`Next colour: ${next.displayName}`}
+                aria-label={words().nextColour(next.displayName)}
                 onClick={() => step(1)}
               >
                 <svg

@@ -3,9 +3,11 @@ import { DEFAULT_SITE_SETTINGS, buildMailtoUrl, buildWhatsAppUrl } from '@run-ap
 import { useEffect } from 'react'
 import { track } from '../lib/analytics'
 import type { ViewerFetchFailure } from '../lib/api'
-import { SITE_PRODUCTS_URL } from '../lib/siteLinks'
+import { sitePath } from '../lib/locale'
+import { SITE_ORIGIN } from '../lib/siteLinks'
 import { OfflineReloadNote, ReloadPageButton, useOnline } from './ReloadPageButton'
 import { headingWithAccent } from './SerifAccent'
+import { words } from '../lib/words'
 
 // `LoadingScreen` lived here until 2026-08-03 with zero references anywhere in
 // src/ or e2e/ — superseded by Preloader.tsx, which handles the same moment with
@@ -70,9 +72,11 @@ export function UnreachableState({
 
   return (
     <main className="unavailable blueprint">
-      <span className="label">{offline ? '[ NO CONNECTION ]' : '[ TEMPORARILY UNAVAILABLE ]'}</span>
+      <span className="label">
+        {offline ? words().labelNoConnection : words().labelUnavailableNow}
+      </span>
       <h1 className="display display--hero">
-        {headingWithAccent(offline ? 'This device is offline' : 'This reference did not load')}
+        {headingWithAccent(offline ? words().headingOffline : words().headingDidNotLoad)}
       </h1>
       {/*
         Both sentences say the same three things, in the order a visitor needs
@@ -81,9 +85,7 @@ export function UnreachableState({
         deliberately does not speculate about ours.
       */}
       <p style={{ color: 'var(--muted)' }}>
-        {offline
-          ? 'This page is still here. Your device just has no connection right now. This page will load itself as soon as the signal returns.'
-          : 'Nothing has been discontinued: we could not reach the reference just now. Please try again in a moment.'}
+        {offline ? words().bodyOffline : words().bodyDidNotLoad}
       </p>
       {/*
         ⚠️ A <button>, NOT A RELOAD LINK. Offline, `location.reload()` can replace a
@@ -102,14 +104,14 @@ export function UnreachableState({
           disabled={retrying}
           aria-live="polite"
         >
-          {retrying ? 'Trying…' : 'Try Again'}
+          {retrying ? words().trying : words().tryAgain}
         </button>
         <a
           className="btn btn--ghost"
           href={buildMailtoUrl(site.email, enquiry)}
           onClick={() => track('email_clicked')}
         >
-          Email Us
+          {words().emailUs}
         </a>
         <a
           className="btn btn--ghost"
@@ -118,7 +120,7 @@ export function UnreachableState({
           rel="noopener noreferrer"
           onClick={() => track('whatsapp_clicked')}
         >
-          WhatsApp Us
+          {words().whatsappUs}
         </a>
       </div>
     </main>
@@ -180,12 +182,9 @@ export function CrashedState({
 
   return (
     <main className="unavailable blueprint">
-      <span className="label">[ PAGE ERROR ]</span>
-      <h1 className="display display--hero">{headingWithAccent('This page ran into a problem')}</h1>
-      <p style={{ color: 'var(--muted)' }}>
-        Nothing has been discontinued: the garment is still here, but this page stopped working.
-        Reload the page to see it again, or tell our team and we will send you the reference.
-      </p>
+      <span className="label">{words().labelPageError}</span>
+      <h1 className="display display--hero">{headingWithAccent(words().headingPageError)}</h1>
+      <p style={{ color: 'var(--muted)' }}>{words().bodyPageError}</p>
       <div className="unavailable__actions">
         <ReloadPageButton online={online} reload={reload} />
         <a
@@ -193,7 +192,7 @@ export function CrashedState({
           href={buildMailtoUrl(site.email, enquiry)}
           onClick={() => track('email_clicked')}
         >
-          Email Us
+          {words().emailUs}
         </a>
         <a
           className="btn btn--ghost"
@@ -202,7 +201,7 @@ export function CrashedState({
           rel="noopener noreferrer"
           onClick={() => track('whatsapp_clicked')}
         >
-          WhatsApp Us
+          {words().whatsappUs}
         </a>
       </div>
       <OfflineReloadNote online={online} className="reload-page__offline" />
@@ -231,10 +230,8 @@ export function UnavailableState({ settings }: { settings?: ViewerSiteSettings }
 
   return (
     <main className="unavailable blueprint">
-      <span className="label">[ REFERENCE UNAVAILABLE ]</span>
-      <h1 className="display display--hero">
-        {headingWithAccent('This reference is no longer live')}
-      </h1>
+      <span className="label">{words().labelReferenceUnavailable}</span>
+      <h1 className="display display--hero">{headingWithAccent(words().headingNoLongerLive)}</h1>
       {/*
         THE COPY AND THE BUTTONS CHANGED TOGETHER on 2026-09-04, and they had to.
 
@@ -265,11 +262,7 @@ export function UnavailableState({ settings }: { settings?: ViewerSiteSettings }
         where the visitor arrived with intent, holding the garment — got the two
         enquiry buttons and nothing else. That is the wrong way round.
       */}
-      <p style={{ color: 'var(--muted)' }}>
-        The QR code you scanned points to a garment we no longer show here. Browse the current
-        references, or tell our team what you were looking at and we will send you the current
-        reference for it.
-      </p>
+      <p style={{ color: 'var(--muted)' }}>{words().bodyNoLongerLive}</p>
       {/*
         ONE PRIMARY, STILL. `btn--primary` moved to Email on 2026-09-04 because this
         is the only screen where the visitor arrived with intent and got nothing, so
@@ -282,7 +275,7 @@ export function UnavailableState({ settings }: { settings?: ViewerSiteSettings }
           href={buildMailtoUrl(site.email, enquiry)}
           onClick={() => track('email_clicked')}
         >
-          Email Us
+          {words().emailUs}
         </a>
         <a
           className="btn btn--ghost"
@@ -291,11 +284,11 @@ export function UnavailableState({ settings }: { settings?: ViewerSiteSettings }
           rel="noopener noreferrer"
           onClick={() => track('whatsapp_clicked')}
         >
-          WhatsApp Us
+          {words().whatsappUs}
         </a>
         {/* The site's one name for the way to the 3D garments (polish X20, the owner's answer Q40). */}
-        <a className="btn btn--ghost" href={SITE_PRODUCTS_URL}>
-          See products in 3D
+        <a className="btn btn--ghost" href={`${SITE_ORIGIN}${sitePath('/products')}`}>
+          {words().seeProductsIn3d}
         </a>
       </div>
     </main>

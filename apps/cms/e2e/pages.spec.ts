@@ -679,9 +679,10 @@ test.describe('search visibility follows the committed switch: visible since lau
       // (`searchVisibility.test.ts`, `newPagesWiring.test.ts`). The hubs are always listed.
       // A garment colour is listed once the server can read the seeded catalogue, which it can
       // since the e2e step has a Payload secret (2026-10-07); `searchVisibility.test.ts` holds
-      // the garment entries.
+      // the garment entries, and since 2026-11-16 each garment's Russian twin beside it
+      // (`/ru/products/<product>/<colour>`, drawn by the viewer Worker).
       .filter((path) => !/^\/(journal|case-studies)\/./.test(path))
-      .filter((path) => !/^\/products\/[^/]+\/[^/]+$/.test(path))
+      .filter((path) => !/^(\/ru)?\/products\/[^/]+\/[^/]+$/.test(path))
     expect(locs.sort()).toEqual(
       [
         '/',
