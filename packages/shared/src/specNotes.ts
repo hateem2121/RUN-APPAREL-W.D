@@ -331,26 +331,49 @@ export const WEIGHT_BANDS: readonly { readonly below: number; readonly band: str
  * it is for: the "very light" band holds a windbreaker, a softshell and a training bib (checked
  * against all 40 live garments 2026-10-04), so "for hot days" would be wrong for two of them.
  */
-export function weightNote(gsm: string): string | null {
+export type WeightKind =
+  | { readonly kind: 'neoprene' | 'thickness' | 'insulation' }
+  | { readonly kind: 'band'; readonly middle: number }
+
+/**
+ * How a weight value reads, whichever language the sentence is written in: the value is the CMS's
+ * English ("40–60 GSM insulation") on both languages' pages (`specNotes.ru.ts` reads it too).
+ */
+export function weightKind(gsm: string): WeightKind | null {
   const text = gsm.toLowerCase()
-  if (/\bmm\b/.test(text)) {
-    return text.includes('neoprene')
-      ? 'Neoprene is sold by thickness: thicker is warmer, thinner bends more easily.'
-      : 'Measured by thickness: thicker is tougher, thinner is lighter and softer.'
-  }
+  if (/\bmm\b/.test(text)) return { kind: text.includes('neoprene') ? 'neoprene' : 'thickness' }
   const numbers = [...text.matchAll(/\d+/g)].map((match) => Number(match[0]))
   if (numbers.length === 0 || !/gsm|g\/m/.test(text)) return null
-  if (text.includes('insulation')) {
-    return 'The weight of the padding inside, in grams per square meter: more grams, more warmth.'
-  }
-  const middle = (Math.min(...numbers) + Math.max(...numbers)) / 2
-  const band = WEIGHT_BANDS.find((entry) => middle < entry.below)?.band
-  return `How heavy the fabric is, in grams per square meter: ${band}.`
+  if (text.includes('insulation')) return { kind: 'insulation' }
+  return { kind: 'band', middle: (Math.min(...numbers) + Math.max(...numbers)) / 2 }
 }
 
-/** The note for one bullet, or null. What `specGroups` is given by the CMS. */
+export function weightNote(gsm: string): string | null {
+  const weight = weightKind(gsm)
+  if (!weight) return null
+  switch (weight.kind) {
+    case 'neoprene':
+      return 'Neoprene is sold by thickness: thicker is warmer, thinner bends more easily.'
+    case 'thickness':
+      return 'Measured by thickness: thicker is tougher, thinner is lighter and softer.'
+    case 'insulation':
+      return 'The weight of the padding inside, in grams per square meter: more grams, more warmth.'
+    case 'band': {
+      const { middle } = weight
+      const band = WEIGHT_BANDS.find((entry) => middle < entry.below)?.band
+      return `How heavy the fabric is, in grams per square meter: ${band}.`
+    }
+  }
+}
+
+/**
+ * The note for one bullet, or null. What `specGroups` is given by the CMS. The Russian twin is
+ * `specNoteRu` in `specNotes.ru.ts` (kept out of this file so an English page's script never
+ * carries the Russian tables, 2026-11-16).
+ */
 export function specNote(group: SpecGroupKey, text: string): string | null {
   if (group === 'weight') return weightNote(text)
+  const key = noteKey(text)
   const notes = group === 'fabric' ? FIBRE_NOTES : group === 'fit' ? FIT_NOTES : FEATURE_NOTES
-  return notes[noteKey(text)] ?? null
+  return notes[key] ?? null
 }

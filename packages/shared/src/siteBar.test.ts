@@ -105,7 +105,13 @@ describe('siteBarAriaSnapshot', () => {
     ]
     const theSwitch = '    - button /^(Switch to dark mode|Switch to light mode)$/'
     expect(siteBarAriaSnapshot('wide', 'RUN APPAREL')).toBe(
-      [...head, '    - link "Products"', '    - link "Contact"', theSwitch].join('\n'),
+      [
+        ...head,
+        '    - link "Products"',
+        '    - link "Contact"',
+        '    - link "Русский"',
+        theSwitch,
+      ].join('\n'),
     )
     expect(siteBarAriaSnapshot('phone-closed', 'RUN APPAREL')).toBe(
       [...head, '    - button "Menu"'].join('\n'),
@@ -117,6 +123,7 @@ describe('siteBarAriaSnapshot', () => {
         '    - link "Products"',
         '    - link "Contact"',
         '    - link "Guides"',
+        '    - link "Русский"',
         theSwitch,
       ].join('\n'),
     )

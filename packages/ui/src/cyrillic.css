@@ -29,12 +29,21 @@
  *   but 130.6% stands a capital 13% taller than Instrument Serif's.
  *
  * Licences: ../fonts/OFL-robotoflex.txt, ../fonts/OFL-cormorant.txt (SIL OFL 1.1).
+ *
+ * ⚠️ EACH COMPANION'S STYLE, WEIGHT AND STRETCH MATCH ITS BRAND FACE EXACTLY (2026-11-16, PR #408).
+ * Font matching picks ONE set of those descriptors first and only then reads `unicode-range`
+ * inside it, so a face that differs is a separate set, not a part of the family. Roboto Flex
+ * was declared `font-weight: 100 1000` (its real range) beside Archivo's `100 900`, and Chromium
+ * on Linux chose the Cyrillic-only set for weight 400: Latin text found nothing in it and fell
+ * straight to the system font, Archivo's file fetched but never used. Caught in CI's Docker image
+ * by apps/viewer/e2e/consent.spec.ts (a 76-character line), not on a Mac; measured there with
+ * the faces and without. apps/cms/src/cyrillicFaces.test.ts holds the match.
  */
 @font-face {
   font-family: "Archivo Variable";
   font-style: normal;
   font-display: swap;
-  font-weight: 100 1000;
+  font-weight: 100 900;
   font-stretch: 100% 125%;
   size-adjust: 99%;
   src: url(../fonts/roboto-flex-cyrillic-wdth-100-125.woff2) format("woff2-variations");

@@ -22,11 +22,14 @@ const garment = (over: Doc = {}): Doc => ({
 })
 
 describe('the addresses a garment save changes', () => {
-  it('a live garment: every colour page that exists, then /products', () => {
+  it('a live garment: every colour page that exists, each beside its Russian page, then /products and /ru/products', () => {
     expect(garmentIndexNowUrls(garment(), undefined, ORIGIN)).toEqual([
       'https://wear-run.com/products/rxps/wine',
+      'https://wear-run.com/ru/products/rxps/wine',
       'https://wear-run.com/products/rxps/lime',
+      'https://wear-run.com/ru/products/rxps/lime',
       'https://wear-run.com/products',
+      'https://wear-run.com/ru/products',
     ])
   })
 

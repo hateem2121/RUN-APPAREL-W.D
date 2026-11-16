@@ -1,4 +1,4 @@
-import { GARMENT_PATH_PREFIX } from '@run-apparel/shared'
+import { GARMENT_PATH_PREFIX, RU_GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import type { Metadata } from 'next'
 import { hasRussianTwin, type Locale, ruPath } from './locale'
 import { SHARE_IMAGE, shareCardFor, shareImageUrl } from './shareImages'
@@ -25,6 +25,18 @@ export const SITE_ORIGIN = (process.env.NEXT_PUBLIC_SITE_ORIGIN ?? 'https://wear
  * but they are pages of THIS site now, one folder below the /products listing.
  */
 export const GARMENT_PAGES = `${SITE_ORIGIN}${GARMENT_PATH_PREFIX}`
+
+/**
+ * The Russian garment pages' folder, `<SITE_ORIGIN>/ru/products/<product>/<colour>` (owner,
+ * 2026-11-16): the same Latin slugs, drawn by the viewer Worker like the English ones. A Russian
+ * page's cards and links go here, so a buyer who reads Russian stays in Russian.
+ */
+export const GARMENT_PAGES_RU = `${SITE_ORIGIN}${RU_GARMENT_PATH_PREFIX}`
+
+/** The garment folder for a page's language (absolute, no trailing slash). */
+export function garmentPagesFor(locale: Locale = 'en'): string {
+  return locale === 'ru' ? GARMENT_PAGES_RU : GARMENT_PAGES
+}
 
 /**
  * The site's name, as `og:site_name`, the home page's `<title>` and (since 2026-10-08) the

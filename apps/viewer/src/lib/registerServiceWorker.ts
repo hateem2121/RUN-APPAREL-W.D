@@ -24,7 +24,7 @@
  * that ever loaded the site, serving its cache from a file that no longer exists.
  */
 
-import { GARMENT_PATH_PREFIX, isGarmentPagePath } from '@run-apparel/shared'
+import { garmentPathPrefix } from '@run-apparel/shared'
 
 /** Exported for the test; the browser has exactly one. */
 export const SERVICE_WORKER_URL = '/sw.js'
@@ -55,7 +55,9 @@ interface RegisterOptions {
  * On the old viewer host the viewer owns the whole origin and keeps the default.
  */
 function scopeFor(pathname: string): RegistrationOptions | undefined {
-  return isGarmentPagePath(pathname) ? { scope: `${GARMENT_PATH_PREFIX}/` } : undefined
+  // Each language's garment folder is its own scope (`/ru/products/` since 2026-11-16).
+  const prefix = garmentPathPrefix(pathname)
+  return prefix ? { scope: `${prefix}/` } : undefined
 }
 
 /**

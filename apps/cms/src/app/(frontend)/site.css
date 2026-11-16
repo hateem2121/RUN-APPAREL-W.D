@@ -9535,9 +9535,9 @@ html[data-preload="lifting"] .preloader__lockup {
  * 200% text included. So the query is `208px + 19.75rem`: 13-20px early for Firefox, more for
  * Chromium. Below it the link waits in the phone menu.
  *
- * Here, not in notch.css, and on the website's own class only: the garment pages' bar has no
- * language link, so this styles nothing the two hosts share (auditGuards.test.ts, XS-02, keeps the
- * shared bar's look in notch.css). It beats notch.css's `.nav-link--menu { display: none }` by
+ * Here, not in notch.css: the garment pages' bar copies this rule into its own page.css since
+ * 2026-11-16 (it gained the same link with the Russian garment pages), and auditGuards.test.ts
+ * (XS-02) keeps the shared bar's look in notch.css. It beats notch.css's `.nav-link--menu { display: none }` by
  * coming later at the same weight, and its width is always past the shared inline query, so it only
  * ever applies where the bar is already inline.
  */

@@ -2268,5 +2268,15 @@
     "tool": "speller",
     "word": "мерчандайзером",
     "reason": "The dictionary spelling: Русский орфографический словарь (ред. В. В. Лопатин, О. Е. Иванова) gives «мерчанда́йзер, -а», and Грамота.ру answers «Правильно: мерчандайзинг, мерчандайзер» (read on gramota.ru 2026-11-15). The checkers lack the word."
+  },
+  {
+    "tool": "grammar",
+    "word": "флисом",
+    "reason": "The dictionary word: Русский орфографический словарь (ред. В. В. Лопатин, О. Е. Иванова) gives «флис, -а» (read on gramota.ru 2026-11-16); «флисом» is its instrumental case. The checker lacks the word."
+  },
+  {
+    "tool": "grammar",
+    "word": "рибаны",
+    "reason": "A knitwear trade term (rib knit), the genitive of «рибана», already allowlisted and used in the site's Russian glossary; not in Русский орфографический словарь (gramota.ru search 2026-11-16: no exact match), so a trade term the checker's dictionary lacks, read in its sentence."
   }
 ]

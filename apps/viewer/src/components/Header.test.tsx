@@ -50,10 +50,9 @@ describe("Header — the website's bar", () => {
   it('links the name home to the site (D5), and each page to the site', () => {
     expect(host.querySelector('a.notch__wordmark')?.getAttribute('href')).toBe(SITE_ORIGIN)
     expect(
-      [...host.querySelectorAll(`#${SITE_MENU_ID} a.nav-link`)].map((link) => [
-        link.textContent,
-        link.getAttribute('href'),
-      ]),
+      [...host.querySelectorAll(`#${SITE_MENU_ID} a.nav-link:not(.nav-link--language)`)].map(
+        (link) => [link.textContent, link.getAttribute('href')],
+      ),
     ).toEqual(
       // The bar's two, then the phone menu's own (VA-37: Guides), all to the site.
       [...SITE_NAV_LINKS, ...SITE_MENU_LINKS].map(({ href, label }) => [
@@ -62,6 +61,15 @@ describe("Header — the website's bar", () => {
       ]),
     )
     expect(host.querySelector('nav')?.getAttribute('aria-label')).toBe(SITE_NAV_LABEL)
+  })
+
+  // The same garment in the other language (2026-11-16): an English page offers «Русский».
+  it('offers the same garment in Russian, last in the menu', () => {
+    const link = host.querySelector(`#${SITE_MENU_ID} a.nav-link--language`)
+    expect(link?.textContent).toBe('Русский')
+    expect(link?.getAttribute('hreflang')).toBe('ru')
+    expect(link?.getAttribute('lang')).toBe('ru')
+    expect(link?.getAttribute('href')).toMatch(/^https:\/\/wear-run\.com\/ru\/products\//)
   })
 
   it("declares the browser's own popover, the list straight after its button", () => {

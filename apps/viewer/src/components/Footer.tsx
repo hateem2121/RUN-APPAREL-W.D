@@ -9,17 +9,13 @@ import {
   marksFor,
   normalizeWhatsAppNumber,
   watchFooterInView,
-  SITE_FOOTER_COMPANY,
-  SITE_FOOTER_LEARN,
-  SITE_FOOTER_LINKS,
-  SITE_FOOTER_MADE,
-  SITE_FOOTER_WORDS,
   standardsLines,
   type ViewerSiteSettings,
 } from '@run-apparel/shared'
 import { lazy, Suspense, useEffect } from 'react'
 import { track } from '../lib/analytics'
 import { reloadOnChunkFailure } from '../lib/staleChunkReload'
+import { chrome, footerLine, sitePath } from '../lib/locale'
 import { SITE_ORIGIN } from '../lib/siteLinks'
 import { FooterGlow, FooterWordmark } from './FooterLive'
 import { LazyPieceBoundary } from './LazyPieceBoundary'
@@ -67,7 +63,8 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
   const f = settings.footer ?? EMPTY_FOOTER
   const capacity = capacityLines(f.capacity)
   const marks = marksFor(f.certifications)
-  const words = SITE_FOOTER_WORDS
+  const c = chrome()
+  const words = c.footer
   // A phone's colour beyond the page is the footer's only while the footer is on screen
   // (packages/ui/src/footer.css says why; the website's FooterInView.tsx does the same).
   useEffect(() => watchFooterInView(document), [])
@@ -76,7 +73,12 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
     <footer className="site-footer">
       <LazyPieceBoundary piece="footer-tab">
         <Suspense fallback={null}>
-          <FooterTab label={f.ctaLabel} />
+          {/* Words and links in the page's language are worked out HERE and passed down: this lazy
+              piece imports no language helper, so it adds no chunk to the first load (PF-16). */}
+          <FooterTab
+            label={footerLine(f.ctaLabel)}
+            href={`${SITE_ORIGIN}${sitePath('/contact')}`}
+          />
         </Suspense>
       </LazyPieceBoundary>
       <div className="site-footer__slab">
@@ -85,7 +87,15 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
         <div className="site-footer__inner">
           <LazyPieceBoundary piece="footer-question">
             <Suspense fallback={null}>
-              <FooterQuestion footer={f} />
+              <FooterQuestion
+                footer={{
+                  ...f,
+                  ctaQuestion: footerLine(f.ctaQuestion),
+                  ctaSubline: footerLine(f.ctaSubline),
+                  ctaPromise: footerLine(f.ctaPromise),
+                }}
+                words={c}
+              />
             </Suspense>
           </LazyPieceBoundary>
           <div className="footer-facts">
@@ -124,7 +134,7 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
             <div className="footer-block footer-block--made">
               <h3>{words.made}</h3>
               <ul>
-                {SITE_FOOTER_MADE.map((link) => (
+                {c.made.map((link) => (
                   <li key={link.href}>
                     <a href={`${SITE_ORIGIN}${link.href}`}>{link.label}</a>
                   </li>
@@ -134,11 +144,11 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
 
             {/* The company pages (2026-10-07): drawn here and in SiteFooter.tsx in the same
                 change, or both aria-snapshot suites fail. */}
-            {SITE_FOOTER_COMPANY.length > 1 ? (
+            {c.company.length > 1 ? (
               <div className="footer-block footer-block--company">
                 <h3>{words.company}</h3>
                 <ul>
-                  {SITE_FOOTER_COMPANY.map((link) => (
+                  {c.company.map((link) => (
                     <li key={link.href}>
                       <a href={`${SITE_ORIGIN}${link.href}`}>{link.label}</a>
                     </li>
@@ -152,11 +162,11 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
                 group's class as well, for that group's print rule (off paper, footer.css): a selector
                 of its own there would grow the garment pages' stylesheet, which sits at its budget
                 (lighthouserc.json, raised 23 bytes for the Company group). */}
-            {SITE_FOOTER_LEARN.length > 1 ? (
+            {c.learn.length > 1 ? (
               <div className="footer-block footer-block--company footer-block--learn">
                 <h3>{words.learn}</h3>
                 <ul>
-                  {SITE_FOOTER_LEARN.map((link) => (
+                  {c.learn.map((link) => (
                     <li key={link.href}>
                       <a href={`${SITE_ORIGIN}${link.href}`}>{link.label}</a>
                     </li>
@@ -188,7 +198,7 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
                 <h3>{words.capacity}</h3>
                 <ul>
                   {capacity.map((line) => (
-                    <li key={line}>{line}</li>
+                    <li key={line}>{footerLine(line)}</li>
                   ))}
                 </ul>
               </div>
@@ -199,9 +209,9 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
               <h3>{words.standards}</h3>
               <ul>
                 {standardsLines(f.certifications).map((line) => (
-                  <li key={line}>{line}</li>
+                  <li key={line}>{footerLine(line)}</li>
                 ))}
-                <li>{CLIMATE_COMMITMENT.line}</li>
+                <li>{footerLine(CLIMATE_COMMITMENT.line)}</li>
               </ul>
             </div>
 
@@ -242,7 +252,7 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
           <div className="footer-legal">
             <span translate="no">{settings.legalLine}</span>
             <span>{settings.footerLine}</span>
-            {SITE_FOOTER_LINKS.map((link) =>
+            {c.footerLinks.map((link) =>
               link.consent ? (
                 <a
                   key={link.href}
@@ -264,6 +274,20 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
                 </a>
               ),
             )}
+            {/*
+              «English», on Russian pages only, to the English home: the website's Russian footer
+              (SiteFooter.tsx, owner 2026-11-15; the English footer has none, it wrapped at 768px).
+            */}
+            {c.lang === 'ru' ? (
+              <a
+                className="nav-link"
+                href={`${SITE_ORIGIN}/`}
+                hrefLang={c.otherLanguage.hrefLang}
+                lang={c.otherLanguage.hrefLang}
+              >
+                {c.otherLanguage.label}
+              </a>
+            ) : null}
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 import type { ViewerMediaAsset } from '@run-apparel/shared'
 import { useState } from 'react'
+import { words } from '../lib/words'
 
 /** At most one distinct small alternative; never fetch a full render automatically on a bad line. */
 export function RecoverablePicture({
@@ -21,7 +22,7 @@ export function RecoverablePicture({
   if (!picture)
     return candidates.length ? (
       <div className="stage__picture-recovery">
-        <p role="status">The picture could not load.</p>
+        <p role="status">{words().pictureFailed}</p>
         <button
           type="button"
           className="stage__retry"
@@ -38,7 +39,7 @@ export function RecoverablePicture({
             setAttempt((previous) => previous + 1)
           }}
         >
-          TRY PICTURE AGAIN
+          {words().tryPictureAgain}
         </button>
       </div>
     ) : null

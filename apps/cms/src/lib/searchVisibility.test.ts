@@ -59,7 +59,9 @@ describe('searchVisibility reads the Worker first, then the process, then fails 
  * the buyer pages joined the list on 2026-09-30, and a count like that breaks on every page
  * added.
  */
-const isGarment = (url: string): boolean => url.includes('/products/')
+const isGarment = (url: string): boolean => new URL(url).pathname.startsWith('/products/')
+/** The Russian twin of a garment's entry (2026-11-16). */
+const isRussianGarment = (url: string): boolean => new URL(url).pathname.startsWith('/ru/products/')
 
 describe('what the switch does', () => {
   it('hidden means noindex; visible means the layout declares nothing', () => {
@@ -411,10 +413,24 @@ describe('the Russian section in the sitemap (2026-11-15)', () => {
     )
   })
 
-  it('gives no Russian twin to a post or a 3D garment page', () => {
+  it('gives no Russian twin to a post', () => {
     expect(at(`${origin}/ru/journal/a-post`)).toBeUndefined()
-    expect(visible.some((entry) => entry.url.startsWith(`${origin}/ru/products/`))).toBe(false)
-    expect(at(`${origin}/products/rxps/wine`)?.alternates).toBeUndefined()
+    expect(at(`${origin}/journal/a-post`)?.alternates).toBeUndefined()
+  })
+
+  it('lists each garment’s Russian page right after its English one, with the same pair (owner, 2026-11-16)', () => {
+    const colours = [{ slug: 'wine', image: { url: 'https://media.wear-run.com/a.webp' } }]
+    const entries = sitemapFor('visible', origin, [
+      { slug: 'rxps', defaultColourSlug: 'wine', colours },
+    ]).filter((entry) => isGarment(entry.url) || isRussianGarment(entry.url))
+    const pair = {
+      en: `${origin}/products/rxps/wine`,
+      ru: `${origin}/ru/products/rxps/wine`,
+      'x-default': `${origin}/products/rxps/wine`,
+    }
+    expect(entries.map((entry) => entry.url)).toEqual([pair.en, pair.ru])
+    for (const entry of entries) expect(entry.alternates?.languages).toEqual(pair)
+    expect(entries[1]?.images).toEqual(entries[0]?.images)
   })
 
   it('lists neither language while the site is hidden', () => {

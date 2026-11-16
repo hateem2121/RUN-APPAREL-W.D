@@ -66,6 +66,12 @@ test.describe('PF-16 — render-blocking discipline (viewer product page)', () =
    * shared the first seconds with the one blocking stylesheet and held first paint back
    * (5.2 s against 4.4 s on this harness). `src/lib/preload3d.ts` adds both from the app
    * after its first render, and `scripts/preload.test.ts` pins that they are not here.
+   *
+   * Re-measured 2026-11-16 for the Russian garment pages: 2 + 4. The fourth modulepreload is
+   * `shared-*.js`, the shared package's modules the entry uses, grouped in `vite.config.ts`: the
+   * Russian words chunk imports them too, and without the group rolldown split them into THREE
+   * preloaded chunks (6 in all). English first load 41,599 B gzip against main's 39,020 B in one
+   * file (scripts/check-bundle-budget.mjs has the breakdown); e2e/firstPaint.spec.ts still holds.
    */
   test('preload + modulepreload count matches the measured baseline', async ({ baseURL }) => {
     const ctx = await request.newContext()
@@ -84,7 +90,7 @@ test.describe('PF-16 — render-blocking discipline (viewer product page)', () =
       modulePreloadCount,
       `modulepreload count drifted (${modulePreloadCount}) — re-measure before changing this ` +
         'number, do not just raise it',
-    ).toBe(3)
+    ).toBe(4)
   })
 })
 

@@ -471,6 +471,19 @@ describe('the buyer library’s page parts (2026-11-06)', () => {
     expect(text(unlinked)).toBe(words)
   })
 
+  it('links a garment to its Russian page from a Russian page (owner, 2026-11-16)', () => {
+    const link = { phrase: 'Apex Flex Pullover', href: '/products/r-afp' }
+    const html = renderToStaticMarkup(
+      createElement(LinkedWords, {
+        text: 'Our Apex Flex Pullover is waffle.',
+        links: [link],
+        cards: [card('r-afp', 'stone')],
+        locale: 'ru',
+      }),
+    )
+    expect(html).toContain('href="/ru/products/r-afp/stone"')
+  })
+
   it('draws the owner’s legal line under a law section, and the fibers guide links its labels guide', () => {
     const html = render(guideAt('/guides/sportswear-compliance-by-market'))
     expect(html).toContain('class="guide-legal"')

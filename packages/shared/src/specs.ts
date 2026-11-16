@@ -82,6 +82,14 @@ const ACCESSORY_HEADINGS: Record<SpecGroupKey, string> = {
   performance: 'According to FIFA Quality Pro',
 }
 
+/**
+ * A group's heading: the ball's own headings for 'Sports Accessories', the garment headings
+ * otherwise. The Russian twin is `specGroupLabelRu` (`specNotes.ru.ts`, 2026-11-16).
+ */
+export function specGroupLabel(key: SpecGroupKey, category?: string): string {
+  return (category === 'Sports Accessories' ? ACCESSORY_HEADINGS : SPEC_HEADINGS)[key]
+}
+
 type SpecFields = {
   category?: string
   fabricComposition: string
@@ -93,11 +101,13 @@ type SpecFields = {
 /**
  * The four groups, in corner order (Fabric, Weight, Fit, Performance), each with its bullets; a
  * group with nothing in it is left out. `noteFor` supplies the notes (the CMS passes `specNote`);
- * without it every note is null.
+ * without it every note is null. `headingFor` names each group (English by default); a Russian
+ * page passes `specGroupLabelRu` and `specNoteRu` (`specGroupsRu` does both).
  */
 export function specGroups(
   product: SpecFields,
   noteFor: (group: SpecGroupKey, text: string) => string | null = () => null,
+  headingFor: (key: SpecGroupKey, category?: string) => string = specGroupLabel,
 ): SpecGroup[] {
   const item = (group: SpecGroupKey, text: string): SpecItem => ({
     text,
@@ -113,9 +123,7 @@ export function specGroups(
   return (Object.keys(SPEC_HEADINGS) as SpecGroupKey[])
     .map((key) => ({
       key,
-      heading: (product.category === 'Sports Accessories' ? ACCESSORY_HEADINGS : SPEC_HEADINGS)[
-        key
-      ],
+      heading: headingFor(key, product.category),
       items: lists[key].map((text) => item(key, text)),
     }))
     .filter((group) => group.items.length > 0)

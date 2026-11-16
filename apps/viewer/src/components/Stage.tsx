@@ -60,21 +60,19 @@ function dotIn(layer: HTMLElement, slug: string): { x: number; y: number } | nul
 import { type CameraView, StageControls } from './StageControls'
 import {
   applyAdaptivePan,
-  COMING_SOON_NOTICE,
   DISABLE_TAP,
   DRACO_DECODER_URL,
   ENVIRONMENT_IMAGE,
   KTX2_TRANSCODER_URL,
-  LOAD_NOTICE,
   MESHOPT_DECODER_URL,
   MIN_FIELD_OF_VIEW,
   type ModelViewerEl,
   PAN_SENSITIVITY,
   PAN_TARGET_STYLE,
-  STALL_NOTICE,
   TOUCH_ACTION,
   VARIANT_NOTICE,
 } from './stageConfig'
+import { words } from '../lib/words'
 
 interface StageProps {
   data: ViewerApiSuccess
@@ -1165,12 +1163,12 @@ export function Stage({
     phase.kind === 'poster' && phase.reason === 'crawler'
       ? null
       : comingSoon
-        ? COMING_SOON_NOTICE
+        ? words().comingSoonNotice
         : connectionFailed
-          ? 'The 3D view could not connect. You can try again or use the picture.'
+          ? words().couldNotConnect
           : stalled
-            ? STALL_NOTICE
-            : LOAD_NOTICE
+            ? words().stallNotice
+            : words().loadNotice
 
   /*
    * POLISH F14: ON PAPER THE WINDOW HOLDS THE CHOSEN COLOUR'S PICTURE, NOT THE 3D. A browser
@@ -1327,10 +1325,10 @@ export function Stage({
       className="stage"
       aria-label={
         fallback
-          ? 'Product reference'
+          ? words().productReference
           : showHd
-            ? 'Product picture'
-            : 'Interactive 3D product reference'
+            ? words().productPicture
+            : words().interactiveReference
       }
     >
       <div className="stage__inner">
@@ -1425,7 +1423,7 @@ export function Stage({
                 type="button"
                 slot="ar-button"
                 className="stage__ar"
-                aria-label="View in your space"
+                aria-label={words().viewInYourSpace}
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -1465,7 +1463,7 @@ export function Stage({
               onLoad={keepHdCopy}
               src={hdPicture.url}
               alt={
-                hdPicture.alt || `${product.productName} in ${selected.displayName}, studio render`
+                hdPicture.alt || words().studioRenderAlt(product.productName, selected.displayName)
               }
               decoding="async"
               draggable={false}
@@ -1619,7 +1617,7 @@ export function Stage({
              */
             <p className="stage__hint" aria-hidden="true">
               <svg className="stage__hint-icon" viewBox="0 0 24 24" focusable="false">
-                <title>Rotate</title>
+                <title>{words().rotate}</title>
                 {/* An arc with an arrowhead: "this turns". Stroked, not filled,
                     so it inherits the hint's colour and weight. */}
                 <path
@@ -1638,7 +1636,7 @@ export function Stage({
                   strokeLinejoin="round"
                 />
               </svg>
-              {coarsePointer ? 'DRAG TO ROTATE · PINCH TO ZOOM' : 'DRAG TO ROTATE · SCROLL TO ZOOM'}
+              {coarsePointer ? words().hintTouch : words().hintPointer}
             </p>
           )}
 
@@ -1657,7 +1655,7 @@ export function Stage({
               reduceMotion={reduceMotion}
               retryNote={
                 retryWaiting && load.phase === 'downloading'
-                  ? `DOWNLOAD STOPPED · TRYING AGAIN (${downloadAttempt} OF ${MAX_ATTEMPTS})`
+                  ? words().downloadRetrying(downloadAttempt, MAX_ATTEMPTS)
                   : null
               }
             />
@@ -1718,7 +1716,7 @@ export function Stage({
                   })
                 }}
               >
-                TRY 3D AGAIN
+                {words().try3dAgain}
               </button>
             )}
           </div>
@@ -1779,17 +1777,17 @@ export function Stage({
         <p className="visually-hidden" role="status">
           {/* The picture first: while it shows, the 3D downloading behind it is not news. */}
           {showHd
-            ? `Showing the studio picture of ${product.productName} in ${selected.displayName}.`
+            ? words().announceShowingPicture(product.productName, selected.displayName)
             : loading
               ? load.phase === 'preparing'
-                ? 'Download complete. Preparing the interactive 3D model.'
+                ? words().announceDownloadDone
                 : retryWaiting
-                  ? `The download stopped. Trying again, ${downloadAttempt} of ${MAX_ATTEMPTS}.`
+                  ? words().announceDownloadStopped(downloadAttempt, MAX_ATTEMPTS)
                   : announcedPercent === null
-                    ? 'Loading the interactive 3D model.'
-                    : `Loading the interactive 3D model, ${announcedPercent} percent.`
+                    ? words().announceLoading
+                    : words().announceLoadingPercent(announcedPercent)
               : modelLoaded
-                ? `Showing ${product.productName} in ${selected.displayName}.`
+                ? words().announceShowing(product.productName, selected.displayName)
                 : ''}
         </p>
         {/* ONE instruction, and it names the keyboard.
@@ -1800,12 +1798,7 @@ export function Stage({
             the arrow keys and zooms with Page Up / Page Down. A keyboard-only
             visitor was told to drag. Gated on the same condition as the visible
             hint, so it is absent when there is nothing to operate. */}
-        {!fallback && modelLoaded && (
-          <p className="visually-hidden">
-            Drag or press the arrow keys to rotate. Scroll, pinch, or press Page Up and Page Down to
-            zoom.
-          </p>
-        )}
+        {!fallback && modelLoaded && <p className="visually-hidden">{words().keyboardHelp}</p>}
       </div>
     </section>
   )

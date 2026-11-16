@@ -1,6 +1,7 @@
 import type { ViewerColourway } from '@run-apparel/shared'
 import { Fragment, type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
+import { words } from '../lib/words'
 import { HOVER_INTENT_MS } from '../lib/motion'
 
 /**
@@ -209,7 +210,7 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
   }
 
   return (
-    <section className="colourways" aria-label="Colorways" data-reveal>
+    <section className="colourways" aria-label={words().colourways} data-reveal>
       {/*
         The colour's name above the dots (VA-32, owner 2026-10-02): the dots carry no words. The
         one keyboard focus is on, else the one the pointer is previewing on the garment, else the
@@ -219,7 +220,12 @@ export function ColourwayTabs({ colourways, selected, onSelect, onPreview }: Col
       <p className="colourways__name" aria-hidden="true">
         <ColourName name={shown.displayName} />
       </p>
-      <div ref={listRef} className="colourways__list" role="tablist" aria-label="Select colorway">
+      <div
+        ref={listRef}
+        className="colourways__list"
+        role="tablist"
+        aria-label={words().selectColourway}
+      >
         {colourways.map((colourway, index) => (
           <button
             key={colourway.variantId}

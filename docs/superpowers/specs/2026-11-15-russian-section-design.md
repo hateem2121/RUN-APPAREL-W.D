@@ -37,6 +37,12 @@ decision knowingly on 2026-11-15 after seeing the numbers above.
 - The 3D garment pages (`/products/<product>/<colour>`, drawn by the viewer Worker,
   `apps/cms/viewerForward.mjs`) stay English. The Russian product gallery links to them. (Builder's
   call, recorded here: 205 pages in a second app, with words held in the database.)
+  **Reversed by the owner on 2026-11-16:** each garment page has a Russian copy at
+  `/ru/products/<product>/<colour>` with the page's own words in Russian and the garment's CMS text
+  as typed (the "Russian frame"). The viewer reads its words from `apps/viewer/src/lib/words.ts`
+  and the shared chrome (`packages/shared/src/siteChrome.ts`, `siteChrome.ru.ts`); the Russian half
+  is a chunk only a `/ru` page fetches (`apps/viewer/src/lib/locale.ts`). Every link on a Russian
+  garment page leads to the Russian site, which also answers the "no route back" note below.
 - No Russian-only content: no payment, delivery or Russia-specific claims (owner, 2026-11-15:
   "say nothing; ask on enquiry"). The payment and shipping text the English already carries is
   translated as it stands (owner, later the same day); nothing is added for Russia.
@@ -197,7 +203,8 @@ A reviewer read this design against the code; these are recorded as builder call
   alternates and follows the English twin's visibility and `lastModified` rules.
 - Cloudflare Turnstile on the Russian form is given `language: 'ru'`; it is the same widget host, so
   the security policy does not change.
-- Garment pages give no route back to Russian (browser back only); accepted.
+- Garment pages give no route back to Russian (browser back only); accepted. (Since 2026-11-16 a
+  Russian visitor stays on Russian garment pages; an English garment page still has no language link.)
 
 ## Left to the builder
 

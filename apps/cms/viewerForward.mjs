@@ -28,6 +28,14 @@ export const VIEWER_FILES = ['/meshopt_decoder.js', '/sw.js', '/favicon.svg', '/
 const GARMENT_PAGE = /^\/products\/[^/]+(?:\/[^/]+)?\/?$/
 
 /**
+ * The Russian garment pages (owner, 2026-11-16): `/ru/products/<product>[/<colour>]`, the same
+ * Latin slugs under the Russian folder. The viewer draws them too. `/ru/products` itself is the
+ * website's Russian hub page and stays here (the pattern needs at least one segment after it).
+ * Kept in step with RU_GARMENT_PATH_PREFIX in packages/shared/src/slugs.ts.
+ */
+const RU_GARMENT_PAGE = /^\/ru\/products\/[^/]+(?:\/[^/]+)?\/?$/
+
+/**
  * ⚠️ ONLY ON THE SITE'S OWN ADDRESS. The www. → apex redirect and the cms. host rules are
  * Next config (siteHostRules.mjs) and run INSIDE OpenNext; a forward from the wrapper
  * happens first, so forwarding on www. would serve the garment there instead of
@@ -41,6 +49,7 @@ export function forwardsToViewer(url) {
   const path = url.pathname
   return (
     GARMENT_PAGE.test(path) ||
+    RU_GARMENT_PAGE.test(path) ||
     VIEWER_FOLDERS.some((folder) => path.startsWith(folder)) ||
     VIEWER_FILES.includes(path)
   )

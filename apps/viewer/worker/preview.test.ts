@@ -1037,3 +1037,67 @@ describe('buildPreview — breadcrumbs on the website', () => {
     expect(build(payload({})).breadcrumbJsonLd).toBeNull()
   })
 })
+
+/**
+ * THE RUSSIAN COPY (owner, 2026-11-16): `/ru/products/<product>/<colour>` gets the page's own words
+ * in Russian and keeps the garment's CMS text as typed. Each assertion here fails if the Russian
+ * prefix is dropped on the way in (the page would then describe itself as the English page).
+ */
+describe('buildPreview — the Russian garment page', () => {
+  const SITE = 'https://wear-run.com'
+  const ru = (p: ViewerApiSuccess) =>
+    buildPreview(p, { origin: SITE, cards: CARDS, prefix: '/ru/products' })
+  const en = (p: ViewerApiSuccess) =>
+    buildPreview(p, { origin: SITE, cards: CARDS, prefix: '/products' })
+  const CYRILLIC = /[Ѐ-ӿ]/
+
+  it('names itself Russian, canonical at its own address, paired with its English twin', () => {
+    const preview = ru(payload({}))
+    expect(preview.lang).toBe('ru')
+    expect(preview.url).toBe(`${SITE}/ru/products/n001/wine`)
+    expect(preview.alternates).toEqual({
+      en: `${SITE}/products/n001/wine`,
+      ru: `${SITE}/ru/products/n001/wine`,
+    })
+    // The English page carries the same pair, so the two point at each other.
+    expect(en(payload({})).alternates).toEqual(preview.alternates)
+    expect(en(payload({})).lang).toBe('en')
+  })
+
+  it('the old viewer host, which only forwards, declares no language pair', () => {
+    expect(buildPreview(payload({}), { origin: ORIGIN, cards: CARDS }).alternates).toBeNull()
+  })
+
+  it('describes the page in Russian and keeps the CMS words and the colour', () => {
+    const preview = ru(payload({}))
+    expect(preview.description).toMatch(CYRILLIC)
+    expect(preview.description).toContain('Расцветка: Wine.')
+    expect(preview.description).toContain('Race fit')
+    expect(preview.description.length).toBeLessThanOrEqual(MAX_DESCRIPTION)
+    expect(en(payload({})).description).not.toMatch(CYRILLIC)
+  })
+
+  it('titles the page with the Russian garment type when it has one', () => {
+    const p = payload({ product: { garmentType: 'Soccer Jersey', productName: 'Strike Jersey' } })
+    expect(ru(p).pageTitle).toContain('Футбольное джерси')
+    expect(en(p).pageTitle).toContain('Soccer Jersey')
+  })
+
+  it('walks the Russian pages in its breadcrumbs and its robot body', () => {
+    const preview = ru(payload({}))
+    const trail = JSON.parse(preview.breadcrumbJsonLd ?? '{}') as {
+      itemListElement: { name: string; item: string }[]
+    }
+    expect(trail.itemListElement.map((step) => step.name)).toEqual([
+      'Главная',
+      'Продукция',
+      'Спортивная одежда',
+      'Velocity Performance Skinsuit',
+    ])
+    for (const step of trail.itemListElement) expect(step.item).toContain(`${SITE}/ru`)
+    expect(preview.bodyHtml).toContain(`href="${SITE}/ru/products/n001/blush"`)
+    expect(preview.bodyHtml).toContain(`href="${SITE}/ru/contact"`)
+    expect(preview.bodyHtml).not.toContain(`href="${SITE}/contact"`)
+    expect(preview.bodyHtml).toContain('<h2>Расцветки</h2>')
+  })
+})

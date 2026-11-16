@@ -10,7 +10,12 @@ import {
   findPlaceholders,
 } from '../../../scripts/copy-rules.mjs'
 import { PUBLIC_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
-import { VIEWER_CUE_ARROW, VIEWER_CUE_WORDS, ViewerCue } from './components/site/ViewerCue'
+import {
+  VIEWER_CUE_ARROW,
+  VIEWER_CUE_WORDS,
+  VIEWER_CUE_WORDS_RU,
+  ViewerCue,
+} from './components/site/ViewerCue'
 import { isAddressableColourway } from './lib/colourwayAccess'
 import { buildMetadata } from './lib/seo'
 
@@ -395,7 +400,8 @@ describe('copy rules', () => {
     const page = stripComments(
       readFileSync(join(CMS_ROOT, 'src', 'components', 'site', 'ProductCardItem.tsx'), 'utf8'),
     )
-    expect(page).toContain('garmentPages={GARMENT_PAGES}')
+    // The folder follows the page's language since 2026-11-16: /ru cards link /ru/products/…
+    expect(page).toContain('garmentPages={garmentPagesFor(locale)}')
     expect(page).toContain('productSlug={product.slug}')
     const gallery = stripComments(
       readFileSync(join(CMS_ROOT, 'src', 'components', 'site', 'CardGallery.tsx'), 'utf8'),
@@ -431,7 +437,8 @@ describe('copy rules', () => {
           // (2026-09-28), so that counts as a link to the viewer from this file.
           links:
             (source.match(/\$\{GARMENT_PAGES\}\//g) ?? []).length +
-            (source.match(/garmentPages=\{GARMENT_PAGES\}/g) ?? []).length +
+            (source.match(/garmentPages=\{(?:GARMENT_PAGES|garmentPagesFor\(locale\))\}/g) ?? [])
+              .length +
             // ...and each picture link CardGallery builds is one more.
             (source.match(/href=\{colourHref\(/g) ?? []).length,
           cues: (source.match(/<ViewerCue(?: locale=\{[^}]*\})? \/>/g) ?? []).length,
@@ -469,6 +476,16 @@ describe('copy rules', () => {
     // The copy rules read ↗ as a pictograph (U+2197 is Extended_Pictographic). That is why it
     // is decoration: aria-hidden, text presentation, and never inside a heading.
     expect(findEmoji(VIEWER_CUE_ARROW)).toEqual(['\u{2197}'])
+  })
+
+  it('on a Russian page says the same in Russian, and no longer that the 3D page is English (owner, 2026-11-16)', () => {
+    // A Russian card opens the garment's Russian 3D page since PR #408, so «(на английском)» was
+    // wrong on every 3D card of the Russian site.
+    expect(VIEWER_CUE_WORDS_RU).toBe('Открывает 3D-просмотр')
+    expect(renderToStaticMarkup(createElement(ViewerCue, { locale: 'ru' }))).toBe(
+      '<span class="viewer-cue">Открывает 3D-просмотр <span aria-hidden="true">\u{2197}\u{FE0E}</span></span>',
+    )
+    expect(VIEWER_CUE_WORDS_RU).not.toMatch(/английск/)
   })
 
   it('sets the caption in the muted mono voice of the meta line (XS-09)', () => {

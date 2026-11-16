@@ -1,7 +1,8 @@
 import { formatPhoneForDisplay, normalizeWhatsAppNumber, POSTAL_ADDRESS } from '@run-apparel/shared'
 import { LEGAL_NAME, WHAT_WE_ARE, WHAT_WE_MAKE } from './companyFacts'
+import { ORGANIZATION_DESCRIPTION_RU } from './companyFacts.ru'
 import type { ProductCard, PublicSiteSettings } from './projectPublic'
-import { SITE_NAME, SITE_ORIGIN, GARMENT_PAGES } from './seo'
+import { SITE_NAME, SITE_ORIGIN, garmentPagesFor } from './seo'
 import { bylineFor } from './bylines'
 import { type Locale, ruPath } from './locale'
 import { SHARE_IMAGE, shareCardFor, shareImageUrl } from './shareImages'
@@ -55,7 +56,7 @@ function alternateNames(settings: PublicSiteSettings): { alternateName?: string[
  * node rather than repeating it. Without it, each page declares an unrelated company
  * and a crawler has no reason to treat them as one entity.
  */
-export function organizationJsonLd(settings: PublicSiteSettings) {
+export function organizationJsonLd(settings: PublicSiteSettings, locale: Locale = 'en') {
   /*
    * The company's other profiles, from the ONE list the footer prints ("Elsewhere"), so
    * the page and its structured data cannot name different places. Measured live
@@ -139,10 +140,17 @@ export function organizationJsonLd(settings: PublicSiteSettings) {
      * REWORDED 2026-10-11 (owner): it opens with `WHAT_WE_ARE`, the phrase every profile opens
      * with, and names the families as `WHAT_WE_MAKE` does (`companyFacts.test.ts`).
      */
+    /*
+     * A Russian page says it in Russian (owner, 2026-11-16: the node carried the English sentence,
+     * seen live on /ru/contact). ⚠️ NO `inLanguage`: schema.org's Organization has no such property
+     * (it is on CreativeWork, WebPage, WebSite and the like, where the Russian pages set it).
+     */
     description:
-      `${SITE_NAME} is a ${WHAT_WE_ARE}. ${capitalized(WHAT_WE_MAKE)}, made to order from 50 ` +
-      'pieces per style, with capacity for 100,000 pieces a month. A 3D reference a customer ' +
-      'can turn and inspect before a sample is cut is available on request.',
+      locale === 'ru'
+        ? ORGANIZATION_DESCRIPTION_RU
+        : `${SITE_NAME} is a ${WHAT_WE_ARE}. ${capitalized(WHAT_WE_MAKE)}, made to order from 50 ` +
+          'pieces per style, with capacity for 100,000 pieces a month. A 3D reference a customer ' +
+          'can turn and inspect before a sample is cut is available on request.',
     numberOfEmployees: { '@type': 'QuantitativeValue', value: 200 },
     areaServed: 'Worldwide',
     // ⚠️ NO `parentOrganization` (removed 2026-11-04). It said DURUS INDUSTRIES, which is not RUN
@@ -194,6 +202,7 @@ export function websiteJsonLd(settings: PublicSiteSettings) {
 export function productListJsonLd(
   products: ProductCard[],
   name = 'RUN APPAREL 3D garment references',
+  locale: Locale = 'en',
 ) {
   return {
     '@context': 'https://schema.org',
@@ -204,7 +213,7 @@ export function productListJsonLd(
       '@type': 'ListItem',
       position: index + 1,
       name: product.productName,
-      url: `${GARMENT_PAGES}/${product.slug}/${product.defaultColourSlug}`,
+      url: `${garmentPagesFor(locale)}/${product.slug}/${product.defaultColourSlug}`,
     })),
   }
 }

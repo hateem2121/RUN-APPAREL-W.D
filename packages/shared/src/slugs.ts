@@ -30,9 +30,28 @@ export function normalizeSlug(value: string): string | null {
  */
 export const GARMENT_PATH_PREFIX = '/products'
 
-/** True for a path inside the garment folder (`/products/<product>[/<colour>]`), never the listing itself. */
+/**
+ * The Russian garment pages' folder: `wear-run.com/ru/products/<product>/<colour>` (owner,
+ * 2026-11-16: the Russian page's own words around the garment; the garment's CMS text stays as the
+ * team types it). The same Latin slugs as the English page, like every `/ru` twin on the site.
+ */
+export const RU_GARMENT_PATH_PREFIX = '/ru/products'
+
+/** The garment folder a path is in: Russian, English, or none (the old viewer host's bare shape). */
+export function garmentPathPrefix(
+  pathname: string,
+): '' | typeof GARMENT_PATH_PREFIX | typeof RU_GARMENT_PATH_PREFIX {
+  if (pathname.startsWith(`${RU_GARMENT_PATH_PREFIX}/`)) return RU_GARMENT_PATH_PREFIX
+  if (pathname.startsWith(`${GARMENT_PATH_PREFIX}/`)) return GARMENT_PATH_PREFIX
+  return ''
+}
+
+/**
+ * True for a path inside a garment folder (`/products/<product>[/<colour>]` or its `/ru` twin),
+ * never the listing itself.
+ */
 export function isGarmentPagePath(pathname: string): boolean {
-  return pathname.startsWith(`${GARMENT_PATH_PREFIX}/`)
+  return garmentPathPrefix(pathname) !== ''
 }
 
 /**
@@ -58,9 +77,13 @@ export function isGarmentPagePath(pathname: string): boolean {
 export function parseViewerPath(
   pathname: string,
 ): { productSlug: string; colourSlug: string | null } | null {
-  const all = pathname.split('/').filter(Boolean)
+  // The Russian folder first: `/ru/products/x/y` read bare would be three segments, a null.
+  const russian = pathname.startsWith(`${RU_GARMENT_PATH_PREFIX}/`)
+  const all = (russian ? pathname.slice(RU_GARMENT_PATH_PREFIX.length) : pathname)
+    .split('/')
+    .filter(Boolean)
   // The folder name alone is the website's listing page, never a garment called "products".
-  const segments = `/${all[0]}` === GARMENT_PATH_PREFIX ? all.slice(1) : all
+  const segments = !russian && `/${all[0]}` === GARMENT_PATH_PREFIX ? all.slice(1) : all
   if (segments.length < 1 || segments.length > 2) return null
   const productSlug = normalizeSlug(decodeURIComponent(segments[0]!))
   if (!productSlug) return null
@@ -89,13 +112,14 @@ export function viewerApiPath(productSlug: string, colourSlug: string | null): s
 }
 
 /**
- * A garment page's path. `prefix` is `GARMENT_PATH_PREFIX` on the website and `''` on the
+ * A garment page's path. `prefix` is `GARMENT_PATH_PREFIX` on the website (its Russian twin on a
+ * Russian page) and `''` on the
  * old viewer host, so a colour change keeps the visitor on the address shape they arrived on.
  */
 export function buildViewerPath(
   productSlug: string,
   colourSlug: string,
-  prefix: '' | typeof GARMENT_PATH_PREFIX = '',
+  prefix: '' | typeof GARMENT_PATH_PREFIX | typeof RU_GARMENT_PATH_PREFIX = '',
 ): string {
   return `${prefix}/${productSlug}/${colourSlug}`
 }

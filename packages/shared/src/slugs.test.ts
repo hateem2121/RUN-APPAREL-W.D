@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   buildViewerPath,
   GARMENT_PATH_PREFIX,
+  garmentPathPrefix,
   isGarmentPagePath,
   isValidSlug,
   normalizeSlug,
   parseViewerPath,
+  RU_GARMENT_PATH_PREFIX,
 } from './slugs'
 
 describe('isValidSlug', () => {
@@ -94,5 +96,28 @@ describe('buildViewerPath', () => {
   })
   it('joins slugs inside the /products folder when asked', () => {
     expect(buildViewerPath('n001', 'black', GARMENT_PATH_PREFIX)).toBe('/products/n001/black')
+  })
+})
+
+// The Russian garment pages (owner, 2026-11-16): the same Latin slugs under `/ru/products`.
+describe('the Russian garment folder', () => {
+  it('parses /ru/products/<product>/<colour> and /ru/products/<product>', () => {
+    expect(parseViewerPath('/ru/products/rxps/wine')).toEqual({
+      productSlug: 'rxps',
+      colourSlug: 'wine',
+    })
+    expect(parseViewerPath('/ru/products/rxps')).toEqual({ productSlug: 'rxps', colourSlug: null })
+  })
+  it('never reads the Russian folder itself, or a deeper path, as a garment', () => {
+    expect(parseViewerPath('/ru/products/')).toBeNull()
+    expect(parseViewerPath('/ru/products/a/b/c')).toBeNull()
+  })
+  it('names the folder each shape is in, so a colour change keeps the language', () => {
+    expect(garmentPathPrefix('/ru/products/rxps/wine')).toBe(RU_GARMENT_PATH_PREFIX)
+    expect(garmentPathPrefix('/products/rxps/wine')).toBe(GARMENT_PATH_PREFIX)
+    expect(garmentPathPrefix('/rxps/wine')).toBe('')
+    expect(isGarmentPagePath('/ru/products/rxps')).toBe(true)
+    expect(isGarmentPagePath('/ru/products')).toBe(false)
+    expect(buildViewerPath('rxps', 'lime', RU_GARMENT_PATH_PREFIX)).toBe('/ru/products/rxps/lime')
   })
 })

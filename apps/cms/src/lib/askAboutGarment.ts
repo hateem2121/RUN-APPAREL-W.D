@@ -5,6 +5,7 @@ import {
   buildViewerPath,
   type EnquiryContext,
   GARMENT_PATH_PREFIX,
+  RU_GARMENT_PATH_PREFIX,
 } from '@run-apparel/shared'
 import type { ProductCard } from './projectPublic'
 
@@ -29,6 +30,8 @@ export interface AskedGarment extends EnquiryContext {
 export function resolveAskedGarment(
   params: Record<string, string | string[] | undefined>,
   cards: readonly ProductCard[],
+  /** The Russian contact page links back to the garment's Russian page (owner, 2026-11-16). */
+  locale: 'en' | 'ru' = 'en',
 ): AskedGarment | null {
   const asked = askedGarment(params)
   if (!asked) return null
@@ -42,7 +45,11 @@ export function resolveAskedGarment(
   }
   return {
     ...context,
-    href: buildViewerPath(card.slug, colour.slug, GARMENT_PATH_PREFIX),
+    href: buildViewerPath(
+      card.slug,
+      colour.slug,
+      locale === 'ru' ? RU_GARMENT_PATH_PREFIX : GARMENT_PATH_PREFIX,
+    ),
     message: askAboutGarmentMessage(context),
     subject: askAboutGarmentSubject(context),
   }
