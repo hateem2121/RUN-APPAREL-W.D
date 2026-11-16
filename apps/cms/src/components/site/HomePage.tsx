@@ -19,7 +19,7 @@ import { getSiteSettings } from '../../lib/content'
 import { FAMILIES, familyGarments, familyPictures } from '../../lib/families'
 import { familyIsSoon } from '../../lib/familyPages'
 import { garmentCount, garmentCountRu, pickProofGarment } from '../../lib/proofShowcase'
-import { GARMENT_PAGES } from '../../lib/seo'
+import { garmentPagesFor } from '../../lib/seo'
 import { websiteJsonLd } from '../../lib/structuredData'
 import { GARMENT_TYPE_RU } from '../../lib/garmentTypes.ru'
 import { t } from '../../lib/i18n/ui'
@@ -215,7 +215,7 @@ export async function HomePageView({ locale = 'en' }: { locale?: Locale } = {}) 
           <ProofShowcase
             product={proofProduct(proof)}
             details={proofDetails(proof, locale)}
-            garmentPages={GARMENT_PAGES}
+            garmentPages={garmentPagesFor(locale)}
             cue={<ViewerCue locale={locale} />}
             actions={
               /*

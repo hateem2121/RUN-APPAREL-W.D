@@ -1,0 +1,88 @@
+name: Russian text
+
+# Reads the Russian words a pull request changes with two checkers that are not their author: Yandex
+# Speller (spelling) and LanguageTool (grammar and style, ru-RU). The script is scripts/check-russian-text.mjs;
+# until 2026-11-16 it was a local check only, so a misspelling in /ru reached the live site unseen.
+#
+# WHAT IT ASKS. Only the Russian files THIS pull request changed (`--changed-since`): the Russian words
+# in apps/cms/src, packages/shared/src (`*.ru.ts`, `siteChrome.ts`) and apps/viewer/src (`*.ru.ts`).
+# The services are free and rate-limited (LanguageTool: 20 requests and 75 KB a minute), so a PR is judged
+# on its own words, not the whole site's, and it sends nothing that is not already public in this repository.
+#
+# HOSTS IT CALLS (and the only ones besides GitHub): speller.yandex.net:443 and api.languagetool.org:443.
+# Harden-Runner runs in watch mode here as in every workflow not yet moved to block mode
+# (.github/CLAUDE.md); when this one has two clean weeks, the block-mode allow-list is those two hosts plus
+# the usual GitHub ones the other jobs list.
+#
+# WHAT A FAILURE MEANS. A flag the services returned and scripts/russian-text-allowlist.json does not list
+# fails the run, with its file, line and word. A service that DOES NOT ANSWER (30 s timeout, three tries, a
+# rate limit that does not clear) never fails it: the log carries a `::warning::`, the half that could not be
+# asked is named "NOT CHECKED", and the run passes. Why: an outage at Yandex or LanguageTool must not block
+# every Russian pull request until it ends, and this check is advice about words, not a gate on the site
+# working. It is deliberately NOT in ci.yml and NOT in `deploy.needs`, so it can never hold a deploy.
+
+on:
+  pull_request:
+    # A pull request that touches no Russian file does not run it. `paths:` cannot read file CONTENT, so the
+    # components that hold a Russian line beside an English one (a headline pair) are covered by the broad
+    # `components/site` and `lib` folders; the script then checks only changed files that contain Cyrillic.
+    paths:
+      - '.github/workflows/russian-text.yml'
+      - 'scripts/check-russian-text.mjs'
+      - 'scripts/russian-text-allowlist.json'
+      - 'apps/cms/src/app/(ru)/**'
+      - 'apps/cms/src/components/**'
+      - 'apps/cms/src/lib/**'
+      - 'packages/shared/src/**/*.ru.ts'
+      - 'packages/shared/src/siteChrome.ts'
+      - 'apps/viewer/src/**/*.ru.ts'
+      # The Russian garment pages' words (2026-11-16): the app's list and the Worker's robot copy.
+      - 'apps/viewer/src/lib/words.ts'
+      - 'apps/viewer/worker/preview.ts'
+      - 'apps/viewer/worker/pageLanguage.ts'
+  workflow_dispatch: {}
+
+# Reads the checkout and nothing else; no secret, no write. A block REPLACES the default grants.
+permissions:
+  contents: read
+
+# No job here uses the Actions cache (GitHub `cache-mode`, 2026-10-01: least privilege against cache poisoning).
+cache-mode: none
+
+# A new push to a pull request makes the earlier run's answer stale, so it is cancelled.
+concurrency:
+  group: russian-text-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  russian-text:
+    runs-on: ubuntu-26.04
+    # LanguageTool allows 20 requests a minute and the script pauses 4 s between them; a whole-site run is
+    # ~750 strings. Three tries of 30 s and a 65 s rate-limit wait bound the worst case well inside this.
+    timeout-minutes: 15
+    steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@v2.22.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 26
+          cache: ''
+          package-manager-cache: false
+      - name: Check the Russian words this change touches
+        env:
+          # The pull request's base commit, through env and never spliced into the shell line.
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            node scripts/check-russian-text.mjs --tolerate-outage "--changed-since=${BASE_SHA}"
+          else
+            # A hand-run dispatch has no base: read every Russian file.
+            node scripts/check-russian-text.mjs --tolerate-outage
+          fi

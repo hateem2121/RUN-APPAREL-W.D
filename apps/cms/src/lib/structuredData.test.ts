@@ -657,3 +657,33 @@ describe('structured data on Russian pages names its language', () => {
     expect(studies.hasPart[0]).toMatchObject({ inLanguage: 'en' })
   })
 })
+
+/**
+ * The Organization node on a Russian page (owner, 2026-11-16). It carried the English
+ * `description` on /ru/contact. What would have to break: the Russian layout passing no locale, or
+ * the English sentence changing while the Russian one was added.
+ */
+describe('the Organization node on a Russian page', () => {
+  it('describes the company in Russian, and keeps the English sentence as it was', () => {
+    const english = organizationJsonLd(settings())
+    const russian = organizationJsonLd(settings(), 'ru')
+    expect(russian.description).toContain('производитель спортивной одежды под брендами заказчиков')
+    expect(russian.description).not.toMatch(/private label|sportswear/i)
+    expect(english.description).toBe(
+      'RUN APPAREL is a private label sportswear manufacturer in Sialkot, Pakistan. Teamwear, ' +
+        'activewear, casual wear, outerwear and sports accessories, made to order from 50 pieces ' +
+        'per style, with capacity for 100,000 pieces a month. A 3D reference a customer can turn ' +
+        'and inspect before a sample is cut is available on request.',
+    )
+    // Everything but the description is the same node.
+    expect({ ...russian, description: '' }).toEqual({ ...english, description: '' })
+  })
+
+  it('lists the garments at their Russian pages on a Russian page', () => {
+    const list = productListJsonLd([card()], 'RUN APPAREL', 'ru')
+    expect(list.itemListElement[0]?.url).toBe(`${SITE_ORIGIN}/ru/products/rxps/wine`)
+    expect(productListJsonLd([card()]).itemListElement[0]?.url).toBe(
+      `${SITE_ORIGIN}/products/rxps/wine`,
+    )
+  })
+})

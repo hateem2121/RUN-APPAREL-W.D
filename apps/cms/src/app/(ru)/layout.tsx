@@ -80,7 +80,7 @@ export default async function RussianLayout({ children }: { children: React.Reac
       <body>
         <ThemeBoot />
         <AboutPreloader loading={chrome.loading} />
-        <JsonLd data={organizationJsonLd(settings)} />
+        <JsonLd data={organizationJsonLd(settings, 'ru')} />
         <script
           type="speculationrules"
           // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant written in lib/speculationRules.ts, never content; the only way to put speculation rules in the page.

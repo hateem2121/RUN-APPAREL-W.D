@@ -2,7 +2,7 @@ import { nameSegments } from '../../lib/cardName'
 import type { ProductCard } from '../../lib/content'
 import { FAMILY_NAMES_RU } from '../../lib/families.ru'
 import type { Locale } from '../../lib/locale'
-import { GARMENT_PAGES } from '../../lib/seo'
+import { garmentPagesFor } from '../../lib/seo'
 import type { SportPlace } from '../../lib/sports'
 import { CardGallery } from './CardGallery'
 import { ViewerCue } from './ViewerCue'
@@ -66,7 +66,7 @@ export function ProductCardItem({
       <CardGallery
         productSlug={product.slug}
         productName={product.productName}
-        garmentPages={GARMENT_PAGES}
+        garmentPages={garmentPagesFor(locale)}
         colours={product.colours}
         index={index}
       >

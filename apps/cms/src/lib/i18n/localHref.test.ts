@@ -22,9 +22,15 @@ describe('localHref (Russian section, 2026-11-15)', () => {
     expect(localHref('/faq/orders-and-samples#moq', here)).toBe('/ru/faq/orders-and-samples#moq')
   })
 
+  it('sends a garment link on a Russian page to the garment’s Russian page (owner, 2026-11-16)', () => {
+    expect(localHref('/products/rxps/wine', '/ru/contact')).toBe('/ru/products/rxps/wine')
+    expect(localHref('/products/rxps', '/ru/contact')).toBe('/ru/products/rxps')
+    expect(localHref('/products/rxps/wine', '/contact')).toBe('/products/rxps/wine')
+  })
+
   it('leaves what has no Russian twin, or is not a page, alone', () => {
     const here = '/ru/contact'
-    expect(localHref('/products/rxps/wine', here)).toBe('/products/rxps/wine')
+    expect(localHref('/products/rxps/wine/extra', here)).toBe('/products/rxps/wine/extra')
     expect(localHref('/journal/a-post', here)).toBe('/journal/a-post')
     expect(localHref('/ru/contact', here)).toBe('/ru/contact')
     expect(localHref('https://example.com/contact', here)).toBe('https://example.com/contact')

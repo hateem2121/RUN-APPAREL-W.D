@@ -1,4 +1,4 @@
-import { buildViewerPath, GARMENT_PATH_PREFIX } from '@run-apparel/shared'
+import { buildViewerPath, GARMENT_PATH_PREFIX, RU_GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import { FAQ_INDEX, faqTopicAt, faqTopicForGuide } from '../../lib/faqs'
 import { GLOSSARY_INDEX } from '../../lib/glossary'
 import { IntentLink as Link } from './IntentLink'
@@ -67,7 +67,15 @@ export function blockKey(block: GuideBlock): string {
  * A garment the catalogue does not hold is drawn as plain words, never linked dead. Every other page
  * is a site page and gets the site's link (`IntentLink`).
  */
-function GuideAnchor({ link, cards }: { link: GuideLink; cards: readonly ProductCard[] }) {
+function GuideAnchor({
+  link,
+  cards,
+  locale = 'en',
+}: {
+  link: GuideLink
+  cards: readonly ProductCard[]
+  locale?: Locale
+}) {
   if (link.href.startsWith(`${GARMENT_PATH_PREFIX}/`)) {
     const slug = link.href.slice(GARMENT_PATH_PREFIX.length + 1)
     const card = cards.find((entry) => entry.slug === slug)
@@ -75,7 +83,11 @@ function GuideAnchor({ link, cards }: { link: GuideLink; cards: readonly Product
     return (
       <a
         className="prose__link"
-        href={buildViewerPath(card.slug, card.defaultColourSlug, GARMENT_PATH_PREFIX)}
+        href={buildViewerPath(
+          card.slug,
+          card.defaultColourSlug,
+          locale === 'ru' ? RU_GARMENT_PATH_PREFIX : GARMENT_PATH_PREFIX,
+        )}
       >
         {link.phrase}
       </a>
@@ -105,10 +117,13 @@ export function LinkedWords({
   text,
   links,
   cards = [],
+  locale = 'en',
 }: {
   text: string
   links?: readonly GuideLink[]
   cards?: readonly ProductCard[]
+  /** A Russian page links a garment to its Russian page (owner, 2026-11-16). */
+  locale?: Locale
 }) {
   if (!links?.length) return text
   const spots = links
@@ -122,7 +137,7 @@ export function LinkedWords({
   for (const spot of spots) {
     if (spot.at < from) continue
     parts.push(<Fragment key={`w${from}`}>{text.slice(from, spot.at)}</Fragment>)
-    parts.push(<GuideAnchor key={`a${spot.at}`} link={spot.link} cards={cards} />)
+    parts.push(<GuideAnchor key={`a${spot.at}`} link={spot.link} cards={cards} locale={locale} />)
     from = spot.end
   }
   parts.push(<Fragment key={`w${from}`}>{text.slice(from)}</Fragment>)
@@ -307,11 +322,11 @@ export function Block({
   if (block.kind === 'download') return <TemplateDownload notice={notice} />
   if (block.kind === 'tool') return <GuideToolBlock tool={block.tool} />
   if (block.kind === 'chart') return <BuyerQuestionsChart />
-  if (block.kind === 'table') return <GuideTable block={block} cards={cards} />
+  if (block.kind === 'table') return <GuideTable block={block} cards={cards} locale={locale} />
   if (block.kind === 'text') {
     return (
       <p>
-        <LinkedWords text={block.text} links={block.links} cards={cards} />
+        <LinkedWords text={block.text} links={block.links} cards={cards} locale={locale} />
       </p>
     )
   }
@@ -337,7 +352,7 @@ export function Block({
     <List className="prose__list">
       {block.items.map((item, index) => (
         <li key={item}>
-          <LinkedWords text={item} links={itemLinks[index]} cards={cards} />
+          <LinkedWords text={item} links={itemLinks[index]} cards={cards} locale={locale} />
         </li>
       ))}
     </List>
@@ -358,9 +373,11 @@ export function Block({
 function GuideTable({
   block,
   cards = [],
+  locale = 'en',
 }: {
   block: Extract<GuideBlock, { kind: 'table' }>
   cards?: readonly ProductCard[]
+  locale?: Locale
 }) {
   const stack = isWideTable(block)
   const table = (
@@ -386,7 +403,7 @@ function GuideTable({
                 key={block.columns[index + 1]}
                 data-label={stack ? block.columns[index + 1] : undefined}
               >
-                <LinkedWords text={cell} links={block.links} cards={cards} />
+                <LinkedWords text={cell} links={block.links} cards={cards} locale={locale} />
               </td>
             ))}
           </tr>
@@ -511,7 +528,11 @@ function GuideGarmentsSection({
     if (!card?.defaultColourSlug) return []
     return [
       {
-        href: buildViewerPath(card.slug, card.defaultColourSlug, GARMENT_PATH_PREFIX),
+        href: buildViewerPath(
+          card.slug,
+          card.defaultColourSlug,
+          locale === 'ru' ? RU_GARMENT_PATH_PREFIX : GARMENT_PATH_PREFIX,
+        ),
         name: card.productName,
         // A Russian guide names the type in Russian (garmentTypes.ru.ts); the garment's name is a brand.
         detail: [

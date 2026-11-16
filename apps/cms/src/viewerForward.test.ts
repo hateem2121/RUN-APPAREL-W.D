@@ -20,6 +20,17 @@ describe('forwardsToViewer', () => {
     expect(at('/products/rxps')).toBe(true)
   })
 
+  it('hands the Russian garment pages to the viewer, and keeps the Russian hub', () => {
+    expect(at('/ru/products/rxps/wine')).toBe(true)
+    expect(at('/ru/products/rxps/wine/')).toBe(true)
+    expect(at('/ru/products/rxps')).toBe(true)
+    expect(at('/ru/products')).toBe(false)
+    expect(at('/ru/products/')).toBe(false)
+    expect(at('/ru/products/rxps/wine/extra')).toBe(false)
+    expect(at('/ru/productsx/rxps')).toBe(false)
+    expect(at('/ru/products/rxps/wine', `www.${SITE_HOST}`)).toBe(false)
+  })
+
   it('keeps the listing and anything deeper with the website', () => {
     expect(at('/products')).toBe(false)
     expect(at('/products/')).toBe(false)

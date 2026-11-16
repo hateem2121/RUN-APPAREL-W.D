@@ -21,7 +21,7 @@ import { localHref } from '../../lib/i18n/localHref'
 import { guideAtRu } from '../../lib/i18n/ruNames'
 import { t } from '../../lib/i18n/ui'
 import { type Locale, ruPath } from '../../lib/locale'
-import { GARMENT_PAGES } from '../../lib/seo'
+import { garmentPagesFor } from '../../lib/seo'
 import { breadcrumbJsonLd, faqJsonLd, productListJsonLd } from '../../lib/structuredData'
 import { FamilyHeroPicture } from './FamilyHeroPicture'
 import { GarmentGrid } from './GarmentGrid'
@@ -186,6 +186,7 @@ export function FamilyLanding({
             ru
               ? `RUN APPAREL: ${familyName(family.name)} в 3D`
               : `RUN APPAREL ${family.name} in 3D`,
+            locale,
           )}
         />
       ) : null}
@@ -223,7 +224,7 @@ export function FamilyLanding({
               // A plain <a> (it can lead to a 3D garment page, another Worker), so it gets the
               // Russian twin here, as IntentLink gives every other link: the language audit of
               // 2026-11-15 found /ru/custom-sports-accessories-manufacturer linking the English ball page.
-              const found = makesHref(entry, garments, GARMENT_PAGES)
+              const found = makesHref(entry, garments, garmentPagesFor(locale))
               const href = found && locale === 'ru' ? localHref(found, ruPath('/')) : found
               const words = (
                 <>
