@@ -3,11 +3,12 @@ import { expect, test } from './offlineMedia'
 /*
  * The bar's layout at a given width and ROOT size — the fitted formulas in
  * packages/ui/src/notch.css (measured on the live site 2026-09-23: the inline row
- * keeps the name whole from 180.7px + 14.857rem with desktop spacing; name + button from
- * 111.6px + 7.208rem). Duplicated here ON PURPOSE: a change to one without the other fails.
+ * keeps the name whole from 180.7px + 14.857rem with desktop spacing, the Russian bar from
+ * 180px + 15.5rem in Chromium and 179.6px + 15.9rem in Firefox, so `186px + 16rem` (2026-11-15); name + button from 111.6px + 7.208rem). Duplicated here ON
+ * PURPOSE: a change to one without the other fails.
  */
 const layoutAt = (width: number, rootPx: number) => ({
-  phone: width < 720 || width < 184 + 14.9 * rootPx,
+  phone: width < 720 || width < 186 + 16 * rootPx,
   twoRows: width < 114 + 7.25 * rootPx,
 })
 
@@ -20,7 +21,13 @@ const layoutAt = (width: number, rootPx: number) => ({
  * file's browser; here it costs one launch. The pref is inert in Chromium, which reads
  * the same setting over CDP inside each test.
  */
-test.use({ launchOptions: { firefoxUserPrefs: { 'font.size.variable.x-western': 32 } } })
+// Firefox reads a DIFFERENT pref for a `lang="ru"` page (x-cyrillic); both are set so the Russian case
+// below gets the same 200% (2026-11-15).
+test.use({
+  launchOptions: {
+    firefoxUserPrefs: { 'font.size.variable.x-western': 32, 'font.size.variable.x-cyrillic': 32 },
+  },
+})
 
 test.describe('FA-E-03 — the company name survives the reader turning text up', () => {
   /**
@@ -184,6 +191,38 @@ test.describe('FA-E-03 — the company name survives the reader turning text up'
       expect(m.need).toBeLessThanOrEqual(m.have)
       expect(m.gap).toBeGreaterThanOrEqual(0)
     })
+
+    /*
+     * Russian at 200% (2026-11-15, PR #404): Firefox draws the Russian bar wider than Chromium, and
+     * the language link's first query (`208px + 19.1rem`, fitted in Chromium) brought «English»
+     * inline at 820px, where the name was cut until 826px. Every desktop width from the bar's
+     * inline point to 1000px, in 2px steps, must keep the name whole.
+     */
+    test('the Russian name is whole at 200% text at every desktop width', async ({
+      page,
+      browserName,
+    }) => {
+      test.skip(browserName !== 'firefox', 'the pref only applies to Firefox')
+      await page.setViewportSize({ width: 1000, height: 820 })
+      await page.goto('/ru')
+      await page.evaluate(() => document.fonts.ready)
+      const cut: number[] = []
+      for (let width = 720; width <= 1000; width += 2) {
+        await page.setViewportSize({ width, height: 820 })
+        const m = await page.evaluate(() => {
+          const mark = document.querySelector('.notch__wordmark') as HTMLElement
+          return {
+            root: getComputedStyle(document.documentElement).fontSize,
+            lang: document.documentElement.lang,
+            whole: mark.scrollWidth <= mark.clientWidth,
+          }
+        })
+        expect(m.root, 'the x-cyrillic pref did not take — this case measured nothing').toBe('32px')
+        expect(m.lang).toBe('ru')
+        if (!m.whole) cut.push(width)
+      }
+      expect(cut, 'widths where Firefox cut the Russian name').toEqual([])
+    })
   })
 })
 
@@ -281,7 +320,7 @@ test.describe('TY-11 — the footer keeps every word at 200% text on a phone', (
 })
 
 test.describe('FA-E-03 past 200% — the menu takes over before the inline row would cut the name', () => {
-  test('250% text: the button at 768px, the words inline at 800px, the name whole at both', async ({
+  test('250% text: the button up to 824px, the words inline from 832px, the name whole at all', async ({
     page,
     context,
     browserName,
@@ -291,10 +330,12 @@ test.describe('FA-E-03 past 200% — the menu takes over before the inline row w
     await cdp.send('Page.setFontSizes', { fontSizes: { standard: 40, fixed: 40 } })
     await page.goto('/')
     await page.evaluate(() => document.fonts.ready)
-    // the inline row needs 775px at a 40px root (measured); the clause switches below 780px
+    // the inline row needs 775px at a 40px root in English, 800px in Russian (Chromium) and 816px
+    // in Russian (Firefox), measured; the clause switches below 826px (`186px + 16rem`, 2026-11-15)
     for (const [width, phone] of [
       [768, true],
-      [800, false],
+      [824, true],
+      [832, false],
       [1440, false],
     ] as const) {
       await page.setViewportSize({ width, height: 900 })
@@ -310,6 +351,40 @@ test.describe('FA-E-03 past 200% — the menu takes over before the inline row w
       expect(m.root).toBe('40px')
       expect(m.whole, `the name is cut at ${width}px`).toBe(true)
       expect(m.buttonShown, `the menu button at ${width}px`).toBe(phone)
+    }
+  })
+
+  /*
+   * The Russian bar's links are longer (2026-11-15): at the old English-only fit, `184px +
+   * 14.9rem`, the inline row cut «RUN APPAREL» at 780-799px on a 40px root and from a 36px root
+   * up. This walks the widths where it was cut, at every root size it was measured cut at.
+   */
+  test('Russian pages past 225% text: the name is whole at every width the old rule cut it', async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'Page.setFontSizes is a CDP command')
+    const cdp = await context.newCDPSession(page)
+    for (const root of [36, 40, 48, 56]) {
+      await cdp.send('Page.setFontSizes', { fontSizes: { standard: root, fixed: root } })
+      await page.goto('/ru')
+      await page.evaluate(() => document.fonts.ready)
+      const old = Math.ceil(Math.max(720, 184 + 14.9 * root))
+      for (let width = old; width <= old + 40; width += 4) {
+        await page.setViewportSize({ width, height: 900 })
+        const m = await page.evaluate(() => {
+          const mark = document.querySelector('.notch__wordmark') as HTMLElement
+          return {
+            root: getComputedStyle(document.documentElement).fontSize,
+            whole: mark.scrollWidth <= mark.clientWidth,
+            lang: document.documentElement.lang,
+          }
+        })
+        expect(m.root).toBe(`${root}px`)
+        expect(m.lang).toBe('ru')
+        expect(m.whole, `/ru: the name is cut at ${width}px with a ${root}px root`).toBe(true)
+      }
     }
   })
 
