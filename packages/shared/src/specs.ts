@@ -15,6 +15,9 @@
  * fields, without notes, when an answer cached before the field existed has none.
  */
 
+import type { Locale } from './siteChrome.ts'
+import { ACCESSORY_HEADINGS_RU, SPEC_HEADINGS_RU } from './specNotes.ru.ts'
+
 export type SpecGroupKey = 'fabric' | 'weight' | 'fit' | 'performance'
 
 export interface SpecItem {
@@ -82,6 +85,20 @@ const ACCESSORY_HEADINGS: Record<SpecGroupKey, string> = {
   performance: 'According to FIFA Quality Pro',
 }
 
+/**
+ * A group's heading in the page's language: the ball's own headings for 'Sports Accessories',
+ * the garment headings otherwise. Russian since 2026-11-16 (`specNotes.ru.ts`).
+ */
+export function specGroupLabel(
+  key: SpecGroupKey,
+  locale: Locale = 'en',
+  category?: string,
+): string {
+  const accessory = category === 'Sports Accessories'
+  if (locale === 'ru') return (accessory ? ACCESSORY_HEADINGS_RU : SPEC_HEADINGS_RU)[key]
+  return (accessory ? ACCESSORY_HEADINGS : SPEC_HEADINGS)[key]
+}
+
 type SpecFields = {
   category?: string
   fabricComposition: string
@@ -93,11 +110,13 @@ type SpecFields = {
 /**
  * The four groups, in corner order (Fabric, Weight, Fit, Performance), each with its bullets; a
  * group with nothing in it is left out. `noteFor` supplies the notes (the CMS passes `specNote`);
- * without it every note is null.
+ * without it every note is null. `locale` picks the headings' language; for Russian notes pass a
+ * Russian `noteFor`: `(group, text) => specNote(group, text, 'ru')`.
  */
 export function specGroups(
   product: SpecFields,
   noteFor: (group: SpecGroupKey, text: string) => string | null = () => null,
+  locale: Locale = 'en',
 ): SpecGroup[] {
   const item = (group: SpecGroupKey, text: string): SpecItem => ({
     text,
@@ -113,9 +132,7 @@ export function specGroups(
   return (Object.keys(SPEC_HEADINGS) as SpecGroupKey[])
     .map((key) => ({
       key,
-      heading: (product.category === 'Sports Accessories' ? ACCESSORY_HEADINGS : SPEC_HEADINGS)[
-        key
-      ],
+      heading: specGroupLabel(key, locale, product.category),
       items: lists[key].map((text) => item(key, text)),
     }))
     .filter((group) => group.items.length > 0)
