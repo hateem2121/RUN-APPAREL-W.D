@@ -237,7 +237,7 @@ export async function keepApiAnswer(request, draw) {
  * save still marks them stale at once (Cache-Tag, contentVersion.ts). The test recomputes the
  * fingerprint and fails until it is updated, so a changed answer can never meet an old copy.
  */
-export const VIEWER_DATA_SHAPE = 'shape-f622c892da6488fc'
+export const VIEWER_DATA_SHAPE = 'shape-39519ed8775d8872'
 
 /** For the network panel and a `curl -D -`: did this answer come from a kept copy? */
 function apiCacheTiming(state) {

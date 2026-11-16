@@ -583,6 +583,10 @@
       "$type": "number",
       "$value": 1
     },
+    "z-language-note": {
+      "$type": "number",
+      "$value": 38
+    },
     "z-nav-weave": {
       "$type": "number",
       "$value": 39

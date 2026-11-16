@@ -16,6 +16,7 @@ import { CustomisationSection } from './components/CustomisationSection'
 import { Footer } from './components/Footer'
 import { GarmentTrail } from './components/GarmentTrail'
 import { Header } from './components/Header'
+import { LanguageNote } from './components/LanguageNote'
 import { Preloader } from './components/Preloader'
 import { ProductIdentity } from './components/ProductIdentity'
 import { ProductNameLine } from './components/ProductNameLine'
@@ -565,6 +566,11 @@ export default function App() {
             for a visitor who accepted (ContactClicks.tsx). Draws nothing. */}
         <ContactClicks email={data.siteSettings.email} />
         <Header wordmark={data.siteSettings.temporaryWordmark} />
+        {/* "This page is also in your language" (owner, 2026-11-16): straight after the bar in the
+            reading order, `position: fixed` like the cookie card, so no part of the layout the
+            stage band is measured against. Nothing until a person touches the page and the
+            opening screen has gone (LanguageNote.tsx). */}
+        <LanguageNote ready={preloaderGone} product={data.product.productCode} />
         {/* `tabIndex={-1}` is what makes the skip link actually skip. <main> is not
             focusable by default, so following the fragment moves the SCROLL
             position but leaves focus in the header — the next Tab then walks back

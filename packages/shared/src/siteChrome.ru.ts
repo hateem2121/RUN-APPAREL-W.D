@@ -1,4 +1,5 @@
 import { CATEGORY_PAGE_PATHS } from './categoryPages.ts'
+import { READ_IN_ENGLISH } from './languageNote.ts'
 import { SITE_MENU_LINKS, SITE_NAV_LINKS } from './siteBar.ts'
 import { CHROME_EN, type ChromeWords, type Locale, ruHref, ruPath } from './siteChrome.ts'
 import {
@@ -129,7 +130,7 @@ export const CHROME_RU: ChromeWords = {
   loadingPage: (title) => `Загрузка: ${title}…`,
   opensAt: (open, day) =>
     `Откроемся ${day ? `${DAY_RU[day] ?? day} ` : ''}в ${open} ${SITE_FOOTER_WORDS.clockZone}`,
-  otherLanguage: { label: 'English', hrefLang: 'en', name: 'Read in English' },
+  otherLanguage: { label: 'English', hrefLang: 'en', name: READ_IN_ENGLISH },
 }
 
 export const CHROME: Readonly<Record<Locale, ChromeWords>> = { en: CHROME_EN, ru: CHROME_RU }

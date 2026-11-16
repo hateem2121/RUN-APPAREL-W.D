@@ -227,6 +227,12 @@ export const VIEWER_ANALYTICS_EVENTS = [
   'ask_about_garment',
   // 3D engagement cue (PostHog & telemetry) after 20s dwell or colorway switch (2026-10-06).
   'garment_3d_engaged',
+  // The language note under the bar (owner, 2026-11-16; `languageNote.ts`): shown, its link used,
+  // closed with the ×. Sent to the site's own telemetry on the garment pages by the owner's choice
+  // that day, as every event in this list is (no cookie, no personal data, Do-Not-Track honoured).
+  'note_shown',
+  'note_used',
+  'note_closed',
   /*
    * Core Web Vitals, one report per visit, sent when the page is hidden.
    *

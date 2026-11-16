@@ -132,6 +132,38 @@ test.describe('the Journal', () => {
     await request.dispose()
   })
 
+  test('a single post has no Russian twin, so a Russian-first browser is offered nothing', async ({
+    browser,
+  }, testInfo) => {
+    // The language note (languageNote.spec.ts) shows only where a true twin page exists, and the
+    // owner chose Russian hubs that list the English posts, not Russian posts (lib/locale.ts,
+    // `hasRussianTwin`). Here because this suite has a post to load. The hub is the control:
+    // the same browser, the same steps, and the note shows.
+    const context = await browser.newContext({
+      locale: 'ru-RU',
+      baseURL: testInfo.project.use.baseURL,
+      reducedMotion: 'reduce',
+    })
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false })
+    })
+    const page = await context.newPage()
+    try {
+      expect((await page.goto(`/journal/e2e-published-${suffix}`))?.status()).toBe(200)
+      await expect(page.locator('header.notch-shell')).toBeVisible()
+      await page.keyboard.press('Shift')
+      await page.mouse.move(200, 300)
+      await expect(page.locator('.language-note')).toHaveCount(0)
+
+      expect((await page.goto('/journal'))?.status()).toBe(200)
+      await page.keyboard.press('Shift')
+      await expect(page.locator('.language-note')).toBeVisible()
+      await expect(page.locator('.language-note a')).toHaveAttribute('href', '/ru/journal')
+    } finally {
+      await context.close()
+    }
+  })
+
   test('a published post renders on the server, with one h1 and its article data', async ({
     page,
   }) => {

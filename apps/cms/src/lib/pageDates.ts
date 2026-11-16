@@ -128,8 +128,8 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   // (2026-11-10T22:50:33+05:00), the wide AVIF hero (2026-11-04T19:52:09+05:00), and the one phone
   // number (2026-10-26T20:13:15+05:00).
   '/contact': page('2026-11-11T09:35:13+00:00', 'a3ccf58e950d'),
-  // Turnstile on the contact form named, with its terms linked (owner, 2026-11-11).
-  '/privacy': page('2026-11-11T09:36:24+00:00', '1cb4a67bf54b'),
+  // The language note's remembered answer named (owner, 2026-11-16); Turnstile before it (2026-11-11).
+  '/privacy': page('2026-11-16T14:00:22+00:00', 'cf4afdfb4bc6'),
   '/terms': page(SITE_CHECK, '852a77676dab'),
 }
 

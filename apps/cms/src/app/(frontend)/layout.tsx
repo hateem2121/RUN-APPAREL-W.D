@@ -52,6 +52,7 @@ import { SmoothScroll } from '../../components/site/SmoothScroll'
 import { JsonLd } from '../../components/site/JsonLd'
 import { NavProgress } from '../../components/site/NavProgress'
 import { SiteFooter } from '../../components/site/SiteFooter'
+import { LanguageNote } from '../../components/site/LanguageNote'
 import { SiteHeader } from '../../components/site/SiteHeader'
 import { ThemeBoot } from '../../components/site/ThemeBoot'
 import { getSiteSettings } from '../../lib/content'
@@ -184,6 +185,10 @@ export default async function FrontendLayout({ children }: { children: React.Rea
         {/* The loading line for a tap on a link inside the site (NavProgress.tsx). */}
         <NavProgress />
         <SiteHeader wordmark={settings.temporaryWordmark} />
+        {/* "This page is also in your language": straight after the bar, so it is next in the reading
+            order. Draws nothing on the server, and nothing until a person touches the page
+            (LanguageNote.tsx). Not on the 404 page: a missing page has no twin. */}
+        <LanguageNote />
         {/*
           ⚠️ tabindex="-1" IS WHAT MAKES THE SKIP LINK REACH A SCREEN READER.
           Measured 2026-09-05: activating the skip link set the hash and the NEXT Tab

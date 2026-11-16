@@ -37,6 +37,14 @@ export const metadata: Metadata = buildMetadata({
  * so in words the owner approved on 2026-09-23. e2e/themeSwitch.spec.ts fails if a press
  * ever keeps anything else.
  *
+ * Since the language note (2026-11-16) a second key, `run-language-note`, is written when a visitor
+ * CLOSES the note, uses its link or uses the bar's own language link, and never when the note is
+ * merely shown (packages/shared/src/languageNote.ts). The ICO's "What are the exceptions?" page
+ * (read 2026-11-16) lists "Remembering the language the subscriber or user selects" under the
+ * 'appearance' exception, which asks for clear information and a simple way to object: hence the
+ * sentence, and its last line on clearing it. e2e/languageNote.spec.ts fails if showing the note
+ * ever stores anything.
+ *
  * ⚠️ CLOUDFLARE ANALYTICS IS DESCRIBED IN THE PRESENT TENSE ON PURPOSE. The marketing site
  * contacts nobody today only because `CF_ANALYTICS_TOKEN` is unset, so `Analytics.tsx`
  * renders nothing — and turning it on is on the owner's checklist. A notice that had to be
@@ -127,7 +135,9 @@ export default async function PrivacyPage() {
             once, on this site and on our 3D reference pages alike. If you accept, Google Analytics,
             Apollo and PostHog count your visit; if you decline, or do not answer, none of them ever
             loads. Your browser also keeps the light or dark setting, and only after you press that
-            switch.
+            switch. It keeps one more thing: that you closed the language note under the menu, or
+            chose a language. While the note is only shown, nothing is kept. Clearing this site’s
+            data in your browser removes both.
           </p>
         </div>
       </section>
