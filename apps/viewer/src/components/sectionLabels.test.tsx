@@ -4,7 +4,10 @@ import type { ViewerApiSuccess } from '@run-apparel/shared'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { type ViewerWords, WORDS } from '../lib/words'
+import { type ViewerWords, WORDS_EN } from '../lib/words'
+import { WORDS_RU } from '../lib/words.ru'
+
+const WORDS = { en: WORDS_EN, ru: WORDS_RU } as const
 import { CustomisationSection } from './CustomisationSection'
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 

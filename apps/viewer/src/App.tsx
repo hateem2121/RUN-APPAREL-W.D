@@ -1,6 +1,5 @@
 import type { ViewerApiSuccess, ViewerColourway } from '@run-apparel/shared'
 import {
-  GARMENT_TYPE_RU,
   garmentPageTitle,
   isViewerApiError,
   PAGE_TITLE_BRAND,
@@ -35,7 +34,7 @@ import { PRELOADER_PICTURE_WAIT_MS } from './lib/motion'
 import { currentRoute, onRouteChange, setColourwayUrl } from './lib/router'
 import { reloadOnChunkFailure } from './lib/staleChunkReload'
 import { useIdentityInAside } from './lib/useIdentityInAside'
-import { chrome, pageLocale } from './lib/locale'
+import { chrome, garmentTypeName } from './lib/locale'
 import { words } from './lib/words'
 import { usePrinting } from './lib/usePrinting'
 
@@ -309,11 +308,7 @@ export default function App() {
         productName: state.data.product.productName,
         productCode: state.data.product.productCode,
         // A Russian page's title names the type in Russian (GARMENT_TYPE_RU), as its website twin.
-        garmentType:
-          pageLocale() === 'ru'
-            ? (GARMENT_TYPE_RU[state.data.product.garmentType ?? ''] ??
-              state.data.product.garmentType)
-            : state.data.product.garmentType,
+        garmentType: garmentTypeName(state.data.product.garmentType ?? ''),
         colour: state.selected.displayName,
         brand: PAGE_TITLE_BRAND,
         isDefaultColour: state.selected.isDefault,

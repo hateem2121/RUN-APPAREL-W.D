@@ -1,4 +1,5 @@
-import type { SpecGroupKey } from './specs.ts'
+import { specNote, weightKind, weightNote } from './specNotes.ts'
+import { noteKey, type SpecGroup, type SpecGroupKey, specGroups } from './specs.ts'
 
 /**
  * RUSSIAN TWIN OF THE SPEC NOTES AND HEADINGS (owner's choice, 2026-11-16: Russian copies of the
@@ -367,4 +368,41 @@ export const ACCESSORY_HEADINGS_RU: Record<SpecGroupKey, string> = {
   weight: 'Вес',
   fit: 'Размер',
   performance: 'По нормам FIFA Quality Pro',
+}
+
+/*
+ * THE RUSSIAN LOOKUPS (2026-11-16). Here, not in `specNotes.ts` / `specs.ts`, so only a file that
+ * imports this one carries the tables above: the viewer's Russian chunk (`apps/viewer/src/lib/ru.ts`)
+ * does, its English page's script does not (`packages/shared` is `"sideEffects": false`).
+ */
+
+/** A group's Russian heading: the ball's own for 'Sports Accessories', the garment ones otherwise. */
+export function specGroupLabelRu(key: SpecGroupKey, category?: string): string {
+  return (category === 'Sports Accessories' ? ACCESSORY_HEADINGS_RU : SPEC_HEADINGS_RU)[key]
+}
+
+/** The Russian weight sentence, read from the same English value as `weightNote`. */
+export function weightNoteRu(gsm: string): string | null {
+  const weight = weightKind(gsm)
+  if (!weight) return null
+  if (weight.kind !== 'band') return WEIGHT_NOTES_RU[weight.kind]
+  const middle = weight.middle
+  const band = WEIGHT_BANDS_RU.find((entry) => middle < entry.below)?.band
+  return band ? WEIGHT_NOTES_RU.band(band) : weightNote(gsm)
+}
+
+/**
+ * The Russian note for one bullet, or the English line when a term has no twin yet: an English line
+ * on a Russian page is untranslated, a missing one would hide what the term means.
+ */
+export function specNoteRu(group: SpecGroupKey, text: string): string | null {
+  if (group === 'weight') return weightNoteRu(text)
+  const notes =
+    group === 'fabric' ? FIBRE_NOTES_RU : group === 'fit' ? FIT_NOTES_RU : FEATURE_NOTES_RU
+  return notes[noteKey(text)] ?? specNote(group, text)
+}
+
+/** The four groups with Russian headings and notes; the bullets stay as the CMS typed them. */
+export function specGroupsRu(product: Parameters<typeof specGroups>[0]): SpecGroup[] {
+  return specGroups(product, specNoteRu, specGroupLabelRu)
 }

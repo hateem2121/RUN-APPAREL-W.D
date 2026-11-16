@@ -402,9 +402,23 @@ describe('XS-02 — one menu bar on both surfaces, styled once', () => {
       ),
       "the site's bar lost a shared marker",
     ).toEqual([])
+    // The viewer's bar reads its words in the page's language since the Russian garment pages
+    // (2026-11-16: `chrome()`, apps/viewer/src/lib/locale.ts), so the same markers are spelled
+    // `c.<word>` there. Each form is still required.
+    const VIEWER_EQUIVALENT: Readonly<Record<string, string>> = {
+      'className="notch__nav" aria-label={SITE_NAV_LABEL}':
+        'className="notch__nav" aria-label={c.navLabel}',
+      '<span className="visually-hidden">{SITE_MENU_NAME}</span>':
+        '<span className="visually-hidden">{c.menuName}</span>',
+      'SITE_NAV_LINKS.map': 'c.navLinks.map',
+      '<span className="visually-hidden">{THEME_SWITCH_NAMES.toDark}</span>':
+        '<span className="visually-hidden">{c.themeNames.toDark}</span>',
+      '<span className="visually-hidden">{THEME_SWITCH_NAMES.toLight}</span>':
+        '<span className="visually-hidden">{c.themeNames.toLight}</span>',
+    }
     for (const [host, source] of [['the viewer', viewer]] as const) {
       expect(
-        MARKERS.filter((marker) => !source.includes(marker)),
+        MARKERS.filter((marker) => !source.includes(VIEWER_EQUIVALENT[marker] ?? marker)),
         `${host}'s bar lost a shared marker`,
       ).toEqual([])
       expect(

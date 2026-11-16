@@ -1,5 +1,6 @@
 import '@run-apparel/ui/footer-prompt.css'
 import {
+  type ChromeWords,
   type FooterHours,
   type FooterSettings,
   isOpenAt,
@@ -8,8 +9,6 @@ import {
   worksClock,
 } from '@run-apparel/shared'
 import { useEffect, useState } from 'react'
-import { chrome, footerLine, sitePath } from '../lib/locale'
-import { SITE_ORIGIN } from '../lib/siteLinks'
 
 /**
  * The footer's prompt on the garment pages: the tab on the slab's edge, the question and the works'
@@ -26,9 +25,9 @@ import { SITE_ORIGIN } from '../lib/siteLinks'
  */
 
 /** The volt tab on the slab's edge, to the website's Contact page (this page is never Contact). */
-export function FooterTab({ label }: { label: string }) {
+export function FooterTab({ label, href }: { label: string; href: string }) {
   return (
-    <a className="site-footer__tab" href={`${SITE_ORIGIN}${sitePath('/contact')}`}>
+    <a className="site-footer__tab" href={href}>
       <span className="site-footer__tab-label">{label}</span>
       <span className="site-footer__tab-arrow" aria-hidden="true">
         →
@@ -38,23 +37,23 @@ export function FooterTab({ label }: { label: string }) {
 }
 
 /** The question, its two lines and the clock, then the band that holds the slab one screen tall. */
-export function FooterQuestion({ footer }: { footer: FooterSettings }) {
-  const q = splitLastWord(footerLine(footer.ctaQuestion))
+export function FooterQuestion({ footer, words }: { footer: FooterSettings; words: ChromeWords }) {
+  const q = splitLastWord(footer.ctaQuestion)
   return (
     <>
       <div className="footer-cta">
         <div>
-          <p className="footer-eyebrow">{chrome().footer.eyebrow}</p>
+          <p className="footer-eyebrow">{words.footer.eyebrow}</p>
           <h2 className="footer-q">
             {q.head}
             <em>{q.last}</em>
             {q.tail}
           </h2>
-          <p className="footer-derisk">{footerLine(footer.ctaSubline)}</p>
-          <p className="footer-dim">{footerLine(footer.ctaPromise)}</p>
+          <p className="footer-derisk">{footer.ctaSubline}</p>
+          <p className="footer-dim">{footer.ctaPromise}</p>
         </div>
         <div className="footer-side">
-          <FooterClock hours={footer.capacity.hours} />
+          <FooterClock hours={footer.capacity.hours} words={words} />
         </div>
       </div>
       <div className="footer-grow" />
@@ -63,7 +62,7 @@ export function FooterQuestion({ footer }: { footer: FooterSettings }) {
 }
 
 /** The works' time, and open or closed when the owner has set hours: the website's FooterClock. */
-function FooterClock({ hours }: { hours: FooterHours | null }) {
+function FooterClock({ hours, words }: { hours: FooterHours | null; words: ChromeWords }) {
   const [now, setNow] = useState<Date | null>(null)
   useEffect(() => {
     setNow(new Date())
@@ -75,17 +74,17 @@ function FooterClock({ hours }: { hours: FooterHours | null }) {
     <>
       <span className="footer-clock">
         <i aria-hidden="true" />
-        <span className="footer-clock__city">{chrome().footer.clockCity}</span>
+        <span className="footer-clock__city">{words.footer.clockCity}</span>
         <span className="footer-clock__time">
           <span>{now ? worksClock(now) : '--:--'}</span>
-          <small>{chrome().footer.clockZone}</small>
+          <small>{words.footer.clockZone}</small>
         </span>
       </span>
       {open === null || !hours || !now ? null : (
         <span className="footer-status" data-state={open ? 'open' : 'closed'}>
           {open
-            ? chrome().footer.openNow
-            : chrome().opensAt(
+            ? words.footer.openNow
+            : words.opensAt(
                 hours.open,
                 nextOpening(hours, now).daysAhead === 0 ? undefined : nextOpening(hours, now).day,
               )}

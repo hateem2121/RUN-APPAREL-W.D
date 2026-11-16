@@ -76,11 +76,39 @@ for (const width of [320, 375, 768, 1280]) {
 }
 
 test('the English page is untouched: no Russian word, lang="en"', async ({ page }) => {
+  // Every script and font it downloads, read as text: none may hold Cyrillic. The Russian words
+  // are a chunk of their own (src/lib/locale.ts) and the Cyrillic faces load by unicode-range, so
+  // an English visitor pays for neither (scripts/check-bundle-budget.mjs, 2026-11-16).
+  const downloaded: string[] = []
+  page.on('response', (response) => {
+    const type = response.request().resourceType()
+    if (type === 'script' || type === 'font') downloaded.push(response.url())
+  })
   await page.goto('/products/n001/wine')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   const text = await page.locator('body').innerText()
   expect(text).not.toMatch(CYRILLIC)
+  await page.waitForLoadState('networkidle')
+  expect(downloaded.some((url) => /\/assets\/index-/.test(url))).toBe(true)
+  for (const url of downloaded) {
+    expect(url, 'a Cyrillic font on an English page').not.toMatch(/cyrillic/)
+    if (!/\.m?js(\?|$)/.test(url)) continue
+    const body = await (await page.request.get(url)).text()
+    expect(body, `${url} holds Russian`).not.toMatch(CYRILLIC)
+  }
+})
+
+test('the Russian page fetches its words chunk before it draws', async ({ page }) => {
+  const chunks: string[] = []
+  page.on('request', (request) => {
+    if (/\/assets\/ru-[^/]+\.js/.test(request.url())) chunks.push(request.url())
+  })
+  await page.goto(RU)
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  expect(chunks).toHaveLength(1)
+  // Drawn in Russian from the first frame: the trail exists only after the app has rendered.
+  await expect(page.getByRole('navigation', { name: 'Навигационная цепочка' })).toBeAttached()
 })
 
 test('the specification headings and notes are Russian, the values as the CMS typed them', async ({

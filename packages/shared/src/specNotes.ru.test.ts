@@ -15,6 +15,10 @@ import {
   SPEC_HEADINGS_RU,
   WEIGHT_BANDS_RU,
   WEIGHT_NOTES_RU,
+  specGroupLabelRu,
+  specGroupsRu,
+  specNoteRu,
+  weightNoteRu,
 } from './specNotes.ru'
 import { SPEC_HEADINGS, type SpecGroupKey, specGroupLabel, specGroups } from './specs'
 
@@ -102,43 +106,41 @@ describe('every Russian line', () => {
 
 describe('the Russian lookup', () => {
   it('finds a bullet’s Russian line by the same key as its English one', () => {
-    expect(specNote('fabric', '85% Recycled Polyester', 'ru')).toBe(
+    expect(specNoteRu('fabric', '85% Recycled Polyester')).toBe(
       FIBRE_NOTES_RU['recycled polyester'],
     )
     // The same words are a different term as a feature, in both languages.
-    expect(specNote('performance', 'Recycled Polyester', 'ru')).toBe(
+    expect(specNoteRu('performance', 'Recycled Polyester')).toBe(
       FEATURE_NOTES_RU['recycled polyester'],
     )
-    expect(specNote('fit', 'High-Support Compression', 'ru')).toBe(
+    expect(specNoteRu('fit', 'High-Support Compression')).toBe(
       FIT_NOTES_RU['high-support compression'],
     )
-    expect(specNote('performance', 'DWR Water-Repellent Finish', 'ru')).toContain('(DWR)')
+    expect(specNoteRu('performance', 'DWR Water-Repellent Finish')).toContain('(DWR)')
   })
   it('bands a weight, and says thickness and padding, in Russian', () => {
-    expect(weightNote('40–70 GSM', 'ru')).toBe(
+    expect(weightNoteRu('40–70 GSM')).toBe(
       'Плотность — вес ткани в г/м²; эта ткань очень лёгкая и тонкая.',
     )
-    expect(weightNote('320–440 GSM', 'ru')).toContain('тяжёлая и толстая')
-    expect(weightNote('3 mm neoprene (about 700 g/m²)', 'ru')).toBe(WEIGHT_NOTES_RU.neoprene)
-    expect(weightNote('1.2 mm thickness', 'ru')).toBe(WEIGHT_NOTES_RU.thickness)
-    expect(weightNote('40–60 GSM insulation', 'ru')).toBe(WEIGHT_NOTES_RU.insulation)
-    expect(weightNote('GSM to your spec', 'ru')).toBeNull()
+    expect(weightNoteRu('320–440 GSM')).toContain('тяжёлая и толстая')
+    expect(weightNoteRu('3 mm neoprene (about 700 g/m²)')).toBe(WEIGHT_NOTES_RU.neoprene)
+    expect(weightNoteRu('1.2 mm thickness')).toBe(WEIGHT_NOTES_RU.thickness)
+    expect(weightNoteRu('40–60 GSM insulation')).toBe(WEIGHT_NOTES_RU.insulation)
+    expect(weightNoteRu('GSM to your spec')).toBeNull()
   })
   it('falls back to the English line for a term with no Russian twin yet', () => {
     FEATURE_NOTES['test-only new term'] = 'A new English line.'
     try {
-      expect(specNote('performance', 'Test-only new term', 'ru')).toBe('A new English line.')
+      expect(specNoteRu('performance', 'Test-only new term')).toBe('A new English line.')
     } finally {
       delete FEATURE_NOTES['test-only new term']
     }
-    expect(specNote('performance', 'Not a known term', 'ru')).toBeNull()
+    expect(specNoteRu('performance', 'Not a known term')).toBeNull()
   })
   it('heads the groups in Russian, the ball with its own words', () => {
-    expect(specGroupLabel('weight', 'ru')).toBe('Плотность')
-    expect(specGroupLabel('weight', 'ru', 'Sports Accessories')).toBe('Вес')
-    expect(specGroupLabel('performance', 'ru', 'Sports Accessories')).toBe(
-      'По нормам FIFA Quality Pro',
-    )
+    expect(specGroupLabelRu('weight')).toBe('Плотность')
+    expect(specGroupLabelRu('weight', 'Sports Accessories')).toBe('Вес')
+    expect(specGroupLabelRu('performance', 'Sports Accessories')).toBe('По нормам FIFA Quality Pro')
   })
 })
 
@@ -152,10 +154,10 @@ describe('the English path is unchanged', () => {
     ] as const) {
       for (const [key, note] of Object.entries(notes)) {
         expect(specNote(group, key), key).toBe(note)
-        expect(specNote(group, key, 'en'), key).toBe(note)
+        expect(specNote(group, key), key).toBe(note)
       }
     }
-    expect(weightNote('40–70 GSM', 'en')).toBe(
+    expect(weightNote('40–70 GSM')).toBe(
       'How heavy the fabric is, in grams per square meter: very light and thin.',
     )
   })
@@ -166,7 +168,7 @@ describe('the English path is unchanged', () => {
       'Fit',
       'Performance',
     ])
-    expect(groups.map((key) => specGroupLabel(key, 'en', 'Sports Accessories'))).toEqual([
+    expect(groups.map((key) => specGroupLabel(key, 'Sports Accessories'))).toEqual([
       'Materials',
       'Weight',
       'Size',
@@ -186,7 +188,7 @@ describe('the English path is unchanged', () => {
       'Fit',
       'Performance',
     ])
-    const ru = specGroups(product, (group, text) => specNote(group, text, 'ru'), 'ru')
+    const ru = specGroupsRu(product)
     expect(ru.map((group) => group.heading)).toEqual([
       'Ткань',
       'Плотность',

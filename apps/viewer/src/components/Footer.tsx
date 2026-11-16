@@ -15,7 +15,7 @@ import {
 import { lazy, Suspense, useEffect } from 'react'
 import { track } from '../lib/analytics'
 import { reloadOnChunkFailure } from '../lib/staleChunkReload'
-import { chrome, footerLine } from '../lib/locale'
+import { chrome, footerLine, sitePath } from '../lib/locale'
 import { SITE_ORIGIN } from '../lib/siteLinks'
 import { FooterGlow, FooterWordmark } from './FooterLive'
 import { LazyPieceBoundary } from './LazyPieceBoundary'
@@ -73,7 +73,12 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
     <footer className="site-footer">
       <LazyPieceBoundary piece="footer-tab">
         <Suspense fallback={null}>
-          <FooterTab label={footerLine(f.ctaLabel)} />
+          {/* Words and links in the page's language are worked out HERE and passed down: this lazy
+              piece imports no language helper, so it adds no chunk to the first load (PF-16). */}
+          <FooterTab
+            label={footerLine(f.ctaLabel)}
+            href={`${SITE_ORIGIN}${sitePath('/contact')}`}
+          />
         </Suspense>
       </LazyPieceBoundary>
       <div className="site-footer__slab">
@@ -82,7 +87,15 @@ export function Footer({ settings }: { settings: ViewerSiteSettings }) {
         <div className="site-footer__inner">
           <LazyPieceBoundary piece="footer-question">
             <Suspense fallback={null}>
-              <FooterQuestion footer={f} />
+              <FooterQuestion
+                footer={{
+                  ...f,
+                  ctaQuestion: footerLine(f.ctaQuestion),
+                  ctaSubline: footerLine(f.ctaSubline),
+                  ctaPromise: footerLine(f.ctaPromise),
+                }}
+                words={c}
+              />
             </Suspense>
           </LazyPieceBoundary>
           <div className="footer-facts">

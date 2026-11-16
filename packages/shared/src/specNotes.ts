@@ -1,11 +1,3 @@
-import type { Locale } from './siteChrome.ts'
-import {
-  FEATURE_NOTES_RU,
-  FIBRE_NOTES_RU,
-  FIT_NOTES_RU,
-  WEIGHT_BANDS_RU,
-  WEIGHT_NOTES_RU,
-} from './specNotes.ru.ts'
 import { noteKey, type SpecGroupKey } from './specs.ts'
 
 /**
@@ -339,52 +331,49 @@ export const WEIGHT_BANDS: readonly { readonly below: number; readonly band: str
  * it is for: the "very light" band holds a windbreaker, a softshell and a training bib (checked
  * against all 40 live garments 2026-10-04), so "for hot days" would be wrong for two of them.
  */
-export function weightNote(gsm: string, locale: Locale = 'en'): string | null {
-  // The value is the CMS's English ("40–60 GSM insulation") on both languages' pages, so it is
-  // read the same way for both; only the sentence returned changes.
-  const ru = locale === 'ru'
+export type WeightKind =
+  | { readonly kind: 'neoprene' | 'thickness' | 'insulation' }
+  | { readonly kind: 'band'; readonly middle: number }
+
+/**
+ * How a weight value reads, whichever language the sentence is written in: the value is the CMS's
+ * English ("40–60 GSM insulation") on both languages' pages (`specNotes.ru.ts` reads it too).
+ */
+export function weightKind(gsm: string): WeightKind | null {
   const text = gsm.toLowerCase()
-  if (/\bmm\b/.test(text)) {
-    if (text.includes('neoprene')) {
-      return ru
-        ? WEIGHT_NOTES_RU.neoprene
-        : 'Neoprene is sold by thickness: thicker is warmer, thinner bends more easily.'
-    }
-    return ru
-      ? WEIGHT_NOTES_RU.thickness
-      : 'Measured by thickness: thicker is tougher, thinner is lighter and softer.'
-  }
+  if (/\bmm\b/.test(text)) return { kind: text.includes('neoprene') ? 'neoprene' : 'thickness' }
   const numbers = [...text.matchAll(/\d+/g)].map((match) => Number(match[0]))
   if (numbers.length === 0 || !/gsm|g\/m/.test(text)) return null
-  if (text.includes('insulation')) {
-    return ru
-      ? WEIGHT_NOTES_RU.insulation
-      : 'The weight of the padding inside, in grams per square meter: more grams, more warmth.'
+  if (text.includes('insulation')) return { kind: 'insulation' }
+  return { kind: 'band', middle: (Math.min(...numbers) + Math.max(...numbers)) / 2 }
+}
+
+export function weightNote(gsm: string): string | null {
+  const weight = weightKind(gsm)
+  if (!weight) return null
+  switch (weight.kind) {
+    case 'neoprene':
+      return 'Neoprene is sold by thickness: thicker is warmer, thinner bends more easily.'
+    case 'thickness':
+      return 'Measured by thickness: thicker is tougher, thinner is lighter and softer.'
+    case 'insulation':
+      return 'The weight of the padding inside, in grams per square meter: more grams, more warmth.'
+    case 'band': {
+      const { middle } = weight
+      const band = WEIGHT_BANDS.find((entry) => middle < entry.below)?.band
+      return `How heavy the fabric is, in grams per square meter: ${band}.`
+    }
   }
-  const middle = (Math.min(...numbers) + Math.max(...numbers)) / 2
-  if (ru) {
-    const bandRu = WEIGHT_BANDS_RU.find((entry) => middle < entry.below)?.band
-    if (bandRu) return WEIGHT_NOTES_RU.band(bandRu)
-  }
-  const band = WEIGHT_BANDS.find((entry) => middle < entry.below)?.band
-  return `How heavy the fabric is, in grams per square meter: ${band}.`
 }
 
 /**
- * The note for one bullet, or null. What `specGroups` is given by the CMS. With `locale` 'ru'
- * (the /ru garment pages, 2026-11-16) it is the Russian twin from `specNotes.ru.ts`, or the
- * English line when a term has no twin yet: an English line on a Russian page is untranslated,
- * a missing one would hide what the term means.
+ * The note for one bullet, or null. What `specGroups` is given by the CMS. The Russian twin is
+ * `specNoteRu` in `specNotes.ru.ts` (kept out of this file so an English page's script never
+ * carries the Russian tables, 2026-11-16).
  */
-export function specNote(group: SpecGroupKey, text: string, locale: Locale = 'en'): string | null {
-  if (group === 'weight') return weightNote(text, locale)
+export function specNote(group: SpecGroupKey, text: string): string | null {
+  if (group === 'weight') return weightNote(text)
   const key = noteKey(text)
-  if (locale === 'ru') {
-    const notesRu =
-      group === 'fabric' ? FIBRE_NOTES_RU : group === 'fit' ? FIT_NOTES_RU : FEATURE_NOTES_RU
-    const ru = notesRu[key]
-    if (ru) return ru
-  }
   const notes = group === 'fabric' ? FIBRE_NOTES : group === 'fit' ? FIT_NOTES : FEATURE_NOTES
   return notes[key] ?? null
 }

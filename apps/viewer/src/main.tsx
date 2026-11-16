@@ -34,6 +34,7 @@ import { initErrorTracking } from './lib/sentry'
 import { initTelemetry } from './lib/telemetry'
 import { initWebVitals } from './lib/webVitals'
 import { preload3DAssets } from './lib/preload3d'
+import { loadRussian } from './lib/loadRussian'
 import { pageLocale } from './lib/locale'
 
 initErrorTracking()
@@ -78,6 +79,14 @@ keepLeavingInstant()
 // worker's offline copy or the e2e fixture server included.
 document.documentElement.lang = pageLocale()
 
+/**
+ * A Russian page loads its words before it draws (lib/locale.ts says why they are a chunk of their
+ * own). Should the chunk fail, the page draws in English rather than not at all: the garment, its
+ * colours and both enquiry buttons still work, and the address still says /ru.
+ */
+const ready: Promise<unknown> =
+  pageLocale() === 'ru' ? loadRussian().catch(() => undefined) : Promise.resolve()
+
 const root = createRoot(document.getElementById('root')!)
 
 /**
@@ -104,12 +113,14 @@ document.body.appendChild(grain)
 // branded crash screen rather than an empty <div id="root">. Placing it
 // outside StrictMode would also work; inside keeps the double-invoke checks
 // applying to the fallback too.
-root.render(
-  <StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </StrictMode>,
+void ready.then(() =>
+  root.render(
+    <StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </StrictMode>,
+  ),
 )
 
 // After mount, not in index.html: see src/lib/preload3d.ts (RO-08).

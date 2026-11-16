@@ -1,6 +1,21 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { categoryName, chrome, footerLine, pageLocale, sitePath } from './locale'
-import { WORDS, words } from './words'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import {
+  categoryName,
+  chrome,
+  footerLine,
+  garmentTypeName,
+  pageLocale,
+  registerRussian,
+  russian,
+  sitePath,
+} from './locale'
+import { RU_PACK } from './ru'
+import { WORDS_EN, words } from './words'
+import { WORDS_RU } from './words.ru'
+
+const WORDS = { en: WORDS_EN, ru: WORDS_RU } as const
+
+beforeAll(() => registerRussian(RU_PACK))
 
 const CYRILLIC = /[Ѐ-ӿ]/
 
@@ -64,6 +79,22 @@ describe('the page language follows the address', () => {
     expect(categoryName('Sportswear')).toBe('Спортивная одежда')
     expect(chrome().lang).toBe('ru')
     expect(chrome().navLinks.every((link) => link.href.startsWith('/ru/'))).toBe(true)
+    expect(garmentTypeName('Soccer Jersey')).toBe('Футбольное джерси')
+  })
+
+  it('an English page never uses the Russian pack, even when one is registered', () => {
+    window.history.replaceState({}, '', '/products/rxps/wine')
+    expect(russian()).toBeNull()
+    expect(garmentTypeName('Soccer Jersey')).toBe('Soccer Jersey')
+    expect(chrome().lang).toBe('en')
+  })
+
+  it('a Russian page whose chunk never arrived draws in English rather than not at all', () => {
+    registerRussian(null)
+    window.history.replaceState({}, '', '/ru/products/rxps/wine')
+    expect(words()).toBe(WORDS.en)
+    expect(chrome().lang).toBe('en')
+    registerRussian(RU_PACK)
   })
 
   it('a CMS footer line is translated only when its exact English is known', () => {

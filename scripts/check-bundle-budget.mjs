@@ -237,12 +237,23 @@ const REPORT_ONLY = process.argv.includes('--report')
  *       script total  +233 B gzip                         budget 480,500 -> 480,900
  *   CI read the branch 153 B over (469.4 KB, run 43652403848; main 469.1 KB, 94 B left). The person
  *   copy it pays for saves the garment-data request, measured 0.10-2.81 s from Sialkot that day.
+ *   ⚠️ 2026-11-16, the Russian garment pages (/ru/products/…, owner's choice that day). Built from
+ *   main (54c5ad40) and from this branch, gzip level 9, on this Mac:
+ *       script     ru-*.js       0 -> 20,369 B  (the page's words, chrome, spec notes and garment
+ *                  types in Russian: a chunk only a /ru page fetches, before it draws, lib/locale.ts)
+ *       script     English first load (entry + its shared chunk)  39,020 -> 41,599 B  (+2,579: the
+ *                  English word list and chrome moved out of the components, the language helpers)
+ *       script total  +22.4 KB gzip (467.6 -> 490.0 KB)          budget 480,900 -> 504,200
+ *       stylesheet index-*.css  13,363 -> 13,455 B (+92: the two Cyrillic @font-face rules, which
+ *                  fetch nothing on a page without a Cyrillic letter)   budget 16,500 -> 16,600
+ *   The 20 KB is not on an English visitor's wire: `e2e/russian.spec.ts` holds that an English
+ *   garment page downloads no script or font holding Cyrillic.
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
  */
 const BUDGETS = {
-  script: { bytes: 480_900, note: 'app chunks + the meshopt decoder every model needs' },
+  script: { bytes: 504_200, note: 'app chunks + the meshopt decoder every model needs' },
   decoder: { bytes: 507_000, note: 'draco + basis — vendored, in dist, never fetched' },
   wasm: {
     bytes: 20_000,
@@ -263,7 +274,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 16_500, note: 'CSS' },
+  stylesheet: { bytes: 16_600, note: 'CSS' },
 }
 
 /**

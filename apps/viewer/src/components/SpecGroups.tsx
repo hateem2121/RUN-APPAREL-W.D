@@ -1,5 +1,5 @@
-import { type SpecItem, specGroups, specNote, type ViewerProduct } from '@run-apparel/shared'
-import { pageLocale } from '../lib/locale'
+import { type SpecItem, specGroups, type ViewerProduct } from '@run-apparel/shared'
+import { russian } from '../lib/locale'
 
 /**
  * THE GARMENT'S FACTS AS FOUR MATCHING GROUPS OF BULLETS (polish D10, owner-approved 2026-10-03).
@@ -69,10 +69,7 @@ export function SpecGroups({ product, placement }: SpecGroupsProps) {
   // A Russian page builds them here in Russian (2026-11-16): the CMS sends the English notes, and
   // the Russian twins live in the shared package (specNotes.ru.ts), so they need no CMS change.
   // The garment's own values ("88% Nylon", "Race fit") are CMS text and stay as typed.
-  const groups =
-    pageLocale() === 'ru'
-      ? specGroups(product, (group, text) => specNote(group, text, 'ru'), 'ru')
-      : (product.specs ?? specGroups(product))
+  const groups = russian()?.specGroups(product) ?? product.specs ?? specGroups(product)
   if (groups.length === 0) return null
   const list = (
     <dl className={`spec-groups spec-groups--${placement}`}>
