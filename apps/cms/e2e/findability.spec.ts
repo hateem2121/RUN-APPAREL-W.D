@@ -266,8 +266,13 @@ test.describe('FA-N-08 — the structured data parses and says what it should', 
         const collect = (node: unknown) => {
           if (Array.isArray(node)) return node.forEach(collect)
           if (node && typeof node === 'object') {
+            // One type, or several: the company node is ['Organization', 'LocalBusiness'] since
+            // 2026-11-16 (schema.org and Google's LocalBusiness guide both allow an array), and a
+            // reader that took only a string stopped seeing Organization on `/`.
             const type = (node as Record<string, unknown>)['@type']
-            if (typeof type === 'string') types.push(type)
+            for (const name of Array.isArray(type) ? type : [type]) {
+              if (typeof name === 'string') types.push(name)
+            }
             if (Array.isArray((node as Record<string, unknown>)['@graph'])) {
               collect((node as Record<string, unknown>)['@graph'])
             }
