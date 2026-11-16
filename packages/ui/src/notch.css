@@ -1147,3 +1147,148 @@
     display: none !important;
   }
 }
+
+/* ------------------------------------------------------------- language note */
+
+/*
+ * THE LANGUAGE NOTE (owner's design, 2026-11-16): "this page is also in your language", just under
+ * the bar, on the website and the 3D garment pages. Who sees it and its words are
+ * packages/shared/src/languageNote.ts; each app's LanguageNote.tsx draws it after the header.
+ * It is in this file because both apps load it and the note is placed from the bar's own height.
+ *
+ * - FIXED, so it floats over the page and moves nothing (no layout shift to measure), like the
+ *   cookie card (base.css `.consent`), whose paper-and-ink card it copies. The shell ignores the
+ *   pointer, so the page either side of the card stays clickable.
+ * - UNDER THE BAR, NEVER OVER IT: it starts at --notch-h, the height the bar is built from and the
+ *   line the phone menu hangs from (`inset-block-start: calc(var(--notch-h) - 1px)`, above), and
+ *   --z-language-note is below --z-header. The open phone menu is a popover, in the browser's top
+ *   layer, so it is always above the note.
+ * - It fades in over --settle, only for a visitor who allows motion. An element that only fades
+ *   needs no other reduced-motion branch.
+ * - NOT IN THE SERVER'S HTML, and drawn only after a person touches the page: a crawler's renderer
+ *   must never read an English note as part of a Russian page (languageNote.ts, `watchForPerson`).
+ */
+.language-note {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-start: var(--notch-h);
+  z-index: var(--z-language-note);
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  pointer-events: none;
+}
+
+.language-note__card {
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  max-inline-size: 100%;
+  padding: 8px 8px 8px 16px;
+  background: var(--raised);
+  color: var(--text);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-raised);
+}
+
+.language-note__text {
+  margin: 0;
+  font-size: var(--text-fine);
+  line-height: 1.45;
+}
+
+/* The cookie card's button: a page button's height (the 44px floor), narrower padding. */
+.language-note__action.btn {
+  padding: 10px 14px;
+  white-space: nowrap;
+}
+
+/* The ×: a full 44px target around a small mark; its name is the button's aria-label. */
+.language-note__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  inline-size: var(--target-min);
+  block-size: var(--target-min);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+/*
+ * A NARROW SCREEN SETS IT ON TWO ROWS: the sentence beside the ×, the link under them at full
+ * width. On one row at 320px the sentence had 60px and broke onto five lines. Reflow (WCAG 2.2
+ * SC 1.4.10): at 320px, and at 1280px zoomed to 400%, nothing scrolls sideways.
+ */
+@media (width < 560px) {
+  .language-note__card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    inline-size: 100%;
+  }
+
+  .language-note__action.btn {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .language-note__card {
+    animation: language-note-in var(--settle) var(--ease) both;
+  }
+}
+
+@keyframes language-note-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * ⚠️ WHILE THE NOTE SHOWS, NOTHING A KEYBOARD USER IS ON MAY BE HIDDEN UNDER IT (WCAG 2.2 SC 2.4.11,
+ * Focus Not Obscured, AA). W3C's Understanding page names scroll padding as a way to pass, and the
+ * cookie card does the same at the foot of the screen (base.css). A rem value, not the note's
+ * measured height: the note is text, so rem grows with exactly what makes it taller. 5rem (80px)
+ * clears the one-row note (62px measured) and 8rem (128px) the two-row one (114px).
+ * --notch-clearance is the website's own top clearance (site.css); the garment pages have none
+ * and fall back to the bar's height. WebKit does not scroll for an element already on screen, so
+ * each app's LanguageNote.tsx also lifts a focus that lands under the note (`liftClearOfNote`).
+ */
+:root:has(.language-note) {
+  scroll-padding-block-start: calc(var(--notch-clearance, var(--notch-h)) + 5rem);
+}
+
+@media (width < 560px) {
+  :root:has(.language-note) {
+    scroll-padding-block-start: calc(var(--notch-clearance, var(--notch-h)) + 8rem);
+  }
+}
+
+/*
+ * On a phone the garment pages' bar leaves while the visitor scrolls down ("the bar leaves",
+ * above). The note follows it up by the bar's height, so it never floats under an empty gap, and
+ * comes back down with it. Same query, same duration and curve as the bar.
+ */
+@media screen and (width < 720px) and (hover: none) {
+  .language-note {
+    transition: translate var(--ui) var(--ease);
+  }
+
+  :root:has(.notch-shell[data-bar-hidden]) .language-note {
+    translate: 0 calc(-1 * var(--notch-h));
+  }
+}
+
+/* A screen device: on paper it would print over the top of the first sheet. */
+@media print {
+  .language-note {
+    display: none;
+  }
+}

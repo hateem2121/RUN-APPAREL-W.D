@@ -1207,6 +1207,7 @@ nothing moved — with one stated exception below.
 | `--z-footer-tab` | 2 | the site's `.site-footer__tab` — seated on the footer slab's top edge |
 | `--z-footer-glow` | 6 | the site's `.footer-glow` — the light, blended over the slab's content |
 | `--z-header` | 40 | the bar; both hosts' `.notch-shell` share it since 2026-09-24 |
+| `--z-language-note` | 38 | `.language-note`, the language note under the bar on both hosts (2026-11-16): over the page, under the woven tap and the bar; the open phone menu is a popover, so it is above the note by itself |
 | `--z-nav-weave` | 39 | the website's woven tap: over the page, under the bar (D51) |
 | `--z-nav-progress` | 41 | the website's `.nav-progress`, the loading line after a tap on a link inside the site (site check-up, 2026-10-22) — over the bar it runs along, under everything above it |
 | `--z-action-bar` | 50 | the persistent contact bar |

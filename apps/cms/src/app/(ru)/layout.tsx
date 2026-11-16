@@ -36,6 +36,7 @@ import { GarmentWarm } from '../../components/site/GarmentWarm'
 import { JsonLd } from '../../components/site/JsonLd'
 import { NavProgress } from '../../components/site/NavProgress'
 import { SiteFooter } from '../../components/site/SiteFooter'
+import { LanguageNote } from '../../components/site/LanguageNote'
 import { SiteHeader } from '../../components/site/SiteHeader'
 import { SmoothScroll } from '../../components/site/SmoothScroll'
 import { ThemeBoot } from '../../components/site/ThemeBoot'
@@ -97,6 +98,10 @@ export default async function RussianLayout({ children }: { children: React.Reac
         <ContactClicks email={settings.email} />
         <NavProgress lang="ru" />
         <SiteHeader wordmark={settings.temporaryWordmark} chrome={chrome} />
+        {/* "This page is also in your language": straight after the bar, so it is next in the reading
+            order. Draws nothing on the server, and nothing until a person touches the page
+            (LanguageNote.tsx). Not on the 404 page: a missing page has no twin. */}
+        <LanguageNote />
         <main id="main" className="site-main" tabIndex={-1}>
           {children}
         </main>

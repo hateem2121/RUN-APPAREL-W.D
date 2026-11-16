@@ -124,10 +124,12 @@ export default defineConfig({
      * sport filter's chips are, and a buyer on a Mac taps the bar in Safari.
      */
     // Footer fitting joins WebKit after the 29 October resize-loop reproduction.
+    // `languageNote` joined 2026-11-16: WebKit does not scroll a focused control out from under a
+    // fixed card by itself (measured for the cookie card), and the note leans on the fix for that.
     {
       name: 'webkit',
       testMatch:
-        /(footerResize|navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|productsDrawing|galleryArrows|aboutGround|navProgress|bigText|garmentPrefetch|pressedLink)\.spec\.ts/,
+        /(footerResize|navbar|themeSwitch|siteBar|globe|consent|sportFilter|familyTickets|productTickets|orderTimeline|inquiryLayout|guides|careersForm|aboutFactory|productsGroups|productsDrawing|galleryArrows|aboutGround|navProgress|bigText|garmentPrefetch|pressedLink|languageNote)\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
   ],

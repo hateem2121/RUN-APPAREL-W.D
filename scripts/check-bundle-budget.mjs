@@ -248,6 +248,11 @@ const REPORT_ONLY = process.argv.includes('--report')
  *                  fetch nothing on a page without a Cyrillic letter)   budget 16,500 -> 16,600
  *   The 20 KB is not on an English visitor's wire: `e2e/russian.spec.ts` holds that an English
  *   garment page downloads no script or font holding Cyrillic.
+ *   ⚠️ 2026-11-16, the language note under the bar (owner's design and his yes to this figure that
+ *   day). Built with and without its rules in packages/ui/src/notch.css, on this Mac:
+ *       stylesheet    16,552 -> 16,787 B gzip  (+235)   budget 16,600 -> 16,835 (headroom 48, unchanged)
+ *   The script grew about 1.1 KB (the note's component, its rule and its words, four of them
+ *   Russian, named one by one in `e2e/russian.spec.ts`) and fits: 968 B of 504,200 left.
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
@@ -274,7 +279,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 16_600, note: 'CSS' },
+  stylesheet: { bytes: 16_835, note: 'CSS' },
 }
 
 /**

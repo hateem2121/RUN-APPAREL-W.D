@@ -103,9 +103,19 @@ test('the English page is untouched: no Russian word, lang="en"', async ({ page 
     if (!/\.m?js(\?|$)/.test(url)) continue
     // Allowed: the website's language link, «Русский» / «Читать по-русски», part of the shared
     // English chrome (packages/shared/src/siteChrome.ts, CHROME_EN.otherLanguage): 21 letters.
+    // ⚠️ WIDENED ON PURPOSE, 2026-11-16, for the language note (packages/shared/src/languageNote.ts):
+    // a visitor whose browser asks for Russian first is told, IN RUSSIAN, that this English page
+    // has a Russian twin, so the English script must carry that sentence, the note's name and its
+    // × button's name: 44 more letters. They are named one by one, so any OTHER Russian word that
+    // reaches the English script still fails here. Nothing else changed: the page shows none of
+    // them (the body check above ran with no note, as every automated and every non-Russian
+    // visit does), and no Cyrillic font is fetched.
     const body = (await (await page.request.get(url)).text())
       .replaceAll('Читать по-русски', '')
       .replaceAll('Русский', '')
+      .replaceAll('Эта страница есть на русском.', '')
+      .replaceAll('Язык страницы', '')
+      .replaceAll('Закрыть', '')
     expect(body, `${url} holds Russian`).not.toMatch(CYRILLIC)
   }
 })
