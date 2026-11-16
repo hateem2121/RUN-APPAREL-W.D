@@ -19,7 +19,7 @@ const read = (...parts: string[]) => readFileSync(join(REPO, ...parts), 'utf8')
 type Face = { family: string; style: string; weight: string; stretch: string; range: string }
 
 function faces(css: string): Face[] {
-  return [...css.matchAll(/@font-face\s*\{([^}]*)\}/g)].map(([, body]) => {
+  return [...css.matchAll(/@font-face\s*\{([^}]*)\}/g)].map(([, body = '']) => {
     const get = (name: string, fallback: string) =>
       (body.match(new RegExp(`${name}\\s*:\\s*([^;]+);`))?.[1] ?? fallback)
         .replace(/\s+/g, ' ')
