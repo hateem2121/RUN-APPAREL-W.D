@@ -7,14 +7,9 @@
  * can drift. `/ru` alone is the Russian home (not `/ru/`: the site carries no trailing slashes).
  */
 
-export type Locale = 'en' | 'ru'
+import { RU_PREFIX } from '@run-apparel/shared'
 
-export const RU_PREFIX = '/ru'
-
-/** `/` → `/ru`; `/guides/aql-inspection` → `/ru/guides/aql-inspection`. */
-export function ruPath(enPath: string): string {
-  return enPath === '/' ? RU_PREFIX : `${RU_PREFIX}${enPath}`
-}
+export { type Locale, RU_PREFIX, ruPath } from '@run-apparel/shared'
 
 /** The inverse of `ruPath`. Throws on a path that is not Russian rather than guessing. */
 export function enPathOf(path: string): string {
