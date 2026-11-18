@@ -98,6 +98,11 @@ updates:
       # views back and is pinned (docs/DEPENDENCY-HOLDS.md). 1.5.8 alone stays out.
       - dependency-name: draco3dgltf
         versions: ["1.5.8"]
+      # Held at 1.64.1 (docs/DEPENDENCY-HOLDS.md, 2026-11-18): 1.65.0 and 1.65.1 drive Firefox
+      # 159 (revision 1572), which crashes two viewer e2e tests that pass on 1.64.1's Firefox 157.
+      # Only these two versions are ignored, so the next release opens its own PR to be tested.
+      - dependency-name: "@playwright/test"
+        versions: ["1.65.0", "1.65.1"]
 
   # The shrink container's own packages (apps/shrink/container), since 2026-10-03: the one
   # package list Dependabot did not reach. It is not a pnpm workspace member and keeps its

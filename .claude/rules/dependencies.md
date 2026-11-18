@@ -10,6 +10,12 @@ paths:
 Moved from the root `CLAUDE.md` on 2026-09-26, word for word except where marked.
 `docs/DEPENDENCY-HOLDS.md` holds the history behind each hold.
 
+- **🟡 `@playwright/test` is HELD at 1.64.1 (2026-11-18).** 1.65.0 and 1.65.1 drive Firefox 159,
+  which crashes `a11y.spec.ts:198` and `related.spec.ts:72` on the viewer's Firefox project; 1.64.1's
+  Firefox 157 passes them. The `package.json` files, the lockfiles, the container image pins and
+  Dependabot's ignore move together. The evidence and the test that releases it:
+  `docs/DEPENDENCY-HOLDS.md`.
+
 - **Run `pnpm build`, not just typecheck and tests, before pushing a dependency
   change.** `apps/cms` was pinned to TypeScript 6 until 2026-08-12 — Next.js 16.2.12
   refused TS 7 outright; RESOLVED by 16.3.0. The lesson is not about TypeScript:

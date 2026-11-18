@@ -11,6 +11,50 @@ trusting the dates.
 
 ---
 
+## HELD 2026-11-18 — `@playwright/test` stays at 1.64.1: Playwright's Firefox 159 crashes two viewer tests
+
+**What happened.** Dependabot's PR #416 moved `@playwright/test` 1.64.1 → 1.65.0. That also moves
+the browsers it drives: Firefox 157.0 (revision 1555) → 159.0 (revision 1572), Chromium 156 → 158.
+The full local gates on the combined update ended with 2,217 tests passed and 3 failed:
+
+- `perfBudgets.spec.ts:250`, total blocking time 380 ms against a 300 ms ceiling. A load artefact:
+  run alone it passes, at 84 ms.
+- `a11y.spec.ts:198` ("the notice-only fallback is usable with a screen reader") and
+  `related.spec.ts:72` ("More from this category"), both on the `viewer-firefox` project:
+  `Page crashed`, inside `frame.evaluate` and `locator.evaluateAll`. Firefox's own log for one of
+  them says a child process "exited on signal 11" (a segmentation fault).
+
+**Where the fault is — measured 2026-11-18.** The same two tests, one at a time (`--workers=1`):
+
+| Playwright / its Firefox | Page under test | Result |
+|---|---|---|
+| 1.65.0 / 159, this Mac (macOS 27.0.1) | this branch | both crash |
+| 1.65.0 / 159, CI's own image (Linux arm64) | this branch | both crash |
+| 1.65.0 / 159, CI's own image | `main`'s build (old motion, Sentry and vite) | both crash |
+| 1.64.1 / 157, the old image | `main`'s build | both pass |
+
+So it is the browser, not the other packages in the update. 1.65.1 (13 Nov) carries the same
+Firefox revision, 1572 (read from `browsers.json` at tag v1.65.1), so it is no fix. (A web search
+said 1.65.1 did not exist; npm's `dist-tags` and GitHub's release page show it does.) Not covered:
+the Linux runs were arm64 under Docker on this Mac, and GitHub's runners are amd64. The crash itself
+was not diagnosed (what in those two pages Firefox 159 trips on) and not reported upstream.
+
+**What changed.** The three `package.json` files that declare it, both lockfiles, and the Playwright
+container image in `ci.yml` (two jobs) and `perf-watch.yml` are back at 1.64.1 with the digest
+`47b510dd…`. (Microsoft has since republished the 1.64.1 tag, but the digest still serves the
+original image; that is the case the digest pin is for.) `.github/dependabot.yml` ignores 1.65.0 and
+1.65.1, so the next version opens its own pull request to be tested.
+
+**Release when** a Playwright version's Firefox passes both tests. Bump the three `package.json`
+files, the lockfiles and the image pins, then run the two tests in CI's image: serve the viewer's
+e2e site on the Mac (`node apps/viewer/e2e/prepare.mjs && node apps/viewer/e2e/serve.mjs`, port
+4173); start the image with `docker run --rm --init --ipc=host -v <repo>:/repo:ro`; inside it relay
+port 4173 to `host.docker.internal:4173` with a few lines of node; then run
+`node /repo/apps/viewer/node_modules/@playwright/test/cli.js test e2e/a11y.spec.ts:198 e2e/related.spec.ts:72 --project=viewer-firefox --output /tmp/pw-results`.
+Both pass → delete this section and the ignore.
+
+---
+
 ## RELEASED 2026-11-18 — `@opennextjs/cloudflare` 1.20.17, with `assets.html_handling: "none"` (owner's yes)
 
 **What happened.** Dependabot's group PR #418 bumped `@opennextjs/cloudflare` 1.20.15 → 1.20.16.
