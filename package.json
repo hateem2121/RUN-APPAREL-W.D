@@ -33,7 +33,7 @@
     "@lhci/cli": "0.16.0",
     "audit-ci": "7.1.0",
     "aws4fetch": "1.0.20",
-    "knip": "6.44.2",
+    "knip": "6.45.1",
     "lighthouse": "13.6.0"
   }
 }
