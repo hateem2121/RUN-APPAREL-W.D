@@ -387,7 +387,30 @@
   // supplies them. Listed path by path, so zod 3 arriving by any other route still
   // fails the gate. DELETE these three once chromium-bidi moves to zod ≥4.6.6 (then
   // `pnpm why zod -r` shows no 3.x), or once puppeteer-core drops it.
+  //
+  // ── picomatch, added 2026-11-18 (owner's yes): NO FIXED RELEASE EXISTS ──────
+  // GHSA-fc5q-39xc-vjpf / CVE-2026-112366, high, CWE-1333: a denial of service by slow
+  // regular expression when picomatch compiles a single-branch repeated extglob such as
+  // `+(*)`. Published 2026-10-19 and passed the gate until GitHub reviewed it on
+  // 2026-11-17T15:56Z; the next run (PR #420, 2026-11-18) failed with nothing in the
+  // repo changed. Its range is `<= 4.0.7`, 4.0.7 is the newest release (and 2.3.2 the
+  // newest 2.x), and npm lists no patched version, so there is nothing to override to.
+  // Why it is excused, measured that day:
+  //   - The attacker must supply the glob PATTERN. No file in apps/, packages/, scripts/
+  //     or tools/ imports picomatch (`git grep picomatch` finds only a lockfile).
+  //   - It arrives through tools that match file names on a developer's or CI's disk:
+  //     196 routes, 138 of them through vitest, @vitest/coverage-v8, vite and
+  //     @vitejs/plugin-react (tinyglobby, fdir, chokidar), the rest through sass's file
+  //     watcher under next and Payload's packages, and json-schema-to-typescript.
+  //   - ⚠️ NOT PROVEN: that no Payload or Next code path in the deployed Worker hands
+  //     visitor input to it as a pattern. The owner was told so before saying yes.
+  // ⚠️ BY BARE ID, NOT PATH BY PATH, unlike the entries below: 196 routes that all end
+  // in build or test tooling cannot be usefully listed, so this excuses picomatch on
+  // every route. DELETE it the day a fixed picomatch ships: raise the floor with an
+  // override in pnpm-workspace.yaml and `pnpm install --no-frozen-lockfile`, as the
+  // nanoid note above did. audit-ci prints "Consider not allowlisting" once it is unused.
   "allowlist": [
+    "GHSA-fc5q-39xc-vjpf",
     "GHSA-jmr9-qjv8-65gv|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
     "GHSA-7pqw-9j4j-h8q3|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
     "GHSA-jmr9-qjv8-65gv|@lhci/cli>@lhci/utils>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
