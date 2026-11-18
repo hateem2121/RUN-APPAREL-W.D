@@ -43,8 +43,9 @@ describe('osv-scanner.toml', () => {
       .sort()
     expect(excused).toEqual(allowlistedIds(jsonc))
     // Read 2026-10-24: two extract-zip advisories and zod 3. Since 2026-11-18 picomatch too
-    // (no fixed release; owner's yes). A changed count is a decision.
-    expect(excused).toHaveLength(4)
+    // (no fixed release; owner's yes). The same day @lhci/cli 0.16.0 dropped extract-zip and
+    // zod 3, and their entries were deleted: ONE is left (picomatch). A changed count is a decision.
+    expect(excused).toHaveLength(1)
   })
 
   it('gives every exception a reason that names where audit-ci scopes it', () => {
@@ -66,8 +67,9 @@ describe('osv-scanner.toml', () => {
   })
 
   it('an audit-ci entry removed without removing it from the toml is caught', () => {
-    const fewer = jsonc.replace(/^\s*"GHSA-mrhx-c7xc-m3w5\|[^"]*",?\s*$/gm, '')
-    expect(allowlistedIds(fewer)).not.toContain('GHSA-mrhx-c7xc-m3w5')
+    // Empties the array whatever its layout (Biome keeps a one-entry list on one line).
+    const fewer = jsonc.replace(/"allowlist"\s*:\s*\[[^\]]*\]/, '"allowlist": []')
+    expect(allowlistedIds(fewer)).not.toContain('GHSA-fc5q-39xc-vjpf')
     expect(
       ignoredVulns(toml)
         .map((entry) => entry.id)

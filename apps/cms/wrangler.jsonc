@@ -133,7 +133,16 @@
     // assets before the Worker runs. A list, not `true`, which would put the Worker in front of
     // every image and script; this site has no single-page fallback, so the list changes nothing
     // about page visits (the viewer's wrangler.jsonc explains that rule).
-    "run_worker_first": ["/film/*"]
+    "run_worker_first": ["/film/*"],
+    // Both are required by @opennextjs/cloudflare 1.20.16 and later whenever `run_worker_first` is
+    // on (owner's yes, 2026-11-18): public files are served at their EXACT path only, like Next.js,
+    // and no request is rewritten (`/file` is no longer answered by `/file.html`). This site has no
+    // .html file in its assets (0 under public/ and under .open-next/assets, measured 2026-11-18), so
+    // nothing changes for a visitor; Cloudflare's own table for "none" is the "HTML handling" page
+    // of its Workers static-assets docs. If an .html file is ever added to public/, it is served at
+    // its exact name only. `not_found_handling` is the default, written down so it cannot drift.
+    "html_handling": "none",
+    "not_found_handling": "none"
   },
   "d1_databases": [
     {

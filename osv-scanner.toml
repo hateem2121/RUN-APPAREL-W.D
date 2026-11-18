@@ -5,9 +5,11 @@
 # WHY IT EXISTS (2026-10-24). OpenSSF Scorecard v5.6.0 (scorecard-action v2.5.0, #240) is
 # the first version to read this lockfile, and its Vulnerabilities check found 12
 # advisories: the public grade fell from 6.8 to 6.0. Nine had fixed releases and were
-# fixed by override in pnpm-workspace.yaml the same day. The three below have no fixed
-# release on the line we can use, and are already excused by the deploy gate,
-# audit-ci.jsonc, with the full reasoning.
+# fixed by override in pnpm-workspace.yaml the same day. The three that had no fixed
+# release on the line we can use (two extract-zip advisories and zod 3) were excused here
+# and in the deploy gate, audit-ci.jsonc, until 2026-11-18, when @lhci/cli 0.16.0 dropped
+# both packages and the entries were deleted. What is left below is excused by the deploy
+# gate too, with the full reasoning.
 #
 # ⚠️ AUDIT-CI IS THE GUARD, NOT THIS FILE. An entry here ignores the advisory on EVERY
 # path; audit-ci excuses it only on the Lighthouse paths it names, so the deploy still
@@ -20,17 +22,5 @@
 # file: ossf/scorecard docs/checks.md → Vulnerabilities (v5.6.0).
 
 [[IgnoredVulns]]
-id = "GHSA-jmr9-qjv8-65gv"
-reason = "extract-zip 2.0.1 is its newest release and npm lists no patched version. Reached only through @lhci/cli > lighthouse > puppeteer-core > @puppeteer/browsers: root devDependencies for the CI speed test, never built into the CMS, the viewer or the shrink container. The only archive it unpacks is the Chrome build it downloads from Google's CDN, not one an attacker supplies. Path-scoped in audit-ci.jsonc."
-
-[[IgnoredVulns]]
-id = "GHSA-7pqw-9j4j-h8q3"
-reason = "extract-zip 2.0.1 has no fixed release. Same Lighthouse-only route as GHSA-jmr9-qjv8-65gv; path-scoped in audit-ci.jsonc."
-
-[[IgnoredVulns]]
 id = "GHSA-fc5q-39xc-vjpf"
 reason = "picomatch 4.0.7 (and 2.3.2) is its newest release and npm lists no patched version. A slow-pattern denial of service that needs an attacker-supplied glob; our code never imports picomatch, it arrives through vite, vitest, sass and Payload's build tooling. Excused by id in audit-ci.jsonc, which has the measurements and when to delete it."
-
-[[IgnoredVulns]]
-id = "GHSA-mrhx-c7xc-m3w5"
-reason = "First fixed in zod 4.6.6, and no zod 3 release is fixed (3.25.76 is the newest 3.x); the repo's own zod 4 resolves to 4.6.7. The zod 3 copy comes from chromium-bidi inside Lighthouse's puppeteer-core, root devDependencies never built into the CMS, the viewer or the shrink container. It validates protocol messages with the Chrome that Lighthouse launches itself; no visitor supplies them. Path-scoped in audit-ci.jsonc."

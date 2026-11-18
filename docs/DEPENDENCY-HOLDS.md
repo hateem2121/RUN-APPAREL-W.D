@@ -11,6 +11,89 @@ trusting the dates.
 
 ---
 
+## HELD 2026-11-18 — `@playwright/test` stays at 1.64.1: Playwright's Firefox 159 crashes two viewer tests
+
+**What happened.** Dependabot's PR #416 moved `@playwright/test` 1.64.1 → 1.65.0. That also moves
+the browsers it drives: Firefox 157.0 (revision 1555) → 159.0 (revision 1572), Chromium 156 → 158.
+The full local gates on the combined update ended with 2,217 tests passed and 3 failed:
+
+- `perfBudgets.spec.ts:250`, total blocking time 380 ms against a 300 ms ceiling. A load artefact:
+  run alone it passes, at 84 ms.
+- `a11y.spec.ts:198` ("the notice-only fallback is usable with a screen reader") and
+  `related.spec.ts:72` ("More from this category"), both on the `viewer-firefox` project:
+  `Page crashed`, inside `frame.evaluate` and `locator.evaluateAll`. Firefox's own log for one of
+  them says a child process "exited on signal 11" (a segmentation fault).
+
+**Where the fault is — measured 2026-11-18.** The same two tests, one at a time (`--workers=1`):
+
+| Playwright / its Firefox | Page under test | Result |
+|---|---|---|
+| 1.65.0 / 159, this Mac (macOS 27.0.1) | this branch | both crash |
+| 1.65.0 / 159, CI's own image (Linux arm64) | this branch | both crash |
+| 1.65.0 / 159, CI's own image | `main`'s build (old motion, Sentry and vite) | both crash |
+| 1.64.1 / 157, the old image | `main`'s build | both pass |
+
+So it is the browser, not the other packages in the update. 1.65.1 (13 Nov) carries the same
+Firefox revision, 1572 (read from `browsers.json` at tag v1.65.1), so it is no fix. (A web search
+said 1.65.1 did not exist; npm's `dist-tags` and GitHub's release page show it does.) Not covered:
+the Linux runs were arm64 under Docker on this Mac, and GitHub's runners are amd64. The crash itself
+was not diagnosed (what in those two pages Firefox 159 trips on) and not reported upstream.
+
+**What changed.** The three `package.json` files that declare it, both lockfiles, and the Playwright
+container image in `ci.yml` (two jobs) and `perf-watch.yml` are back at 1.64.1 with the digest
+`47b510dd…`. (Microsoft has since republished the 1.64.1 tag, but the digest still serves the
+original image; that is the case the digest pin is for.) `.github/dependabot.yml` ignores 1.65.0 and
+1.65.1, so the next version opens its own pull request to be tested.
+
+**Release when** a Playwright version's Firefox passes both tests. Bump the three `package.json`
+files, the lockfiles and the image pins, then run the two tests in CI's image: serve the viewer's
+e2e site on the Mac (`node apps/viewer/e2e/prepare.mjs && node apps/viewer/e2e/serve.mjs`, port
+4173); start the image with `docker run --rm --init --ipc=host -v <repo>:/repo:ro`; inside it relay
+port 4173 to `host.docker.internal:4173` with a few lines of node; then run
+`node /repo/apps/viewer/node_modules/@playwright/test/cli.js test e2e/a11y.spec.ts:198 e2e/related.spec.ts:72 --project=viewer-firefox --output /tmp/pw-results`.
+Both pass → delete this section and the ignore.
+
+---
+
+## RELEASED 2026-11-18 — `@opennextjs/cloudflare` 1.20.17, with `assets.html_handling: "none"` (owner's yes)
+
+**What happened.** Dependabot's group PR #418 bumped `@opennextjs/cloudflare` 1.20.15 → 1.20.16.
+`opennextjs-cloudflare build` (the CMS Worker build, the same step the deploy runs) then stopped
+in two seconds with: *"When `run_worker_first` is enabled, the `assets` section of the wrangler
+configuration must be: `html_handling: "none"`, `not_found_handling: "none"` (or `"404-page"`)"*.
+The release note (changeset 1477) says why: public files are now served only at their exact path
+when `run_worker_first` is on, "like Next.js", and any other value "would allow bypassing the
+middleware". 1.20.17 (published 2026-11-12, with `@opennextjs/aws` 4.1.16) keeps the check and adds
+hardening of internal-header and route handling.
+
+**Why CI did not show it.** #418's `verify` job stopped at its two failing tests, before it reached
+the Worker build. The local gates (`node .claude/skills/gates/run-gates.mjs`) showed it at
+`cms-worker-build`. A dependency PR that is red at an earlier step can hide a later one.
+
+**Held for part of that day, then released.** The package was first pinned at 1.20.15 and the owner
+asked. An automated review called that a downgrade of a patched release. No advisory affects 1.20.15
+(GitHub's database lists three for this package, patched at 1.3.0, 1.17.1 and 1.20.2; `audit-ci`
+passed), but 1.20.16 and 1.20.17 carry hardening that 1.20.15 lacks. The owner chose the upgrade.
+
+**What changed.** `apps/cms/wrangler.jsonc` → `assets` gained `html_handling: "none"` and
+`not_found_handling: "none"` (the default, written down so it cannot drift). Cloudflare's "HTML
+handling" page for Workers static assets (read 2026-11-18): with `none`, a request for `/file` is no
+longer answered by `/file.html`; only an exact path matches. This site has 0 `.html` files under
+`apps/cms/public` and in OpenNext's built assets folder (measured 2026-11-18), so there is nothing
+for that rewrite to act on.
+
+**Measured, not argued.** 229 paths were asked of the live site (1.20.15, `auto-trailing-slash`) and
+of a local preview of the new build: 210 static files, the two film files with a `Range` header (both
+206), and 17 pages and redirects. All 229 were identical in status, content type, redirect target and
+the SHA-256 of every file body. A copy of the comparison with two planted differences reported both and
+exited 1, so it can notice. The build exits 0 and the Worker is 40,799 KiB (62% of Cloudflare's 64 MiB
+limit; `node scripts/check-cms-worker-size.mjs`).
+
+**If an `.html` file is ever added to `apps/cms/public`:** it is served at its exact name only
+(`/about.html`, not `/about`).
+
+---
+
 ## `graphql-scalars` under Payload: exact security override (2026-10-29)
 
 The release gate for PR #294 began failing on
