@@ -337,7 +337,7 @@ export function SiteFooter({
               «English», on RUSSIAN pages only (owner, 2026-11-15, after CI): on English pages a
               «Русский» here wrapped this row at 768px, the quiet band fell to 24px against its 48px
               floor (footer.spec.ts, DS-09), and the footer stopped matching the garment pages'
-              (VA-31). English pages offer Russian in the phone menu (LanguageLink.tsx), and Yandex
+              (VA-31). English pages offer Russian through the language note (LanguageNote.tsx), and Yandex
               sends Russian searchers to /ru through hreflang. It goes to the English HOME, not this
               page's twin: the footer is the same on every page (owner, 2026-10-17).
             */}

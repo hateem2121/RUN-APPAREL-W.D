@@ -146,6 +146,67 @@ function wrangler(dir, args) {
   return run.stdout
 }
 
+/**
+ * Is this wrangler failure Cloudflare not yet knowing a version it has just created?
+ *
+ * ⚠️ 16 Nov 2026, main run 43879164061 (PR #409): the SENTRY_DSN step created CMS version
+ * ef436e53 at 14:11:00, `versions list` returned it, and 15 seconds later `versions deploy`
+ * answered "The requested Worker version could not be found … [code: 100146]". Nothing was
+ * staged, the deploy stopped, and the change waited for the next merge. The last good deploy had
+ * done the same steps 14 seconds apart, so nothing of ours had changed: Cloudflare's own read
+ * came before its write had settled. It was the first 100146 in the last 60 runs on main.
+ */
+export function isVersionNotFound(message) {
+  return /\b100146\b|Worker version could not be found/i.test(String(message ?? ''))
+}
+
+/** How long to wait before each further try of `versions deploy`, in ms. Two more tries. */
+export const VERSION_RETRY_WAITS_MS = [5_000, 15_000]
+
+/**
+ * Run `attempt`, and run it again after each wait while it fails the way `retryable` names.
+ * Any other failure, and the last failure, is thrown as it is: a wrong version id or a refused
+ * token must stop the deploy at once, not three tries later.
+ * @template T
+ * @param {() => T} attempt
+ * @param {(message: string) => boolean} retryable
+ * @param {readonly number[]} waits
+ * @param {(ms: number) => Promise<void>} sleep
+ * @param {(line: string) => void} note
+ * @returns {Promise<T>}
+ */
+export async function withRetries(attempt, retryable, waits, sleep, note = () => {}) {
+  for (let tried = 0; ; tried++) {
+    try {
+      return attempt()
+    } catch (err) {
+      const wait = waits[tried]
+      if (wait === undefined || !retryable(err?.message)) throw err
+      note(`Cloudflare did not know the version yet (try ${tried + 1}); trying again in ${wait} ms`)
+      await sleep(wait)
+    }
+  }
+}
+
+/**
+ * `wrangler versions deploy …`, tried again when Cloudflare has not caught up with a version it
+ * just created. Repeating it is safe: it names the same versions and the same percentages, and
+ * the failure it repeats after is one where nothing was deployed.
+ */
+function deployVersions(dir, args) {
+  const waits = process.env.CF_VERSION_RETRY_WAITS_MS
+    ? process.env.CF_VERSION_RETRY_WAITS_MS.split(',').map(Number)
+    : VERSION_RETRY_WAITS_MS
+  return withRetries(
+    () => wrangler(dir, args),
+    isVersionNotFound,
+    waits,
+    (ms) => new Promise((done) => setTimeout(done, ms)),
+    // To stderr: this step's stdout is piped into $GITHUB_OUTPUT (ci.yml, "Stage both new versions").
+    (line) => console.error(`::warning::${line}`),
+  )
+}
+
 function jsonOf(text) {
   const start = text.search(/[[{]/)
   return JSON.parse(text.slice(start))
@@ -182,7 +243,7 @@ async function main([command, ...args]) {
       jsonOf(wrangler(dir, ['deployments', 'status', '--name', worker, '--json'])),
     )
     if (fresh === old) throw new Error(`the tagged version ${fresh} is already live`)
-    wrangler(dir, [
+    await deployVersions(dir, [
       'versions',
       'deploy',
       `${old}@100%`,
@@ -200,7 +261,7 @@ async function main([command, ...args]) {
   if (command === 'promote' || command === 'unstage') {
     const [worker, dir, id] = args
     if (!worker || !dir || !UUID.test(id ?? '')) return usage()
-    wrangler(dir, [
+    await deployVersions(dir, [
       'versions',
       'deploy',
       `${id}@100%`,
@@ -256,7 +317,17 @@ if (process.argv[1] && pathToFileURL(realpathSync(process.argv[1])).href === imp
   try {
     process.exitCode = await main(process.argv.slice(2))
   } catch (err) {
-    console.log(`::error::${err.message}`)
+    // ⚠️ TO STDERR, ON ONE LINE, WITHOUT COLOUR CODES. `stage`'s stdout is piped into
+    // $GITHUB_OUTPUT (ci.yml), and on 16 Nov 2026 this line, printed to stdout with wrangler's
+    // colours and line breaks in it, reached that file and GitHub added a second error on top of
+    // the real one: "Unable to process file command 'output' … Invalid format". GitHub reads
+    // `::error::` from stderr just as well.
+    const plain = String(err.message)
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping terminal colour codes is the point
+      .replace(/\u001b\[[0-9;]*m/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    console.error(`::error::${plain}`)
     process.exitCode = 1
   }
 }

@@ -165,8 +165,8 @@ export function watchForPerson(target: PersonTarget, onPerson: () => void): () =
 }
 
 /**
- * Is this click on one of the site's own language links (the bar's «Русский» / «English», the
- * Russian footer's «English»)? Using one is a choice, so the note never comes back after it.
+ * Is this click on one of the site's own language links (today only the Russian footer's
+ * «English»; the bar and phone menu had one until 2026-11-18 and are still covered)? Using one is a choice, so the note never comes back after it.
  * Scoped to the bar and the footer: a Russian hub's links to English posts carry `hreflang` too,
  * and reading a post is not a choice of language.
  */

@@ -11,7 +11,7 @@ import { expect, type Page, test } from './offlineMedia'
  *   - nothing in the server's HTML, nothing before a person touches the page, nothing while the
  *     first-arrival curtain is up, nothing under automation, and never a redirect;
  *   - a Russian-first browser on an English page is offered Russian, in Russian, and the reverse;
- *   - the ×, the note's link and the bar's own language link each end it for good;
+ *   - the ×, the note's link and the site's own language links (footer, phone menu) each end it;
  *   - no note where there is no twin page (the 404 page here; a single journal post in
  *     journal.spec.ts, which has a post to load);
  *   - it floats under the bar, moves nothing, fits at 320px, and never hides a focused control;
@@ -158,19 +158,21 @@ test.describe('a browser that asks for Russian first, on an English page', () =>
     await expect(note(page)).toHaveCount(0)
   })
 
-  test("the bar's own «Русский» link counts as the choice", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 })
-    await open(page, EN)
-    await touchThePage(page)
-    await expect(note(page)).toBeVisible()
-    await page.locator('header.notch-shell a[hreflang="ru"]').click()
-    await expect(page).toHaveURL(new RegExp(`${RU}$`))
-    expect(await stored(page)).toBe('chosen')
-    await page.goto(EN)
-    await touchThePage(page)
-    await page.mouse.move(200, 300)
-    await expect(note(page)).toHaveCount(0)
-  })
+  // Neither the bar nor the phone menu has had a language link since 2026-11-18 (owner), and the
+  // English footer has none: on an English page the note is the only offer of Russian.
+  for (const width of [1440, 375]) {
+    test(`at ${width}px an English page has no language link in the bar, its menu or the footer`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await open(page, EN)
+      await expect(
+        page.locator('header.notch-shell a[hreflang]'),
+        'a language link is back in the bar or its phone menu',
+      ).toHaveCount(0)
+      await expect(page.locator('footer.site-footer a[hreflang]')).toHaveCount(0)
+    })
+  }
 
   test('while the first-arrival curtain is up there is no note; after it, there is', async ({
     page,
@@ -309,11 +311,28 @@ test.describe('a browser that asks for Russian first, on an English page', () =>
             height: document.documentElement.scrollHeight,
           }
         })
-      const before = await measure()
       await touchThePage(page)
       await expect(note(page)).toBeVisible()
-      // No layout shift: the page is where it was, to the pixel.
-      expect(await measure()).toEqual(before)
+      /*
+       * ⚠️ THE TWO READINGS DIFFER BY THE NOTE AND NOTHING ELSE. The garment pages' copy of this
+       * test first read the page BEFORE the key press and again with the note showing, and failed
+       * on main in CI's WebKit (run 43895104691, 16 Nov 2026): the page was still settling by 4px
+       * when the first reading was taken, which skipped PR #413's deploy
+       * (apps/viewer/e2e/languageNote.spec.ts has the account). So the page is read once it holds
+       * still, with the note showing, and again straight after the × takes the note away (below).
+       */
+      await expect
+        .poll(
+          async () => {
+            const first = await measure()
+            await page.waitForTimeout(250)
+            const second = await measure()
+            return first.height === second.height && first.mainTop === second.mainTop
+          },
+          { message: 'the page never held still', timeout: 10_000 },
+        )
+        .toBe(true)
+      const withNote = await measure()
 
       const boxes = await page.evaluate(() => {
         const rect = (selector: string) => {
@@ -350,6 +369,11 @@ test.describe('a browser that asks for Russian first, on an English page', () =>
         Math.abs(boxes.card.left - (boxes.viewport - boxes.card.right)),
         'the note is off centre',
       ).toBeLessThanOrEqual(1)
+
+      // No layout shift: with the note gone, the page is where it was with it, to the pixel.
+      await note(page).getByRole('button').click()
+      await expect(note(page)).toHaveCount(0)
+      expect(await measure(), 'the note moved the page').toEqual(withNote)
     })
   }
 
@@ -410,6 +434,16 @@ test.describe('a browser with no Russian, on a Russian page', () => {
     await expect(link).toHaveAttribute('hreflang', 'en')
     await expect(region.getByRole('button', { name: 'Close' })).toBeVisible()
     expect(new URL(page.url()).pathname).toBe(RU)
+  })
+
+  test("the Russian footer's own «English» link counts as the choice", async ({ page }) => {
+    await open(page, RU)
+    await touchThePage(page)
+    await expect(note(page)).toBeVisible()
+    await page.locator('footer.site-footer a[hreflang="en"]').click()
+    await expect(page).toHaveURL(/localhost:\d+\/$/)
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+    expect(await stored(page)).toBe('chosen')
   })
 
   test('on an English page there is nothing to offer', async ({ page }) => {

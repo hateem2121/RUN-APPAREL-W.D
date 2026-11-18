@@ -89,12 +89,8 @@ test('the English page is untouched: no Russian word, lang="en"', async ({ page 
   await page.goto('/products/n001/wine')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
-  // Every word but the language link, «Русский», which an English page offers on purpose.
-  const text = await page.locator('body').evaluate((body) => {
-    const copy = body.cloneNode(true) as HTMLElement
-    for (const link of copy.querySelectorAll('[hreflang="ru"]')) link.remove()
-    return copy.textContent ?? ''
-  })
+  // Every word: the menu's «Русский» link, the one exception, left on 2026-11-18 (owner).
+  const text = (await page.locator('body').textContent()) ?? ''
   expect(text).not.toMatch(CYRILLIC)
   await page.waitForLoadState('networkidle')
   expect(downloaded.some((url) => /\/assets\/index-/.test(url))).toBe(true)
@@ -144,23 +140,25 @@ test('the specification headings and notes are Russian, the values as the CMS ty
   for (const note of notes) expect(note).toMatch(CYRILLIC)
 })
 
-test('each language offers the same garment in the other, and the Russian footer offers English', async ({
+test('no bar or phone menu offers the other language; the Russian footer offers English', async ({
   page,
 }) => {
-  await page.goto('/products/n001/wine')
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  const toRussian = page.locator('header a.nav-link--language')
-  await expect(toRussian).toHaveText('Русский')
-  await expect(toRussian).toHaveAttribute('href', 'https://wear-run.com/ru/products/n001/wine')
-  await expect(page.locator('footer a[hreflang]')).toHaveCount(0)
+  // The owner took the language link out of the wide bar and then the phone menu (2026-11-18).
+  // The Russian footer links to the English home; the English footer has no language link (its
+  // bottom row has no room for one at 768px, site.css). The language note is tested on its own.
+  for (const width of [1280, 375]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/products/n001/wine')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.locator('header a[hreflang]'), `${width}px, English`).toHaveCount(0)
+    await expect(page.locator('footer a[hreflang]')).toHaveCount(0)
 
-  await page.goto(RU)
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  const toEnglish = page.locator('header a.nav-link--language')
-  await expect(toEnglish).toHaveText('English')
-  await expect(toEnglish).toHaveAttribute('href', 'https://wear-run.com/products/n001/wine')
-  await expect(page.locator('footer a[hreflang="en"]')).toHaveAttribute(
-    'href',
-    'https://wear-run.com/',
-  )
+    await page.goto(RU)
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.locator('header a[hreflang]'), `${width}px, Russian`).toHaveCount(0)
+    await expect(page.locator('footer a[hreflang="en"]')).toHaveAttribute(
+      'href',
+      'https://wear-run.com/',
+    )
+  }
 })

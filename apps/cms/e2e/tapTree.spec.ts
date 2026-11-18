@@ -12,10 +12,10 @@ type Request = Awaited<ReturnType<Page['waitForRequest']>>
  * The click is a plain `element.click()`, never a hover: a hover would prefetch the page ahead
  * (IntentLink) and the tap would send no request at all.
  *
- * The language link («Русский», `hreflang`) is left out of both tests: it is a plain `<a>` to the
- * other language's root layout, so the browser loads that page whole and sends no tree at all (CI,
- * 2026-11-15, once the link showed in the wide bar: "/ru/faq: the tap sent no tree"). The warm-ups
- * have nothing to keep for it. LanguageLink.tsx says why it is not an IntentLink.
+ * A language link (`hreflang`, today only the Russian footer's «English») is left out of both
+ * tests: it is a plain `<a>` to the other language's root layout, so the browser loads that page
+ * whole and sends no tree at all (CI, 2026-11-15, when the bar had one: "/ru/faq: the tap sent no
+ * tree"). The warm-ups have nothing to keep for it. LanguageLink.tsx says why it is plain.
  */
 test.skip(({ browserName }) => browserName !== 'chromium', 'measured in Chromium')
 

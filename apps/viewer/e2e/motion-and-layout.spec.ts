@@ -654,11 +654,9 @@ test.describe('the bar survives a phone', () => {
         .evaluateAll((elements) =>
           elements.map((element) => element.getBoundingClientRect().height),
         )
-      // Products, Contact, Guides, «Русский» (the garment's Russian twin, 2026-11-16) and the switch.
-      expect(
-        rows,
-        'the open menu holds Products, Contact, Guides, Русский and the switch',
-      ).toHaveLength(5)
+      // Products, Contact, Guides and the switch. «Русский» was a fifth row from 2026-11-16 until
+      // the owner took the language link out of the menu on 2026-11-18.
+      expect(rows, 'the open menu holds Products, Contact, Guides and the switch').toHaveLength(4)
       for (const height of rows) expect(height).toBeGreaterThanOrEqual(43.95)
     })
   }

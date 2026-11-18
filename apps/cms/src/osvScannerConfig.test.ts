@@ -42,8 +42,9 @@ describe('osv-scanner.toml', () => {
       .map((entry) => entry.id)
       .sort()
     expect(excused).toEqual(allowlistedIds(jsonc))
-    // Read 2026-10-24: two extract-zip advisories and zod 3. A changed count is a decision.
-    expect(excused).toHaveLength(3)
+    // Read 2026-10-24: two extract-zip advisories and zod 3. Since 2026-11-18 picomatch too
+    // (no fixed release; owner's yes). A changed count is a decision.
+    expect(excused).toHaveLength(4)
   })
 
   it('gives every exception a reason that names where audit-ci scopes it', () => {

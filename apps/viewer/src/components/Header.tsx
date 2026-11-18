@@ -6,7 +6,7 @@ import {
 } from '@run-apparel/shared'
 import { useEffect, useRef, useState } from 'react'
 import { startBarAutoHide } from '../lib/barAutoHide'
-import { chrome, garmentTwinPath, sitePath } from '../lib/locale'
+import { chrome, sitePath } from '../lib/locale'
 import { SITE_ORIGIN } from '../lib/siteLinks'
 import { appliedTheme, type Theme, toggleTheme } from '../lib/theme'
 
@@ -147,19 +147,6 @@ export function Header({ wordmark }: HeaderProps) {
                 {label}
               </a>
             ))}
-            {/*
-              The same garment in the other language (2026-11-16), as the website's LanguageLink:
-              in the phone menu, and inline in the bar only from the width measured WITH it
-              (`.nav-link--language`, page.css). A plain link: the other language is another page.
-            */}
-            <a
-              className="nav-link nav-link--menu nav-link--language"
-              href={`${SITE_ORIGIN}${garmentTwinPath(window.location.pathname)}`}
-              hrefLang={c.otherLanguage.hrefLang}
-              lang={c.otherLanguage.hrefLang}
-            >
-              {c.otherLanguage.label}
-            </a>
             <button
               type="button"
               className="theme-toggle"
