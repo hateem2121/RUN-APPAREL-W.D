@@ -255,8 +255,11 @@ every gate and is still wrong had no written way back.
 🟡 **Since 2026-11-07 the CMS and viewer go live only AFTER their checks pass.** `ci.yml` uploads
 each new version, deploys it at 0% beside the live one, proves the checks reach it
 (`scripts/version-overrides.mjs verify`: the version address answers the new id WITH the override
-header and the old id without it), runs health, payload, link-preview and security checks against
-it, and only then moves it to 100%. So read a red deploy by WHICH step failed:
+header and the old id without it; since 2026-11-18 it asks the WITH-header question again, up to
+about 30 s in all, while the old version is still answering, because Cloudflare says a deployment
+change takes time to reach every location. Main run 44296435136 stopped on exactly that, 3.45 s
+after staging, and its re-run passed), runs health, payload, link-preview and security checks
+against it, and only then moves it to 100%. So read a red deploy by WHICH step failed:
 - **Before "Move both new versions to 100%"** — nobody received the new version. The step "Undo the
   staging" takes it back out of the deployment; there is nothing to roll back. Fix and push.
   ⚠️ The D1 migrations DID run (they come first), and the old version is serving against them.
