@@ -6,12 +6,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import {
+  OVERRIDE_WAITS_MS,
+  askUntilApplied,
   isVersionNotFound,
   judgeAnswer,
   judgeControl,
   liveVersion,
   overridesHeader,
   parsePairs,
+  parseWaits,
   versionWithTag,
   withRetries,
 } from './version-overrides.mjs'
@@ -195,6 +198,125 @@ test('negative control: the NEW version answering without the header is caught',
   )
   assert.equal(judgeControl(500, null, 'run-apparel-viewer-cms', NEW, OLD), 'wrong')
   assert.equal(judgeControl(403, null, 'run-apparel-viewer-cms', NEW, OLD), 'inconclusive')
+})
+
+// ── an override that has not landed yet (18 Nov 2026, main run 44296435136) ─────────────────────
+// The viewer was asked 3.45 s after its 0% deployment was created, and the OLD version answered
+// (HTTP 200, its own id). Cloudflare documents that: a deployment change takes time to reach every
+// location. The check now asks again, within a bound, and only for that exact answer.
+
+const SITE = 'run-apparel-viewer-site'
+const oldAnswer = { status: 200, body: { worker: SITE, version: OLD } }
+const newAnswer = { status: 200, body: { worker: SITE, version: NEW } }
+const judgeSite = (a) => judgeAnswer(a.status, a.body, SITE, NEW)
+const fromOld = (a) => judgeControl(a.status, a.body, SITE, NEW, OLD) === 'ok'
+
+/** An `ask` that gives the listed answers one per call (the last one for ever), and counts calls. */
+function answers(list) {
+  const calls = { n: 0 }
+  return { calls, ask: async () => list[Math.min(calls.n++, list.length - 1)] }
+}
+
+test('the override landing late: the old version answers twice, then the new one, and it passes', async () => {
+  const { ask, calls } = answers([oldAnswer, oldAnswer, newAnswer])
+  const waited = []
+  const notes = []
+  const result = await askUntilApplied(
+    ask,
+    judgeSite,
+    fromOld,
+    [2, 3, 5],
+    async (ms) => void waited.push(ms),
+    (line) => notes.push(line),
+  )
+  assert.equal(result.verdict, 'ok')
+  assert.equal(result.asks, 3)
+  assert.equal(calls.n, 3)
+  assert.deepEqual(waited, [2, 3])
+  assert.equal(notes.length, 2)
+  assert.match(notes[0], new RegExp(OLD))
+})
+
+test('negative control: an override that never lands still FAILS, after exactly the waits', async () => {
+  const { ask, calls } = answers([oldAnswer])
+  const waited = []
+  const result = await askUntilApplied(
+    ask,
+    judgeSite,
+    fromOld,
+    [1, 2, 3],
+    async (ms) => void waited.push(ms),
+  )
+  assert.equal(result.verdict, 'wrong')
+  assert.equal(result.asks, 4)
+  assert.equal(calls.n, 4)
+  assert.deepEqual(waited, [1, 2, 3])
+})
+
+test('a right answer on the first ask is returned at once, with no wait', async () => {
+  const { ask, calls } = answers([newAnswer])
+  const result = await askUntilApplied(ask, judgeSite, fromOld, [1, 2], async () => {
+    throw new Error('must not wait')
+  })
+  assert.equal(result.verdict, 'ok')
+  assert.equal(result.asks, 1)
+  assert.equal(calls.n, 1)
+})
+
+test('negative control: an answer that is not the old version’s is NOT asked again', async () => {
+  const cases = [
+    ['a server error', { status: 500, body: null }, 'wrong'],
+    [
+      'another Worker answering',
+      { status: 200, body: { worker: 'run-apparel-viewer-cms', version: OLD } },
+      'wrong',
+    ],
+    [
+      'a version that is neither the old nor the new',
+      { status: 200, body: { worker: SITE, version: 'ffffffff-ffff-4fff-8fff-ffffffffffff' } },
+      'wrong',
+    ],
+    ['a Bot Fight Mode refusal', { status: 403, body: null }, 'inconclusive'],
+  ]
+  for (const [label, answer, verdict] of cases) {
+    const { ask, calls } = answers([answer])
+    const result = await askUntilApplied(ask, judgeSite, fromOld, [1, 2], async () => {
+      throw new Error(`${label}: must not wait`)
+    })
+    assert.equal(result.verdict, verdict, label)
+    assert.equal(calls.n, 1, label)
+  }
+})
+
+test('a live version that predates the address (404, or the page shell) counts as the old one too', async () => {
+  // The first deploy of the version address (run 42359271801): neither live version had it.
+  for (const first of [
+    { status: 404, body: null },
+    { status: 200, body: null },
+  ]) {
+    const { ask, calls } = answers([first, newAnswer])
+    const result = await askUntilApplied(ask, judgeSite, fromOld, [1], async () => {})
+    assert.equal(result.verdict, 'ok')
+    assert.equal(calls.n, 2)
+  }
+})
+
+test('the waits: a list is read; empty, a typo or a negative number falls back (never setTimeout(NaN))', () => {
+  const fallback = [9]
+  assert.deepEqual(parseWaits('1000, 2000,3000', fallback), [1000, 2000, 3000])
+  assert.deepEqual(parseWaits('0', fallback), [0])
+  assert.equal(parseWaits(undefined, fallback), fallback)
+  assert.equal(parseWaits('', fallback), fallback)
+  assert.equal(parseWaits('2000,soon', fallback), fallback)
+  assert.equal(parseWaits('2000,-5', fallback), fallback)
+})
+
+test('the shipped waits cover the 3-4 s the staging was seen to take, and stay a bound (30 s)', () => {
+  const total = OVERRIDE_WAITS_MS.reduce((sum, ms) => sum + ms, 0)
+  assert.equal(total, 30_000)
+  // Seen: ignored at 3.45 s, applied by 3.65 s and 4.15 s. The first two waits alone reach 5 s.
+  assert.ok(OVERRIDE_WAITS_MS[0] + OVERRIDE_WAITS_MS[1] >= 5_000)
+  assert.ok(OVERRIDE_WAITS_MS.every((ms) => ms > 0))
 })
 
 // ── a version Cloudflare does not know yet (16 Nov 2026, main run 43879164061) ──────────────────

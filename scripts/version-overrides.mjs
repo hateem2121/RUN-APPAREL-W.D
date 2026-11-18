@@ -22,6 +22,16 @@
  * expecting the old one — a negative control on every deploy. scripts/version-overrides-preload.mjs
  * adds the header to the check scripts' own requests.
  *
+ * ⚠️ AN OVERRIDE CAN BE IGNORED FOR A FEW SECONDS AFTER STAGING, and that is waiting, not breaking.
+ * Cloudflare documents it (Workers docs, "Version overrides", read 2026-11-18): the location handling
+ * the request "may not include the version. This can happen while a deployment change spreads across
+ * the network", and "an ignored override can still return a successful response". Main run
+ * 44296435136 (PR #421's merge, 18 Nov 2026) asked the viewer 3.45 s after staging it, got the OLD
+ * version's answer, and stopped the deploy; the two deploys before it had passed at 3.65 s and 4.15 s,
+ * and the re-run passed. So `verify` asks the WITH-header question again, up to about 30 s in all,
+ * but only while the answer is exactly what the OLD version gives. Any other wrong answer fails at
+ * once, and an override that never lands still fails when the waits run out.
+ *
  * Exit codes: 0 done; 1 a check failed (a wrong version answered, or wrangler refused); 2 bad
  * arguments or an answer wrangler documents differently. A 403/429/503 from Bot Fight Mode is
  * INCONCLUSIVE (.github/CLAUDE.md), never "wrong version": ::warning:: and exit 0.
@@ -129,6 +139,54 @@ export function judgeControl(status, body, worker, newId, oldId) {
   if ((status === 404 || status === 200) && (body === null || body?.version === undefined))
     return 'ok'
   return 'wrong'
+}
+
+/**
+ * How long to wait before each further ask of the WITH-header question, in ms: 30 s in all, five
+ * more asks. Cloudflare gives no figure for how long a deployment takes to reach every location
+ * (see the header above), so this is a bound on a delay we have seen at 3-4 s, not a measurement
+ * of it. The success line says how many asks it took, which will show the real figure over time.
+ */
+export const OVERRIDE_WAITS_MS = [2_000, 3_000, 5_000, 8_000, 12_000]
+
+/**
+ * A comma-separated list of waits in ms, or `fallback` when it is empty or not all non-negative
+ * numbers (a typo must not turn into `setTimeout(NaN)`, which fires at once).
+ * @param {string | undefined} text
+ * @param {readonly number[]} fallback
+ */
+export function parseWaits(text, fallback) {
+  if (!text) return fallback
+  const waits = text.split(',').map((part) => Number(part.trim()))
+  return waits.every((ms) => Number.isFinite(ms) && ms >= 0) ? waits : fallback
+}
+
+/**
+ * Ask until the override has landed. It waits only while the answer was judged wrong AND is what
+ * the OLD version gives (`fromOldVersion`): that is an override not applied yet, which Cloudflare
+ * says can happen while a deployment spreads. Any other answer is returned as it is, the first
+ * time: an ok, an inconclusive Bot Fight Mode refusal, a 500, another Worker's name. And when the
+ * last wait has passed the answer is returned wrong, so an override that never lands still fails.
+ * @param {() => Promise<{status: number, body: any}>} ask
+ * @param {(answer: {status: number, body: any}) => 'ok' | 'wrong' | 'inconclusive'} judge
+ * @param {(answer: {status: number, body: any}) => boolean} fromOldVersion
+ * @param {readonly number[]} waits
+ * @param {(ms: number) => Promise<void>} sleep
+ * @param {(line: string) => void} note
+ * @returns {Promise<{status: number, body: any, verdict: 'ok' | 'wrong' | 'inconclusive', asks: number}>}
+ */
+export async function askUntilApplied(ask, judge, fromOldVersion, waits, sleep, note = () => {}) {
+  for (let tried = 0; ; tried++) {
+    const answer = await ask()
+    const verdict = judge(answer)
+    const wait = waits[tried]
+    if (verdict !== 'wrong' || wait === undefined || !fromOldVersion(answer))
+      return { ...answer, verdict, asks: tried + 1 }
+    note(
+      `the old version answered (${answer.body?.version ?? 'no version id'}), so the override is not applied yet (ask ${tried + 1}); asking again in ${wait} ms`,
+    )
+    await sleep(wait)
+  }
 }
 
 function wrangler(dir, args) {
@@ -278,6 +336,8 @@ async function main([command, ...args]) {
     const fresh = parsePairs(process.env.CF_VERSION_PAIRS)
     const old = parsePairs(process.env.CF_VERSION_OLD_PAIRS)
     const header = { [HEADER]: overridesHeader(fresh) }
+    const waits = parseWaits(process.env.CF_VERSION_VERIFY_WAITS_MS, OVERRIDE_WAITS_MS)
+    const sleep = (ms) => new Promise((done) => setTimeout(done, ms))
     let failed = 0
     for (const worker of Object.keys(fresh)) {
       const url = VERSION_URLS[worker]
@@ -286,12 +346,31 @@ async function main([command, ...args]) {
         ['with the override', header, fresh[worker]],
         ['without it (negative control)', {}, old[worker]],
       ]) {
-        const { status, body } = await ask(url, headers)
-        const verdict =
-          want === fresh[worker]
-            ? judgeAnswer(status, body, worker, want)
-            : judgeControl(status, body, worker, fresh[worker], want)
-        const line = `${worker} ${label}: HTTP ${status}, answered ${body?.version ?? '(no version id)'}, expected ${want === fresh[worker] ? want : `not ${fresh[worker]}`}`
+        const started = Date.now()
+        let answer
+        if (want === fresh[worker]) {
+          answer = await askUntilApplied(
+            () => ask(url, headers),
+            (a) => judgeAnswer(a.status, a.body, worker, want),
+            (a) => judgeControl(a.status, a.body, worker, want, old[worker]) === 'ok',
+            waits,
+            sleep,
+            (note) => console.log(`  … ${worker}: ${note}`),
+          )
+        } else {
+          const a = await ask(url, headers)
+          answer = {
+            ...a,
+            verdict: judgeControl(a.status, a.body, worker, fresh[worker], want),
+            asks: 1,
+          }
+        }
+        const { status, body, verdict, asks } = answer
+        const tries =
+          asks > 1
+            ? `, after ${asks} asks over ${((Date.now() - started) / 1000).toFixed(1)} s`
+            : ''
+        const line = `${worker} ${label}: HTTP ${status}, answered ${body?.version ?? '(no version id)'}, expected ${want === fresh[worker] ? want : `not ${fresh[worker]}`}${tries}`
         if (verdict === 'ok') console.log(`✓ ${line}`)
         else if (verdict === 'inconclusive')
           console.log(`::warning::${line} — inconclusive (Bot Fight Mode), not a wrong version`)
