@@ -11,7 +11,7 @@ trusting the dates.
 
 ---
 
-## `@opennextjs/cloudflare` stays at 1.20.15 — 1.20.16 refuses the CMS Worker's assets settings (2026-11-18)
+## RELEASED 2026-11-18 — `@opennextjs/cloudflare` 1.20.17, with `assets.html_handling: "none"` (owner's yes)
 
 **What happened.** Dependabot's group PR #418 bumped `@opennextjs/cloudflare` 1.20.15 → 1.20.16.
 `opennextjs-cloudflare build` (the CMS Worker build, the same step the deploy runs) then stopped
@@ -19,29 +19,34 @@ in two seconds with: *"When `run_worker_first` is enabled, the `assets` section 
 configuration must be: `html_handling: "none"`, `not_found_handling: "none"` (or `"404-page"`)"*.
 The release note (changeset 1477) says why: public files are now served only at their exact path
 when `run_worker_first` is on, "like Next.js", and any other value "would allow bypassing the
-middleware".
+middleware". 1.20.17 (published 2026-11-12, with `@opennextjs/aws` 4.1.16) keeps the check and adds
+hardening of internal-header and route handling.
 
-**Why it was not in CI.** #418's `verify` job stopped at its two failing tests, before it reached
-the Worker build, so CI never showed this. The local gates (`node .claude/skills/gates/run-gates.mjs`)
-did, at `cms-worker-build`. A dependency PR that is red at an earlier step can hide a later one.
+**Why CI did not show it.** #418's `verify` job stopped at its two failing tests, before it reached
+the Worker build. The local gates (`node .claude/skills/gates/run-gates.mjs`) showed it at
+`cms-worker-build`. A dependency PR that is red at an earlier step can hide a later one.
 
-**Why it is held and not "fixed".** `apps/cms/wrangler.jsonc` has `assets.run_worker_first:
-["/film/*"]` (a list: only the /products film goes through the Worker first) and leaves
-`html_handling` at its default, `auto-trailing-slash`. Setting it to `"none"` changes how every
-static file on the live website is looked up. The last OpenNext assets output held 0 `.html` files
-(measured 2026-11-18), so the change is probably a no-op, but that was not proven against production,
-and this stack has no Next middleware for the new rule to protect. That is a site-wide routing
-decision for the owner, not a side effect of a version bump.
+**Held for part of that day, then released.** The package was first pinned at 1.20.15 and the owner
+asked. An automated review called that a downgrade of a patched release. No advisory affects 1.20.15
+(GitHub's database lists three for this package, patched at 1.3.0, 1.17.1 and 1.20.2; `audit-ci`
+passed), but 1.20.16 and 1.20.17 carry hardening that 1.20.15 lacks. The owner chose the upgrade.
 
-**State.** `apps/cms/package.json` pins `@opennextjs/cloudflare` at exactly 1.20.15. Dependabot will
-propose 1.20.16 or later again and the CMS Worker build will fail the same way until the setting is
-decided.
+**What changed.** `apps/cms/wrangler.jsonc` → `assets` gained `html_handling: "none"` and
+`not_found_handling: "none"` (the default, written down so it cannot drift). Cloudflare's "HTML
+handling" page for Workers static assets (read 2026-11-18): with `none`, a request for `/file` is no
+longer answered by `/file.html`; only an exact path matches. This site has 0 `.html` files under
+`apps/cms/public` and in OpenNext's built assets folder (measured 2026-11-18), so there is nothing
+for that rewrite to act on.
 
-**To release it.** Decide the `assets.html_handling` value in `apps/cms/wrangler.jsonc`, bump the
-package, run `pnpm --filter @run-apparel/cms exec opennextjs-cloudflare build` and then
-`node scripts/check-cms-worker-size.mjs`, and after the deploy check that `/film/*` (Range
-requests), `/robots.txt`, `/llms.txt`, a `/_next/static/` file and a page with and without a trailing
-slash answer as before.
+**Measured, not argued.** 229 paths were asked of the live site (1.20.15, `auto-trailing-slash`) and
+of a local preview of the new build: 210 static files, the two film files with a `Range` header (both
+206), and 17 pages and redirects. All 229 were identical in status, content type, redirect target and
+the SHA-256 of every file body. A copy of the comparison with two planted differences reported both and
+exited 1, so it can notice. The build exits 0 and the Worker is 40,799 KiB (62% of Cloudflare's 64 MiB
+limit; `node scripts/check-cms-worker-size.mjs`).
+
+**If an `.html` file is ever added to `apps/cms/public`:** it is served at its exact name only
+(`/about.html`, not `/about`).
 
 ---
 
