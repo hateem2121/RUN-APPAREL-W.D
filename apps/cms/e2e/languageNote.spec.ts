@@ -158,36 +158,21 @@ test.describe('a browser that asks for Russian first, on an English page', () =>
     await expect(note(page)).toHaveCount(0)
   })
 
-  // The wide bar has had no language link since 2026-11-18 (owner), and the English footer has
-  // none: on an English page the phone menu's is the site's own, and it counts as the choice.
-  test('at computer width an English page has no language link in the bar or the footer', async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 1440, height: 900 })
-    await open(page, EN)
-    await expect(
-      page.locator('header.notch-shell a[hreflang="ru"]'),
-      'the language link is back in the wide bar',
-    ).toBeHidden()
-    await expect(page.locator('footer.site-footer a[hreflang]')).toHaveCount(0)
-  })
-
-  test("the phone menu's «Русский» link opens the twin and counts as the choice", async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 375, height: 800 })
-    await open(page, EN)
-    await touchThePage(page)
-    await expect(note(page)).toBeVisible()
-    await page.locator('header .notch__menu-btn').click()
-    await page.locator('header.notch-shell a[hreflang="ru"]').click()
-    await expect(page).toHaveURL(new RegExp(`${RU}$`))
-    expect(await stored(page)).toBe('chosen')
-    await page.goto(EN)
-    await touchThePage(page)
-    await page.mouse.move(200, 300)
-    await expect(note(page)).toHaveCount(0)
-  })
+  // Neither the bar nor the phone menu has had a language link since 2026-11-18 (owner), and the
+  // English footer has none: on an English page the note is the only offer of Russian.
+  for (const width of [1440, 375]) {
+    test(`at ${width}px an English page has no language link in the bar, its menu or the footer`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await open(page, EN)
+      await expect(
+        page.locator('header.notch-shell a[hreflang]'),
+        'a language link is back in the bar or its phone menu',
+      ).toHaveCount(0)
+      await expect(page.locator('footer.site-footer a[hreflang]')).toHaveCount(0)
+    })
+  }
 
   test('while the first-arrival curtain is up there is no note; after it, there is', async ({
     page,

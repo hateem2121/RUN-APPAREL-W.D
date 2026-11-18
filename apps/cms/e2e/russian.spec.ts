@@ -101,11 +101,17 @@ test('an English guide downloads no Cyrillic font and stays English', async ({ p
 })
 
 test.describe('the language links', () => {
-  test('the phone menu sends an English page to its Russian twin, and back', async ({ page }) => {
+  // The bar and its phone menu had a link to the twin until 2026-11-18 (owner). The Russian footer
+  // keeps «English», to the English home; the head's hreflang lines (above) serve search engines.
+  test('no bar or phone menu offers the other language; the Russian footer offers English', async ({
+    page,
+  }) => {
     await page.goto(GUIDE)
-    await expect(page.locator('.notch__menu a[hreflang="ru"]')).toHaveAttribute('href', RU_GUIDE)
+    await expect(page.locator('header a[hreflang]')).toHaveCount(0)
+    await expect(page.locator('footer a[hreflang]')).toHaveCount(0)
     await page.goto(RU_GUIDE)
-    await expect(page.locator('.notch__menu a[hreflang="en"]')).toHaveAttribute('href', GUIDE)
+    await expect(page.locator('header a[hreflang]')).toHaveCount(0)
+    await expect(page.locator('footer a[hreflang="en"]')).toHaveAttribute('href', '/')
   })
 })
 

@@ -48,11 +48,11 @@ test.describe('navigation without JavaScript', () => {
        */
       await page.setViewportSize({ width, height: 800 })
       await page.goto(path)
-      // Products, Contact and Guides, the phone menu's own (VA-37), and since the Russian section
-      // (2026-11-15) one language link («Русский» here), counted on its own so the three stay three.
+      // Products, Contact and Guides, the phone menu's own (VA-37). No language link: the menu had
+      // one («Русский» here) from 2026-11-15 until the owner took it out on 2026-11-18.
       const links = page.locator(`${MENU} a:not([hreflang])`)
       await expect(links).toHaveCount(3)
-      await expect(page.locator(`${MENU} a[hreflang]`)).toHaveCount(1)
+      await expect(page.locator(`${MENU} a[hreflang]`)).toHaveCount(0)
       // ⚠️ BUG 1, DESIGNED OUT: an author `display` beat the browser's hide rule, so the "closed"
       // menu showed its links. Closed must really be closed.
       await expect(page.locator(OPEN)).toHaveCount(0)
@@ -88,7 +88,7 @@ test.describe('navigation without JavaScript', () => {
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/')
-    // The three page links; the language link is the phone menu's, like Guides (LanguageLink.tsx).
+    // The three page links; Guides is the phone menu's own.
     const links = page.locator(`${MENU} a:not([hreflang])`)
     await expect(links).toHaveCount(3)
     for (let index = 0; index < 2; index++) await expect(links.nth(index)).toBeVisible()
@@ -182,7 +182,7 @@ test.describe('the open phone menu', () => {
     })
   }
 
-  test('the rows: five, 52px, 15px, one hairline apart, in one column under the name (VA-37, VA-52)', async ({
+  test('the rows: four, 52px, 15px, one hairline apart, in one column under the name (VA-37, VA-52)', async ({
     page,
   }) => {
     /*
@@ -231,22 +231,17 @@ test.describe('the open phone menu', () => {
         }),
       }
     }, MENU)
-    // The fourth row is the page's Russian twin since the Russian section (2026-11-15).
-    expect(m.rows.map((row) => row.href)).toEqual([
-      '/products',
-      '/contact',
-      '/guides',
-      '/ru/products',
-      null,
-    ])
+    // Four rows. The page's Russian twin was a fifth, before the switch, from 2026-11-15 until the
+    // owner took the language link out of the menu on 2026-11-18.
+    expect(m.rows.map((row) => row.href)).toEqual(['/products', '/contact', '/guides', null])
     for (const row of m.rows) {
       expect(row.height, `${row.words}: under 52px`).toBeGreaterThanOrEqual(51.5)
       expect(row.fontSize, `${row.words}: not 15px`).toBe('15px')
       expect(Math.abs(row.start - m.name), `${row.words}: not under the name`).toBeLessThan(1)
     }
-    expect(m.rows.slice(0, 4).map((row) => row.hairline)).toEqual(['1px', '1px', '1px', '1px'])
-    expect(m.rows[4]?.hairline, 'a hairline under the last row').toBe('0px')
-    const theSwitch = m.rows[4]
+    expect(m.rows.slice(0, 3).map((row) => row.hairline)).toEqual(['1px', '1px', '1px'])
+    expect(m.rows[3]?.hairline, 'a hairline under the last row').toBe('0px')
+    const theSwitch = m.rows[3]
     expect(theSwitch?.outline, 'the switch still draws its pill outline').toBe('0px')
     expect(theSwitch?.words, 'the switch does not say what it does').toMatch(/^light mode$/i)
   })
@@ -630,14 +625,14 @@ test.describe('the menu closes itself when the page moves on', () => {
     await expect(page.locator(OPEN)).toHaveCount(0)
     const inBar = await page.evaluate((selector) => {
       const bar = document.querySelector('.notch')?.getBoundingClientRect()
-      // The bar's two. Guides (VA-37) and, since 2026-11-18 (owner), the language link belong to
-      // the phone menu only and stay out of the wide bar.
+      // The bar's two. Guides (VA-37) belongs to the phone menu only and stays out of the wide
+      // bar. The language link, which did too, left the menu on 2026-11-18 (owner).
       const links = [...document.querySelectorAll(`${selector} a:not(.nav-link--menu)`)]
       const menuOnly = [...document.querySelectorAll(`${selector} a.nav-link--menu`)]
       return (
         Boolean(bar) &&
         links.length === 2 &&
-        menuOnly.length === 2 &&
+        menuOnly.length === 1 &&
         menuOnly.every((link) => link.getBoundingClientRect().width === 0) &&
         links.every((link) => {
           const box = link.getBoundingClientRect()

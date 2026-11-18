@@ -127,23 +127,6 @@ test.describe('a browser that asks for Russian first, on the English page', () =
     ).toContain('note_used')
   })
 
-  // The wide bar has had no language link since 2026-11-18 (owner): the phone menu's is the site's
-  // own on an English page, and it counts as the choice.
-  test("the phone menu's «Русский» link counts as the choice too", async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 800 })
-    await open(page, EN)
-    await touchThePage(page)
-    await expect(note(page)).toBeVisible()
-    // Open the menu FIRST: a click held on the page would also stop the button opening it.
-    await page.locator('header .notch__menu-btn').click()
-    await page.evaluate(() =>
-      document.addEventListener('click', (event) => event.preventDefault(), true),
-    )
-    await page.locator('header.notch-shell a[hreflang="ru"]').click()
-    await expect(note(page)).toHaveCount(0)
-    expect(await stored(page)).toBe('chosen')
-  })
-
   test('on a touch phone the note follows the bar up when it leaves, and back down', async ({
     page,
     browserName,

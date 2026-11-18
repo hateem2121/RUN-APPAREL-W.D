@@ -9513,15 +9513,15 @@ html[data-preload="lifting"] .preloader__lockup {
 }
 
 /*
- * THE LANGUAGE LINK IS NOT IN THE WIDE BAR (owner, 2026-11-18). From 2026-11-15 a rule here showed
- * «Русский» / «English» inline from `208px + 19.75rem`, a width measured with the link (PR #404).
- * The owner took it out of the bar: it stays in the phone menu (`nav-link--menu`, notch.css), the
+ * THE BAR HAS NO LANGUAGE LINK, WIDE OR IN THE PHONE MENU (owner, 2026-11-18). From 2026-11-15 a
+ * rule here showed «Русский» / «English» inline from `208px + 19.75rem`, a width measured with the
+ * link (PR #404), and the phone menu held it below that. The owner took it out of both: the
  * Russian footer keeps its «English» (SiteFooter.tsx), and a browser set to the other language is
  * still offered the twin page by the language note (LanguageNote.tsx).
  * ⚠️ NOT IN THE ENGLISH FOOTER EITHER (owner, the same day). Measured for it: «Русский» in the
  * footer's bottom row is 58px too wide at 768px (an upright tablet), and five tighter spacings
  * in three engines were still 5px short, so the row would wrap as it did on 2026-11-15.
  * ⚠️ Known cost, told to the owner that day: W3C and Nielsen Norman Group put a language link at
- * the top of a desktop page. On a computer, an English page now has no language link unless the
- * browser asks for Russian first (the note) or the window is narrow enough for the menu.
+ * the top of a desktop page and in a phone's menu. An English page now has no language link
+ * unless the browser asks for Russian first (the note).
  */

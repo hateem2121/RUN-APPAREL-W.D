@@ -1,7 +1,6 @@
 import { SITE_MENU_ID } from '@run-apparel/shared'
 import { CHROME, type ChromeWords } from '../../lib/i18n/chrome'
 import { IntentLink as Link } from './IntentLink'
-import { LanguageLink } from './LanguageLink'
 import { NavLinks } from './NavLinks'
 import { ThemeSwitch } from './ThemeSwitch'
 
@@ -88,7 +87,6 @@ export function SiteHeader({
           </button>
           <div className="notch__menu" id={SITE_MENU_ID} popover="auto">
             <NavLinks />
-            <LanguageLink menu />
             <ThemeSwitch />
           </div>
         </nav>

@@ -109,7 +109,7 @@ describe('siteBarAriaSnapshot', () => {
         ...head,
         '    - link "Products"',
         '    - link "Contact"',
-        // No language link in the wide bar since 2026-11-18 (owner): the phone menu below keeps it.
+        // No language link in the bar or the phone menu since 2026-11-18 (owner).
         theSwitch,
       ].join('\n'),
     )
@@ -123,7 +123,6 @@ describe('siteBarAriaSnapshot', () => {
         '    - link "Products"',
         '    - link "Contact"',
         '    - link "Guides"',
-        '    - link "Русский"',
         theSwitch,
       ].join('\n'),
     )

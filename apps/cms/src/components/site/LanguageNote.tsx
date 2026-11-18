@@ -163,7 +163,7 @@ export function LanguageNote() {
     >
       <div className="language-note__card" ref={card}>
         <p className="language-note__text">{words.text}</p>
-        {/* A plain link, as the bar's own (LanguageLink.tsx): the other language is another
+        {/* A plain link (LanguageLink.tsx says why): the other language is another
             document, so the browser loads it whole. */}
         <a
           className="btn btn--ghost language-note__action"

@@ -3598,7 +3598,6 @@ summary.spec-item__row:focus-visible {
 }
 
 /*
- * THE LANGUAGE LINK IS NOT IN THE WIDE BAR (owner, 2026-11-18), as on the website
- * (apps/cms/src/app/(frontend)/site.css has the account): it stays in the phone menu
- * (`nav-link--menu`), and the Russian footer keeps its «English».
+ * THE BAR HAS NO LANGUAGE LINK, WIDE OR IN THE PHONE MENU (owner, 2026-11-18), as on the website
+ * (apps/cms/src/app/(frontend)/site.css has the account). The Russian footer keeps its «English».
  */
