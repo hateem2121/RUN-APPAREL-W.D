@@ -630,19 +630,14 @@ test.describe('the menu closes itself when the page moves on', () => {
     await expect(page.locator(OPEN)).toHaveCount(0)
     const inBar = await page.evaluate((selector) => {
       const bar = document.querySelector('.notch')?.getBoundingClientRect()
-      // The bar's two, and the language link where it fits (site.css `.nav-link--language`, at
-      // 1280px and normal text it does); Guides belongs to the phone menu only (VA-37) and stays out.
-      const links = [
-        ...document.querySelectorAll(
-          `${selector} a:not(.nav-link--menu), ${selector} a.nav-link--language`,
-        ),
-      ]
-      const menuOnly = [
-        ...document.querySelectorAll(`${selector} a.nav-link--menu:not(.nav-link--language)`),
-      ]
+      // The bar's two. Guides (VA-37) and, since 2026-11-18 (owner), the language link belong to
+      // the phone menu only and stay out of the wide bar.
+      const links = [...document.querySelectorAll(`${selector} a:not(.nav-link--menu)`)]
+      const menuOnly = [...document.querySelectorAll(`${selector} a.nav-link--menu`)]
       return (
         Boolean(bar) &&
-        links.length === 3 &&
+        links.length === 2 &&
+        menuOnly.length === 2 &&
         menuOnly.every((link) => link.getBoundingClientRect().width === 0) &&
         links.every((link) => {
           const box = link.getBoundingClientRect()
@@ -883,7 +878,7 @@ test.describe('keyboard', () => {
     expect(inMain).toBe(true)
   })
 
-  test('tab order is skip link, wordmark, the two nav links, the language link, then the switch', async ({
+  test('tab order is skip link, wordmark, the two nav links, then the switch', async ({
     page,
     browserName,
   }) => {
@@ -893,19 +888,13 @@ test.describe('keyboard', () => {
     )
     await page.goto('/')
     const order: string[] = []
-    for (let index = 0; index < 6; index++) {
+    for (let index = 0; index < 5; index++) {
       await page.keyboard.press('Tab')
       order.push(await page.evaluate(() => document.activeElement?.className ?? ''))
     }
-    // The language link sits before the switch since the Russian section (2026-11-15).
-    expect(order).toEqual([
-      'skip-link',
-      'notch__wordmark',
-      'nav-link',
-      'nav-link',
-      'nav-link nav-link--menu nav-link--language',
-      'theme-toggle',
-    ])
+    // No language link in the wide bar since 2026-11-18 (owner): it is in the phone menu. It sat
+    // here, before the switch, from 2026-11-15.
+    expect(order).toEqual(['skip-link', 'notch__wordmark', 'nav-link', 'nav-link', 'theme-toggle'])
   })
 })
 
@@ -1306,10 +1295,11 @@ test.describe('LA-06 — at normal text the bar is one 60px row at every width',
         problems.push(`${width}px: the bar is ${m.height}px tall, not one 60px row`)
       if (m.button !== phone)
         problems.push(`${width}px: menu button ${m.button ? 'shown' : 'hidden'}`)
-      // Two page links and, at normal text from 720px, the language link (site.css, measured).
-      if (!phone && (m.links !== 3 || m.inBar !== 3))
+      // Two page links. The language link was a third from 720px between 2026-11-15 and
+      // 2026-11-18, when the owner took it out of the wide bar (site.css): it must not come back.
+      if (!phone && (m.links !== 2 || m.inBar !== 2))
         problems.push(
-          `${width}px: ${m.links} links visible, ${m.inBar} inside the bar (want 3 and 3)`,
+          `${width}px: ${m.links} links visible, ${m.inBar} inside the bar (want 2 and 2)`,
         )
       if (phone && m.links !== 0)
         problems.push(`${width}px: ${m.links} links outside the closed menu`)

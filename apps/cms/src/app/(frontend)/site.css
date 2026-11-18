@@ -9513,36 +9513,15 @@ html[data-preload="lifting"] .preloader__lockup {
 }
 
 /*
- * THE LANGUAGE LINK IN THE WIDE BAR (Russian section, 2026-11-15). W3C's language-switch advice
- * puts it "at or near the top of the page"; until the language audit of that day a desktop visitor
- * on an English page saw no way to the Russian one. The bar's inline query (notch.css,
- * `186px + 16rem` since 2026-11-15) was fitted for the name, two links and the switch, and the garment pages share
- * it, so it stays: below the width measured WITH this link, the link stays in the phone menu only
- * (`nav-link--menu`), and the bar keeps its measured fit.
- *
- * Fitted 2026-11-15 on a fresh build, Chromium, the real text-size setting (CDP
- * `Page.setFontSizes`, as textSize.spec.ts): the narrowest width at which the bar, WITH this link, is
- * one row with nothing outside it and the name whole, binary-searched per root size.
- *
- *   root size              16-28    32    36    40    44    48    56
- *   English page («Русский»)  720   792   866   940  1014  1087  1234
- *   Russian page («English»)  720   814   890   966  1042  1118  1271
- *
- * The Russian bar is the wider (its links are longer) and follows `204.7px + 19.04rem` within 1px
- * from 32 to 56 in Chromium. ⚠️ FIREFOX NEEDS MORE (measured 2026-11-15 with its
- * `font.size.variable.x-cyrillic` pref, PR #404): 748 826 904 982 1058 1138 1214 1294 at roots
- * 28-56, `202px + 19.5rem`, and `208px + 19.1rem` cut the Russian name there from a 28px root up,
- * 200% text included. So the query is `208px + 19.75rem`: 13-20px early for Firefox, more for
- * Chromium. Below it the link waits in the phone menu.
- *
- * Here, not in notch.css: the garment pages' bar copies this rule into its own page.css since
- * 2026-11-16 (it gained the same link with the Russian garment pages), and auditGuards.test.ts
- * (XS-02) keeps the shared bar's look in notch.css. It beats notch.css's `.nav-link--menu { display: none }` by
- * coming later at the same weight, and its width is always past the shared inline query, so it only
- * ever applies where the bar is already inline.
+ * THE LANGUAGE LINK IS NOT IN THE WIDE BAR (owner, 2026-11-18). From 2026-11-15 a rule here showed
+ * «Русский» / «English» inline from `208px + 19.75rem`, a width measured with the link (PR #404).
+ * The owner took it out of the bar: it stays in the phone menu (`nav-link--menu`, notch.css), the
+ * Russian footer keeps its «English» (SiteFooter.tsx), and a browser set to the other language is
+ * still offered the twin page by the language note (LanguageNote.tsx).
+ * ⚠️ NOT IN THE ENGLISH FOOTER EITHER (owner, the same day). Measured for it: «Русский» in the
+ * footer's bottom row is 58px too wide at 768px (an upright tablet), and five tighter spacings
+ * in three engines were still 5px short, so the row would wrap as it did on 2026-11-15.
+ * ⚠️ Known cost, told to the owner that day: W3C and Nielsen Norman Group put a language link at
+ * the top of a desktop page. On a computer, an English page now has no language link unless the
+ * browser asks for Russian first (the note) or the window is narrow enough for the menu.
  */
-@media (width >= 720px) and (width >= calc(208px + 19.75rem)) {
-  .nav-link--language {
-    display: inline-flex;
-  }
-}

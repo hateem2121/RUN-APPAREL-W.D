@@ -13,11 +13,12 @@ import { enPathOf, hasRussianTwin, type Locale, ruPath } from '../../lib/locale'
  * (`<html lang>`), so the browser loads the other page whole either way; the router would only
  * prefetch a page the visitor has not asked for in a language they may not read.
  *
- * ⚠️ IN THE WIDE BAR ONLY WHERE IT FITS (2026-11-15, after the language audit: W3C asks for the
- * switch "at or near the top of the page", and a desktop visitor saw none). The bar's one-row fit
- * was measured for two links (docs/DESIGN.md, "The menu bar"), and that query is shared with the
- * garment pages, so it is left alone: `nav-link--menu` keeps this link to the open phone menu as
- * before, and site.css's `.nav-link--language` shows it inline from a width measured WITH it.
+ * ⚠️ NOT IN THE WIDE BAR (owner, 2026-11-18). From 2026-11-15 site.css showed it inline where it
+ * fitted, after the language audit (W3C asks for the switch "at or near the top of the page").
+ * The owner took it out: `nav-link--menu` keeps it to the open phone menu, the Russian footer
+ * keeps its «English» (SiteFooter.tsx; the English footer has no room for one, site.css), and the
+ * language note offers this page's twin to a browser set to the other language (LanguageNote.tsx). `nav-link--language` is now only a
+ * name the tests and the note's choice rule find it by.
  *
  * `usePathname` answers during the server render too, so the link is right with scripting off. An
  * English page with no Russian twin (a single journal post) links to the Russian home instead.

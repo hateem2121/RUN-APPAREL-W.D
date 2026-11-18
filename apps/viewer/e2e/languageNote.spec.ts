@@ -127,19 +127,78 @@ test.describe('a browser that asks for Russian first, on the English page', () =
     ).toContain('note_used')
   })
 
-  test("the bar's own «Русский» link counts as the choice, and the note leaves", async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 1280, height: 900 })
+  // The wide bar has had no language link since 2026-11-18 (owner): the phone menu's is the site's
+  // own on an English page, and it counts as the choice.
+  test("the phone menu's «Русский» link counts as the choice too", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 })
     await open(page, EN)
     await touchThePage(page)
     await expect(note(page)).toBeVisible()
+    // Open the menu FIRST: a click held on the page would also stop the button opening it.
+    await page.locator('header .notch__menu-btn').click()
     await page.evaluate(() =>
       document.addEventListener('click', (event) => event.preventDefault(), true),
     )
     await page.locator('header.notch-shell a[hreflang="ru"]').click()
     await expect(note(page)).toHaveCount(0)
     expect(await stored(page)).toBe('chosen')
+  })
+
+  test('on a touch phone the note follows the bar up when it leaves, and back down', async ({
+    page,
+    browserName,
+  }, testInfo) => {
+    // notch.css: where the garment pages' bar hides on scroll ("the bar leaves", VA-40), the note
+    // moves up by the bar's height, so it never floats under an empty gap.
+    test.skip(browserName === 'firefox', 'Firefox has no mobile emulation (isMobile)')
+    const context = await page
+      .context()
+      .browser()
+      ?.newContext({
+        locale: 'ru-RU',
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        isMobile: true,
+        reducedMotion: 'reduce',
+        baseURL: testInfo.project.use.baseURL,
+      })
+    if (!context) throw new Error('no browser')
+    const phone = await context.newPage()
+    try {
+      await open(phone, EN)
+      expect(
+        await phone.evaluate(
+          () => matchMedia('screen and (width < 720px) and (hover: none)').matches,
+        ),
+        'the emulated phone reports hover: this test measures nothing',
+      ).toBe(true)
+      await touchThePage(phone)
+      await expect(note(phone)).toBeVisible()
+      const top = () =>
+        phone.locator('.language-note__card').evaluate((el) => el.getBoundingClientRect().top)
+      const barHeight = await phone
+        .locator('header .notch')
+        .evaluate((el) => el.getBoundingClientRect().height)
+      const resting = await top()
+
+      await phone.evaluate(() => window.scrollTo(0, 700))
+      await expect
+        .poll(() =>
+          phone.locator('header.notch-shell').evaluate((el) => el.hasAttribute('data-bar-hidden')),
+        )
+        .toBe(true)
+      await expect
+        .poll(top, { message: 'the note stayed under the gap the bar left' })
+        .toBeLessThan(resting - barHeight + 8)
+      expect(await top(), 'the note left the screen').toBeGreaterThanOrEqual(0)
+
+      await phone.evaluate(() => window.scrollTo(0, 0))
+      await expect
+        .poll(top, { message: 'the note did not come back down with the bar' })
+        .toBeCloseTo(resting, 0)
+    } finally {
+      await context.close()
+    }
   })
 
   test('on the Russian page there is nothing to offer', async ({ page }) => {
@@ -236,11 +295,29 @@ test.describe('a browser that asks for Russian first, on the English page', () =
             height: document.documentElement.scrollHeight,
           }
         })
-      const before = await measure()
       await touchThePage(page)
       await expect(note(page)).toBeVisible()
-      // No layout shift: the page is where it was, to the pixel.
-      expect(await measure()).toEqual(before)
+      /*
+       * ⚠️ THE TWO READINGS DIFFER BY THE NOTE AND NOTHING ELSE. This first read the page BEFORE
+       * the key press and again with the note showing, and failed on main in CI's WebKit
+       * (run 43895104691, 16 Nov 2026, the try and its retry alike): the page measured 3496px,
+       * then 3492px. That skipped PR #413's deploy. A probe on 18 Nov showed the note changes
+       * nothing: the page was still settling by 4px on CI's slower WebKit when the first reading
+       * was taken. So the page is read once it holds still, with the note showing, and again
+       * straight after the × takes the note away (below, after the note's own boxes are read).
+       */
+      await expect
+        .poll(
+          async () => {
+            const first = await measure()
+            await page.waitForTimeout(250)
+            const second = await measure()
+            return first.height === second.height && first.mainTop === second.mainTop
+          },
+          { message: 'the page never held still', timeout: 10_000 },
+        )
+        .toBe(true)
+      const withNote = await measure()
 
       const boxes = await page.evaluate(() => {
         const rect = (selector: string) => {
@@ -278,6 +355,11 @@ test.describe('a browser that asks for Russian first, on the English page', () =
         Math.abs(boxes.card.left - (boxes.viewport - boxes.card.right)),
         'the note is off centre',
       ).toBeLessThanOrEqual(1)
+
+      // No layout shift: with the note gone, the page is where it was with it, to the pixel.
+      await note(page).getByRole('button').click()
+      await expect(note(page)).toHaveCount(0)
+      expect(await measure(), 'the note moved the page').toEqual(withNote)
     })
   }
 
@@ -340,6 +422,20 @@ test.describe('a browser with no Russian, on the Russian page', () => {
     await expect(link).toHaveAttribute('hreflang', 'en')
     await expect(region.getByRole('button', { name: 'Close' })).toBeVisible()
     expect(new URL(page.url()).pathname).toBe(RU)
+  })
+
+  test("the Russian footer's own «English» link counts as the choice, and the note leaves", async ({
+    page,
+  }) => {
+    await open(page, RU)
+    await touchThePage(page)
+    await expect(note(page)).toBeVisible()
+    await page.evaluate(() =>
+      document.addEventListener('click', (event) => event.preventDefault(), true),
+    )
+    await page.locator('footer.site-footer a[hreflang="en"]').click()
+    await expect(note(page)).toHaveCount(0)
+    expect(await stored(page)).toBe('chosen')
   })
 
   test('on the English page there is nothing to offer', async ({ page }) => {
