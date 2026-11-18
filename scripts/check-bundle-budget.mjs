@@ -256,12 +256,25 @@ const REPORT_ONLY = process.argv.includes('--report')
  *       script        503,988 -> 505,206 B gzip  (+1,218)   budget 504,200 -> 505,418 (headroom 212, unchanged)
  *   CI read the branch 1,006 B over (run 43886533907; main 212 B left, run 43883062387). This Mac's
  *   build of the same commit read 986 B UNDER: a local figure says nothing about this gate.
+ *   ⚠️ 2026-11-18, the combined dependency update (#421; the owner chose a raise of about 2 KB over
+ *   keeping `motion` on 14.9.x). `motion` 14.9.0 -> 14.11.1 adds gesture code this site does not use
+ *   (press counts and holds, pinch and rotate, drag props, Reorder keys; its changelog, read that day).
+ *   Built from main (880366b7) and from this branch, gzip level 9, on this Mac, chunk by chunk:
+ *       script     motion-*.js  44,184 -> 45,702 B  (+1,518); every other chunk -25 B in all
+ *       script total  +1,493 B gzip
+ *   On CI's figures, as the headroom is always judged: main read 493.3 KB with 241 B left (505,177 B,
+ *   run 44264802288), the branch 494.8 KB, OVER by 1.3 KB (about 506,700 B, run 44286558815).
+ *       script        505,177 -> about 506,700 B gzip       budget 505,418 -> 506,970 (headroom 241 or more)
+ *   The owner's "about 2 KB" is the ceiling of the raise; the measured growth needed 1,552 B of it, so
+ *   that is all this takes, and the headroom main already had carries over. Decoder, font and
+ *   stylesheet read the same in CI as on main. Not measured: whether any later `motion` release drops
+ *   the extra code; check its changelog before the next raise.
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
  */
 const BUDGETS = {
-  script: { bytes: 505_418, note: 'app chunks + the meshopt decoder every model needs' },
+  script: { bytes: 506_970, note: 'app chunks + the meshopt decoder every model needs' },
   decoder: { bytes: 507_000, note: 'draco + basis — vendored, in dist, never fetched' },
   wasm: {
     bytes: 20_000,
