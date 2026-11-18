@@ -11,6 +11,40 @@ trusting the dates.
 
 ---
 
+## `@opennextjs/cloudflare` stays at 1.20.15 — 1.20.16 refuses the CMS Worker's assets settings (2026-11-18)
+
+**What happened.** Dependabot's group PR #418 bumped `@opennextjs/cloudflare` 1.20.15 → 1.20.16.
+`opennextjs-cloudflare build` (the CMS Worker build, the same step the deploy runs) then stopped
+in two seconds with: *"When `run_worker_first` is enabled, the `assets` section of the wrangler
+configuration must be: `html_handling: "none"`, `not_found_handling: "none"` (or `"404-page"`)"*.
+The release note (changeset 1477) says why: public files are now served only at their exact path
+when `run_worker_first` is on, "like Next.js", and any other value "would allow bypassing the
+middleware".
+
+**Why it was not in CI.** #418's `verify` job stopped at its two failing tests, before it reached
+the Worker build, so CI never showed this. The local gates (`node .claude/skills/gates/run-gates.mjs`)
+did, at `cms-worker-build`. A dependency PR that is red at an earlier step can hide a later one.
+
+**Why it is held and not "fixed".** `apps/cms/wrangler.jsonc` has `assets.run_worker_first:
+["/film/*"]` (a list: only the /products film goes through the Worker first) and leaves
+`html_handling` at its default, `auto-trailing-slash`. Setting it to `"none"` changes how every
+static file on the live website is looked up. The last OpenNext assets output held 0 `.html` files
+(measured 2026-11-18), so the change is probably a no-op, but that was not proven against production,
+and this stack has no Next middleware for the new rule to protect. That is a site-wide routing
+decision for the owner, not a side effect of a version bump.
+
+**State.** `apps/cms/package.json` pins `@opennextjs/cloudflare` at exactly 1.20.15. Dependabot will
+propose 1.20.16 or later again and the CMS Worker build will fail the same way until the setting is
+decided.
+
+**To release it.** Decide the `assets.html_handling` value in `apps/cms/wrangler.jsonc`, bump the
+package, run `pnpm --filter @run-apparel/cms exec opennextjs-cloudflare build` and then
+`node scripts/check-cms-worker-size.mjs`, and after the deploy check that `/film/*` (Range
+requests), `/robots.txt`, `/llms.txt`, a `/_next/static/` file and a page with and without a trailing
+slash answer as before.
+
+---
+
 ## `graphql-scalars` under Payload: exact security override (2026-10-29)
 
 The release gate for PR #294 began failing on
