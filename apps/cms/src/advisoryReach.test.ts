@@ -29,6 +29,13 @@ import { describe, expect, it } from 'vitest'
  * API needs the network, and this repo has already recorded what a runner's 403 does to
  * a gate that treats an unreachable service as a failed assertion. The lockfile is the
  * same fact offline: it is what `pnpm install --frozen-lockfile` builds from.
+ *
+ * ⚠️ 2026-11-18 UPDATE: THE ADVISORY LEFT THE TREE. @lhci/cli 0.16.0 dropped `extract-zip`
+ * (and zod 3), so the route the first paragraph describes no longer exists, and the audit
+ * exceptions for it were deleted the same day (audit-ci.jsonc, osv-scanner.toml). The
+ * assertion that the edge EXISTS (the parser's control) became its opposite: `extract-zip`
+ * is in no snapshot at all, with a planted-lockfile control proving that check can fail.
+ * The other three tests still hold unchanged and still guard a tool that returns.
  */
 
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..')
@@ -159,12 +166,38 @@ describe('FA-O-72 — the HIGH advisory is confined to a root build tool', () =>
     for (const workspace of DEPLOYED_WORKSPACES) {
       expect(lock.importers.has(workspace), `${workspace} is not an importer any more`).toBe(true)
     }
-    // and the one edge this file is entirely about is really in the graph
+    // and the tool this file is about is really in the graph, hanging from lighthouse
     expect(
-      lock.edges.get('@puppeteer/browsers')?.has(ADVISORY_PACKAGE),
-      'the @puppeteer/browsers -> extract-zip edge is gone; re-read pnpm audit before ' +
+      lock.edges.get(ALLOWED_TOOL)?.has('lighthouse'),
+      `${ALLOWED_TOOL} no longer depends on lighthouse; re-read pnpm audit before ` +
         'trusting anything in this file',
     ).toBe(true)
+  })
+
+  it('extract-zip is not in the lockfile at all (gone with @lhci/cli 0.16.0, 2026-11-18)', () => {
+    // Until 2026-11-18 the HIGH advisory had one route, through @lhci/cli, and this file proved
+    // it stayed confined there. The package left the tree, so the strongest statement is the
+    // plain one. If it returns, audit-ci fails the deploy first (its allowlist no longer names
+    // it); this test says what to look at.
+    expect(
+      lock.edges.has(ADVISORY_PACKAGE),
+      `${ADVISORY_PACKAGE} is back in pnpm-lock.yaml. It carries two unpatched advisories ` +
+        '(GHSA-jmr9-qjv8-65gv HIGH 8.1, GHSA-7pqw-9j4j-h8q3): run `pnpm why extract-zip -r` ' +
+        'to find what pulled it in before excusing anything in audit-ci.jsonc.',
+    ).toBe(false)
+  })
+
+  it('and that check can fail: a lockfile that does carry extract-zip is seen', () => {
+    // Negative control for the test above. "X is absent" passes on an empty graph, so prove
+    // the parser reports X when a snapshot for it is really there.
+    const planted = [
+      'snapshots:',
+      '  extract-zip@2.0.1:',
+      '    dependencies:',
+      '      debug: 4.4.3',
+      '',
+    ].join('\n')
+    expect(parseLock(planted).edges.has(ADVISORY_PACKAGE)).toBe(true)
   })
 
   it('and the closure walk really reaches things, proved on a package we ship', () => {

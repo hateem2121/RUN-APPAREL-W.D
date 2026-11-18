@@ -68,6 +68,25 @@ describe('evaluateCacheControl', () => {
     expect(r.problems.join(' ')).toContain('must-revalidate')
   })
 
+  // Since 2026-11-15 a person's garment page answers `private, max-age=0, no-transform` with no
+  // ETag (worker/personPayload.ts). The probe wanted `must-revalidate` only, so it failed every run
+  // while the site was up (issue #393). The three cases below keep the rule strict where it matters.
+  it("accepts a person's copy: private, max-age=0, no validator", () => {
+    expect(evaluateCacheControl('html', 'private, max-age=0, no-transform').ok).toBe(true)
+  })
+
+  it('still flags a private HTML copy that a browser may keep', () => {
+    const r = evaluateCacheControl('html', 'private, max-age=300, no-transform')
+    expect(r.ok).toBe(false)
+    expect(r.problems.join(' ')).toContain('must-revalidate')
+  })
+
+  it('still flags a shared copy with max-age=0 but no must-revalidate, and a missing header', () => {
+    expect(evaluateCacheControl('html', 'public, max-age=0, no-transform').ok).toBe(false)
+    expect(evaluateCacheControl('html', 'private, no-transform').ok).toBe(false)
+    expect(evaluateCacheControl('html', undefined).ok).toBe(false)
+  })
+
   it('accepts a poster/model response with at least a day of TTL', () => {
     expect(evaluateCacheControl('long-ttl', 'public, max-age=86400').ok).toBe(true)
   })

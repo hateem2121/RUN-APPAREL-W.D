@@ -27,8 +27,12 @@
   // advisory stays blocking for any path not listed here, so if one of these
   // packages ever reaches runtime code the gate fails again instead of staying
   // silently suppressed. Re-check each entry when its parent package is bumped.
-  // SEVEN ENTRIES since 2026-10-24: two extract-zip advisories x two routes, and zod 3
-  // x three Lighthouse routes (all at the bottom). Six from 2026-10-03 to 2026-10-24
+  // ONE ENTRY since 2026-11-18: picomatch, by bare id (at the bottom). The seven that stood
+  // from 2026-10-24 — two extract-zip advisories x two routes, and zod 3 x three Lighthouse
+  // routes — were DELETED the same day, because @lhci/cli 0.16.0 dropped both packages:
+  // `pnpm why extract-zip -r` prints nothing, `zod@3` is not in pnpm-lock.yaml, and audit-ci
+  // itself listed all seven as "Consider not allowlisting". The notes below that explain them
+  // are kept as history. Before that: seven from 2026-10-24; six from 2026-10-03 to 2026-10-24
   // (the two braces routes left when GitHub withdrew that advisory), four from
   // 2026-09-26 to 2026-10-03, two from 2026-09-10 to 2026-09-26, one from 2026-08-13,
   // empty from 2026-08-12 before that; getting back to empty is the goal.
@@ -409,14 +413,11 @@
   // every route. DELETE it the day a fixed picomatch ships: raise the floor with an
   // override in pnpm-workspace.yaml and `pnpm install --no-frozen-lockfile`, as the
   // nanoid note above did. audit-ci prints "Consider not allowlisting" once it is unused.
-  "allowlist": [
-    "GHSA-fc5q-39xc-vjpf",
-    "GHSA-jmr9-qjv8-65gv|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
-    "GHSA-7pqw-9j4j-h8q3|@lhci/cli>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
-    "GHSA-jmr9-qjv8-65gv|@lhci/cli>@lhci/utils>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
-    "GHSA-7pqw-9j4j-h8q3|@lhci/cli>@lhci/utils>lighthouse>puppeteer-core>@puppeteer/browsers>extract-zip",
-    "GHSA-mrhx-c7xc-m3w5|@lhci/cli>lighthouse>puppeteer-core>chromium-bidi>zod",
-    "GHSA-mrhx-c7xc-m3w5|@lhci/cli>@lhci/utils>lighthouse>puppeteer-core>chromium-bidi>zod",
-    "GHSA-mrhx-c7xc-m3w5|lighthouse>puppeteer-core>chromium-bidi>zod"
-  ]
+  // ── extract-zip and zod 3: entries DELETED 2026-11-18 ───────────────────────
+  // @lhci/cli 0.15.1 → 0.16.0 (the combined dependency update) removed both packages from the
+  // lockfile. Measured that day: `pnpm why extract-zip -r` prints nothing; `zod@3` has no
+  // snapshot in pnpm-lock.yaml; `audit-ci --config audit-ci.jsonc` exited 0 and named all seven
+  // path entries as "Consider not allowlisting". Both rules above said to delete on exactly this
+  // condition. If either package returns, this gate FAILS the deploy (it is no longer excused).
+  "allowlist": ["GHSA-fc5q-39xc-vjpf"]
 }

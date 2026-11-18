@@ -64,7 +64,18 @@ export function evaluateCacheControl(kind, cacheControl) {
     const maxAge = Number(cc.match(/max-age=(\d+)/)?.[1] ?? 0)
     if (!(maxAge >= 31536000)) problems.push(`max-age too short for a hashed asset: ${cc}`)
   } else if (kind === 'html') {
-    if (!/must-revalidate/.test(cc)) problems.push(`missing "must-revalidate": ${cc}`)
+    // Two shapes are right, and both exist for the same purpose: a new deploy goes live at once.
+    //   - the static copy and a crawler's copy: `public, max-age=0, must-revalidate`;
+    //   - a PERSON's copy, since 2026-11-15 (apps/viewer/worker/personPayload.ts, #389):
+    //     `private, max-age=0, no-transform` with no ETag, so a browser cannot be told 304 and
+    //     keep old data; it fetches the page again. This probe asked only for `must-revalidate`,
+    //     so from 2026-11-15 06:48 UTC EVERY scheduled run failed here while the site was up
+    //     (issue #393 reopened an outage alert every ~12 hours). `private` alone is not enough:
+    //     it must sit beside `max-age=0`, or a browser could keep the page.
+    const personCopy = /\bprivate\b/.test(cc) && /(?:^|[\s,])max-age=0(?:$|[\s,])/.test(cc)
+    if (!/must-revalidate/.test(cc) && !personCopy) {
+      problems.push(`missing "must-revalidate" (and not a private max-age=0 copy): ${cc}`)
+    }
   } else if (kind === 'long-ttl') {
     const maxAge = Number(cc.match(/max-age=(\d+)/)?.[1] ?? 0)
     // A day is the floor worth calling "long" for a multi-megabyte file — well above

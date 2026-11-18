@@ -81,7 +81,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6.1.1
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
@@ -458,7 +458,7 @@ jobs:
     # Viewer 2/3 took 16.5 min in that run, and is now the longest.
     timeout-minutes: 30
     container:
-      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+      image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe
     strategy:
       # Every shard reports, so one failure never hides another's.
       fail-fast: false
@@ -484,7 +484,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6.1.1
       # setup-node WITHOUT a cache, for the reason measured beside `artwork` below: the
       # image ships Node 24 (Microsoft's `ARG NODE_VERSION=24`), and the repo runs Node 26
       # since 2026-10-23 (owner decision; 26 is Active LTS from 2026-10-28). `cache: ''`
@@ -617,7 +617,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6.1.1
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
@@ -699,7 +699,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6.1.1
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
@@ -970,7 +970,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6.1.1
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
@@ -1123,12 +1123,12 @@ jobs:
     # (From 2026-09-08 to 2026-09-10 a self-hosted runner built FROM this image carried
     # the pin in its Dockerfile instead; that runner is retired.)
     container:
-      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+      image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe
     steps:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6.1.1
       # setup-node IS BACK (2026-10-23), WITHOUT ITS CACHE. The image ships Node 24
       # (Microsoft's Dockerfile.noble: `ARG NODE_VERSION=24`); the repo moved to Node 26
       # that day (owner decision), so the job must install it. Everything below is why
@@ -1332,7 +1332,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6.1.1
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
@@ -1920,8 +1920,8 @@ jobs:
             echo "If this deploy is wrong, roll back the affected Worker:"
             echo
             echo '```bash'
-            echo "npx wrangler@4.157.0 versions list --name run-apparel-viewer-site"
-            echo "npx wrangler@4.157.0 rollback --name run-apparel-viewer-site -m 'why'"
+            echo "npx wrangler@4.159.0 versions list --name run-apparel-viewer-site"
+            echo "npx wrangler@4.159.0 rollback --name run-apparel-viewer-site -m 'why'"
             echo '```'
             echo
             echo "Workers: \`run-apparel-viewer-site\` (public viewer) · \`run-apparel-viewer-cms\` (admin + API) · \`run-apparel-viewer-shrink\` (processing only) · \`run-apparel-apex-404\` (apex catalogue + profile PDFs)"
@@ -2177,7 +2177,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v6.1.0
+      - uses: pnpm/action-setup@v6.1.1
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
