@@ -688,6 +688,7 @@ export const LIBRARY_GUIDES_RU_A: readonly Guide[] = [
       },
       {
         heading: 'Тканые, печатные или бесшовные этикетки',
+        stage: 'whole-neck-labels',
         blocks: [
           {
             kind: 'text',
@@ -1978,6 +1979,7 @@ export const LIBRARY_GUIDES_RU_A: readonly Guide[] = [
       },
       {
         heading: 'Штапельная пряжа или комплексная нить',
+        stage: 'whole-yarn-cones',
         blocks: [
           {
             kind: 'text',
@@ -3117,6 +3119,7 @@ export const LIBRARY_GUIDES_RU_A: readonly Guide[] = [
       },
       {
         heading: 'Проклеенные швы',
+        stage: 'whole-taped-seams',
         blocks: [
           {
             kind: 'text',

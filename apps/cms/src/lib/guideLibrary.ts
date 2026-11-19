@@ -698,6 +698,8 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
       },
       {
         heading: 'Woven, printed or tagless labels',
+        // The owner's photo of RUN's woven, printed and tagless labels, kept as it is (2026-11-19).
+        stage: 'whole-neck-labels',
         blocks: [
           {
             kind: 'text',
@@ -1965,6 +1967,8 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
       },
       {
         heading: 'Spun or filament yarn',
+        // The owner's photo of a spun cotton cone beside a filament polyester cone (2026-11-19).
+        stage: 'whole-yarn-cones',
         blocks: [
           {
             kind: 'text',
@@ -3078,6 +3082,8 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
       },
       {
         heading: 'Sealed seams',
+        // The owner's photo of a jacket's seams with and without tape, captions kept (2026-11-19).
+        stage: 'whole-taped-seams',
         blocks: [
           {
             kind: 'text',
