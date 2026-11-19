@@ -27,15 +27,16 @@
   // advisory stays blocking for any path not listed here, so if one of these
   // packages ever reaches runtime code the gate fails again instead of staying
   // silently suppressed. Re-check each entry when its parent package is bumped.
-  // ONE ENTRY since 2026-11-18: picomatch, by bare id (at the bottom). The seven that stood
+  // EMPTY since 2026-11-19: the one entry, picomatch by bare id (2026-11-18), was deleted when
+  // GitHub withdrew its advisory (note at the bottom). The seven that stood
   // from 2026-10-24 — two extract-zip advisories x two routes, and zod 3 x three Lighthouse
-  // routes — were DELETED the same day, because @lhci/cli 0.16.0 dropped both packages:
+  // routes — were DELETED on 2026-11-18, because @lhci/cli 0.16.0 dropped both packages:
   // `pnpm why extract-zip -r` prints nothing, `zod@3` is not in pnpm-lock.yaml, and audit-ci
   // itself listed all seven as "Consider not allowlisting". The notes below that explain them
   // are kept as history. Before that: seven from 2026-10-24; six from 2026-10-03 to 2026-10-24
   // (the two braces routes left when GitHub withdrew that advisory), four from
   // 2026-09-26 to 2026-10-03, two from 2026-09-10 to 2026-09-26, one from 2026-08-13,
-  // empty from 2026-08-12 before that; getting back to empty is the goal.
+  // empty from 2026-08-12 before that. Empty again since 2026-11-19: the goal.
   //
   // Two GHSA-mh99-v99m-4gvg (brace-expansion DoS) paths lived here from
   // 2026-07-27, correctly: at the time the only patched release was 5.0.8, there
@@ -392,32 +393,19 @@
   // fails the gate. DELETE these three once chromium-bidi moves to zod ≥4.6.6 (then
   // `pnpm why zod -r` shows no 3.x), or once puppeteer-core drops it.
   //
-  // ── picomatch, added 2026-11-18 (owner's yes): NO FIXED RELEASE EXISTS ──────
-  // GHSA-fc5q-39xc-vjpf / CVE-2026-112366, high, CWE-1333: a denial of service by slow
-  // regular expression when picomatch compiles a single-branch repeated extglob such as
-  // `+(*)`. Published 2026-10-19 and passed the gate until GitHub reviewed it on
-  // 2026-11-17T15:56Z; the next run (PR #420, 2026-11-18) failed with nothing in the
-  // repo changed. Its range is `<= 4.0.7`, 4.0.7 is the newest release (and 2.3.2 the
-  // newest 2.x), and npm lists no patched version, so there is nothing to override to.
-  // Why it is excused, measured that day:
-  //   - The attacker must supply the glob PATTERN. No file in apps/, packages/, scripts/
-  //     or tools/ imports picomatch (`git grep picomatch` finds only a lockfile).
-  //   - It arrives through tools that match file names on a developer's or CI's disk:
-  //     196 routes, 138 of them through vitest, @vitest/coverage-v8, vite and
-  //     @vitejs/plugin-react (tinyglobby, fdir, chokidar), the rest through sass's file
-  //     watcher under next and Payload's packages, and json-schema-to-typescript.
-  //   - ⚠️ NOT PROVEN: that no Payload or Next code path in the deployed Worker hands
-  //     visitor input to it as a pattern. The owner was told so before saying yes.
-  // ⚠️ BY BARE ID, NOT PATH BY PATH, unlike the entries below: 196 routes that all end
-  // in build or test tooling cannot be usefully listed, so this excuses picomatch on
-  // every route. DELETE it the day a fixed picomatch ships: raise the floor with an
-  // override in pnpm-workspace.yaml and `pnpm install --no-frozen-lockfile`, as the
-  // nanoid note above did. audit-ci prints "Consider not allowlisting" once it is unused.
+  // ── picomatch: entry DELETED 2026-11-19 ─────────────────────────────────────
+  // GHSA-fc5q-39xc-vjpf (a slow-pattern denial of service in picomatch <= 4.0.7, no fixed
+  // release) was excused here by bare id from 2026-11-18, on the owner's yes. GitHub withdrew
+  // the advisory the same day (2026-11-18T15:38:56Z; OSV's record says the same) and
+  // `pnpm audit` now prints "No known vulnerabilities found", so the excuse excused nothing
+  // and audit-ci listed it as "Consider not allowlisting". If the advisory ever returns, this
+  // gate FAILS the deploy again (it is no longer excused): read the new record before
+  // excusing anything.
   // ── extract-zip and zod 3: entries DELETED 2026-11-18 ───────────────────────
   // @lhci/cli 0.15.1 → 0.16.0 (the combined dependency update) removed both packages from the
   // lockfile. Measured that day: `pnpm why extract-zip -r` prints nothing; `zod@3` has no
   // snapshot in pnpm-lock.yaml; `audit-ci --config audit-ci.jsonc` exited 0 and named all seven
   // path entries as "Consider not allowlisting". Both rules above said to delete on exactly this
   // condition. If either package returns, this gate FAILS the deploy (it is no longer excused).
-  "allowlist": ["GHSA-fc5q-39xc-vjpf"]
+  "allowlist": []
 }
