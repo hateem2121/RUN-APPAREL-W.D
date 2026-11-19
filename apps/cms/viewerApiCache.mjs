@@ -239,9 +239,21 @@ export async function keepApiAnswer(request, draw) {
  */
 export const VIEWER_DATA_SHAPE = 'shape-595075bdf3dbf356'
 
-/** For the network panel and a `curl -D -`: did this answer come from a kept copy? */
-function apiCacheTiming(state) {
-  return `api-cache;desc="${state}"`
+/**
+ * For the network panel and a `curl -D -`: did this answer come from a kept copy, and where did
+ * its time go? `kv` is the flag reads that name the key (0 while this isolate still holds them,
+ * pageCache.mjs memoKvGet), `store` the call into Workers Cache in front of SitePages. Both are
+ * milliseconds read around an `await`, the only place a Worker's clock moves: Cloudflare's
+ * Performance API page (read 2026-11-19) says timers advance only after I/O.
+ *
+ * ⚠️ WHY (19 Nov 2026). An answer labelled `hit` took 0.8-1.8 s on 7 of 20 probes from US
+ * locations, and Workers Logs showed Ahrefs' slow garment pages waiting 1-7 s in this call at
+ * about 0 processor time, with no redraw behind about two thirds of them. The label alone could
+ * not say whether the wait was the flag reads or the store.
+ */
+function apiCacheTiming(state, spans) {
+  const ms = (value) => Math.round(value * 10) / 10
+  return `api-cache;desc="${state}", kv;dur=${ms(spans.keyMs)}, store;dur=${ms(spans.storeMs)}`
 }
 
 /**
@@ -258,16 +270,22 @@ export async function serveViewerApi(request, env, ctx, store = ctx?.exports?.Si
   const allowed = allowedOrigins(env)
 
   let kept
+  let keyMs = 0
+  let storeMs = 0
   try {
+    const startedAt = performance.now()
     // The deploy id above only says this is the deployed Worker; the key names the data's shape.
     const cf = { cacheKey: await keptStoreKey(request.url, VIEWER_DATA_SHAPE, env.SITE_CACHE) }
+    const keyedAt = performance.now()
     // Never follow a redirect from the store (worker.mjs's call says why: #247, 2026-10-25).
     kept = await store.fetch(apiRenderRequest(request), { cf, redirect: 'manual' })
+    keyMs = keyedAt - startedAt
+    storeMs = performance.now() - keyedAt
   } catch (error) {
     console.error('[api-cache] could not reach the shared store; answering as before', error)
     return null
   }
   const headers = servedApiHeaders(kept.headers, requestOrigin, allowed)
-  headers.append('server-timing', apiCacheTiming(storeState(kept.headers)))
+  headers.append('server-timing', apiCacheTiming(storeState(kept.headers), { keyMs, storeMs }))
   return new Response(kept.body, { status: kept.status, statusText: kept.statusText, headers })
 }
