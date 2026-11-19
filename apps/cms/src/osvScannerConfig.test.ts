@@ -42,10 +42,11 @@ describe('osv-scanner.toml', () => {
       .map((entry) => entry.id)
       .sort()
     expect(excused).toEqual(allowlistedIds(jsonc))
-    // Read 2026-10-24: two extract-zip advisories and zod 3. Since 2026-11-18 picomatch too
-    // (no fixed release; owner's yes). The same day @lhci/cli 0.16.0 dropped extract-zip and
-    // zod 3, and their entries were deleted: ONE is left (picomatch). A changed count is a decision.
-    expect(excused).toHaveLength(1)
+    // Read 2026-10-24: two extract-zip advisories and zod 3. On 2026-11-18 @lhci/cli 0.16.0
+    // dropped extract-zip and zod 3 and their entries were deleted; picomatch was excused that
+    // day (no fixed release; owner's yes) and its entry deleted on 2026-11-19, when GitHub and
+    // OSV withdrew the advisory. NONE is left. A changed count is a decision.
+    expect(excused).toHaveLength(0)
   })
 
   it('gives every exception a reason that names where audit-ci scopes it', () => {
@@ -66,14 +67,19 @@ describe('osv-scanner.toml', () => {
     ).not.toEqual(allowlistedIds(jsonc))
   })
 
-  it('an audit-ci entry removed without removing it from the toml is caught', () => {
-    // Empties the array whatever its layout (Biome keeps a one-entry list on one line).
-    const fewer = jsonc.replace(/"allowlist"\s*:\s*\[[^\]]*\]/, '"allowlist": []')
-    expect(allowlistedIds(fewer)).not.toContain('GHSA-fc5q-39xc-vjpf')
+  it('an audit-ci entry the toml does not carry is caught', () => {
+    // Plants one entry whatever the array's layout. The first expect proves the plant landed
+    // (a control that changed nothing would pass for the wrong reason), the second that the
+    // comparison sees the difference.
+    const more = jsonc.replace(
+      /"allowlist"\s*:\s*\[[^\]]*\]/,
+      '"allowlist": ["GHSA-aaaa-bbbb-cccc"]',
+    )
+    expect(allowlistedIds(more)).toEqual(['GHSA-aaaa-bbbb-cccc'])
     expect(
       ignoredVulns(toml)
         .map((entry) => entry.id)
         .sort(),
-    ).not.toEqual(allowlistedIds(fewer))
+    ).not.toEqual(allowlistedIds(more))
   })
 })
