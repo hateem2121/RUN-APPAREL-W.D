@@ -48,6 +48,10 @@ import { __clearViewerCache, viewerCacheKey, writeViewerCache } from './endpoint
 const ALLOWED = 'https://viewer.wear-run.help,https://wear-run.help,https://wear-run.com'
 const API = `https://${API_HOST}/api/public/viewer`
 
+/** The Server-Timing of a garment-data answer: the store's verdict, then the two timed awaits. */
+const TIMING = (state: string) =>
+  new RegExp(`^api-cache;desc="${state}", kv;dur=\\d+(\\.\\d)?, store;dur=\\d+(\\.\\d)?$`)
+
 const GARMENT = {
   product: { slug: 'rxps', productName: 'Skinsuit' },
   selectedColourway: { slug: 'wine' },
@@ -349,7 +353,7 @@ describe('a miss draws and keeps, a hit answers without drawing', () => {
     for (const name of ['x-run-browser-cache-control', 'x-run-kept', 'x-run-drawn-at']) {
       expect(hit?.headers.has(name), name).toBe(false)
     }
-    expect(hit?.headers.get('server-timing')).toBe('api-cache;desc="hit"')
+    expect(hit?.headers.get('server-timing')).toMatch(TIMING('hit'))
   })
 
   it('draws from a clean request: none of the visitor’s headers reach Payload', async () => {
@@ -460,7 +464,7 @@ describe('only a whole, real garment is kept', () => {
   ])('never keeps %s, and draws again next time', async (_label, make) => {
     const { ask, draw, store } = setup(make())
     const first = await ask()
-    expect(first?.headers.get('server-timing')).toBe('api-cache;desc="skip"')
+    expect(first?.headers.get('server-timing')).toMatch(TIMING('skip'))
     await ask()
     expect(store.kept.size).toBe(0)
     expect(draw).toHaveBeenCalledTimes(2)
@@ -693,5 +697,48 @@ describe('answerWarmRequest: what the Worker does with a warm request', () => {
         serve,
       ),
     ).toBeNull()
+  })
+})
+
+describe('Server-Timing says where the time went (19 Nov 2026)', () => {
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+  const spans = (answer: Response | null | undefined) => {
+    const timing = answer?.headers.get('server-timing') ?? ''
+    return {
+      kv: Number(/kv;dur=([\d.]+)/.exec(timing)?.[1]),
+      store: Number(/store;dur=([\d.]+)/.exec(timing)?.[1]),
+    }
+  }
+
+  it('a slow store shows up as store;dur and a fast one does not (run both ways)', async () => {
+    const fast = spans(await setup().ask())
+    const slow = spans(
+      await setup(async (request) => {
+        await sleep(150)
+        return payloadLike()(request)
+      }).ask(),
+    )
+    expect(Number.isFinite(fast.store), 'the control read nothing').toBe(true)
+    expect(slow.store).toBeGreaterThan(fast.store + 100)
+    expect(slow.kv).toBeLessThan(100)
+  })
+
+  it('slow flag reads show up as kv;dur and the store call stays quick', async () => {
+    const world = setup()
+    const realGet = world.env.SITE_CACHE.get
+    world.env.SITE_CACHE.get = vi.fn(async (key: string) => {
+      await sleep(150)
+      return realGet(key)
+    })
+    const { kv, store } = spans(await world.ask())
+    expect(kv).toBeGreaterThanOrEqual(140)
+    expect(store).toBeLessThan(kv)
+  })
+
+  it('reads about 0 for the flags once this isolate already holds them', async () => {
+    const world = setup()
+    await world.ask() // the first answer reads the three flags and keeps them (memoKvGet)
+    const { kv } = spans(await world.ask())
+    expect(kv).toBeLessThan(5)
   })
 })
