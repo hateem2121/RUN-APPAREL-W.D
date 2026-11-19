@@ -8,8 +8,9 @@
 # fixed by override in pnpm-workspace.yaml the same day. The three that had no fixed
 # release on the line we can use (two extract-zip advisories and zod 3) were excused here
 # and in the deploy gate, audit-ci.jsonc, until 2026-11-18, when @lhci/cli 0.16.0 dropped
-# both packages and the entries were deleted. What is left below is excused by the deploy
-# gate too, with the full reasoning.
+# both packages and the entries were deleted. A fourth, picomatch (GHSA-fc5q-39xc-vjpf), was
+# added on 2026-11-18 and deleted on 2026-11-19, when GitHub and OSV withdrew the advisory.
+# NOTHING IS EXCUSED NOW. The file stays so that the next exception has its format and its rule.
 #
 # ⚠️ AUDIT-CI IS THE GUARD, NOT THIS FILE. An entry here ignores the advisory on EVERY
 # path; audit-ci excuses it only on the Lighthouse paths it names, so the deploy still
@@ -20,7 +21,3 @@
 # Format: https://github.com/google/osv-scanner/blob/main/docs/configuration.md (read
 # 2026-10-24). Scorecard's remedy for an advisory that does not affect a project is this
 # file: ossf/scorecard docs/checks.md → Vulnerabilities (v5.6.0).
-
-[[IgnoredVulns]]
-id = "GHSA-fc5q-39xc-vjpf"
-reason = "picomatch 4.0.7 (and 2.3.2) is its newest release and npm lists no patched version. A slow-pattern denial of service that needs an attacker-supplied glob; our code never imports picomatch, it arrives through vite, vitest, sass and Payload's build tooling. Excused by id in audit-ci.jsonc, which has the measurements and when to delete it."
