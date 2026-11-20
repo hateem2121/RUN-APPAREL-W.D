@@ -64,9 +64,68 @@ export const DOOR_OFF = 'off'
 export const VERSION_OVERRIDES_HEADER = 'cloudflare-workers-version-overrides'
 
 /** The site's Worker, as the origin behind this route: the request goes on as the visitor sent it. */
-function handOn(request, env) {
+async function handOn(request, env) {
   // A local preview has no origin behind it: there the site's Worker is a binding (`ORIGIN`).
-  return env.ORIGIN ? env.ORIGIN.fetch(request) : fetch(request)
+  const response = await (env.ORIGIN ? env.ORIGIN.fetch(request) : fetch(request))
+  return inVisitorsEncoding(request, response)
+}
+
+/**
+ * ⚠️ HANDED ON, A PAGE CAME BACK IN THE DOOR'S ENCODING, NOT THE VISITOR'S (20 Nov 2026).
+ * `fetch(request)` from here is a NEW request, made by this Worker, so the Worker behind sees this
+ * Worker's Accept-Encoding in `request.cf.clientAcceptEncoding`, not the visitor's. The viewer
+ * chooses its compression from that list (apps/viewer/worker/compression.ts) and marks every
+ * garment page `no-transform` (noTransform.ts), under which Cloudflare does not re-encode a body
+ * for a visitor who cannot read it. So a visitor offering only gzip was sent the page brotli'd for
+ * the door, and Cloudflare handed it on uncompressed. Measured: the deploy of #435 (run
+ * 44767665680) failed its pre-live check PF-13 on all 42 products ("came back uncompressed to a
+ * browser offering only gzip"), while "br, gzip" passed on every one; its pre-live checks are the
+ * one route that goes through this function for every garment page (the version-overrides header).
+ *
+ * The fix re-chooses from the VISITOR's own list, with the viewer's rule, and lets the runtime
+ * re-encode: `fetch()` hands this Worker the body already decoded, and a Response that carries
+ * `Content-Encoding` with the default `encodeBody` is compressed to it on the way out (Workers,
+ * "Response", read 20 Nov 2026; the same mechanism compression.ts relies on). A visitor whose
+ * choice equals what came back (every browser offering br) gets the response untouched, at no
+ * cost. Only br and gzip are re-chosen, the two the runtime writes; anything else, a plain
+ * response, and a request with no `cf` (vitest, a local preview) pass through as they are.
+ */
+export function inVisitorsEncoding(request, response) {
+  const sent = response.headers.get('content-encoding')
+  if (sent !== 'br' && sent !== 'gzip') return response
+  const cf = /** @type {{ cf?: { clientAcceptEncoding?: unknown } }} */ (request).cf
+  if (!cf) return response
+  const visitor = typeof cf.clientAcceptEncoding === 'string' ? cf.clientAcceptEncoding : null
+  const wanted = chooseEncoding(visitor)
+  if (wanted === sent) return response
+  const next = new Response(response.body, response)
+  if (wanted) next.headers.set('content-encoding', wanted)
+  else next.headers.delete('content-encoding')
+  next.headers.delete('content-length')
+  return next
+}
+
+/**
+ * The best encoding a visitor's list accepts, honouring `q=0`; null means plain. Kept in step with
+ * chooseEncoding in apps/viewer/worker/compression.ts (an app may not import another app's code,
+ * biome.jsonc noRestrictedImports); door.test.ts holds the two to the same answers.
+ *
+ * @param {string | null} acceptEncoding
+ * @returns {'br' | 'gzip' | null}
+ */
+export function chooseEncoding(acceptEncoding) {
+  const offered = new Map()
+  for (const part of (acceptEncoding ?? '').split(',')) {
+    const [name = '', ...params] = part.trim().toLowerCase().split(';')
+    if (!name) continue
+    const q = params.map((param) => param.trim()).find((param) => param.startsWith('q='))
+    const weight = q === undefined ? 1 : Number(q.slice(2))
+    offered.set(name, Number.isFinite(weight) ? weight : 0)
+  }
+  const accepts = (name) => (offered.get(name) ?? offered.get('*') ?? 0) > 0
+  if (accepts('br')) return 'br'
+  if (accepts('gzip')) return 'gzip'
+  return null
 }
 
 /**
