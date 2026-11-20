@@ -40,13 +40,15 @@ const BIN = 'codebase-memory-mcp'
  * docs/AI-TOOLING.md states which numbers were measured on which build. 0.9.0 ->
  * 0.11.0 (2026-09-26, owner-approved) changed three of them on the same tree: startup
  * tools 8 -> 17, edges 18,088 -> 22,838 (a new CALL_REFERENCE edge class), and the cli
- * output contract (see `cli` below). A different build invalidates those numbers
- * without changing a single line of this repo.
+ * output contract (see `cli` below). 0.11.0 -> 0.12.1 (2026-11-20, owner-approved) on
+ * one tree: edges 61,919 -> 65,062 (doc MENTIONS, SPAWNS, DIAGRAM_ARROW), startup tools
+ * unchanged at 17. A different build invalidates those numbers without changing a
+ * single line of this repo.
  *
  * Bumping is a deliberate act: change this constant, re-run `pnpm index:ai --cold`,
  * and re-measure the numbers in docs/AI-TOOLING.md in the same commit.
  */
-const PINNED_VERSION = '0.11.0'
+const PINNED_VERSION = '0.12.1'
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const cold = process.argv.includes('--cold')
@@ -59,6 +61,11 @@ const cold = process.argv.includes('--cold')
  * `--json` prints the MCP result envelope, and tools that take `format` put the data in
  * `structuredContent` only with `format: 'json'`. Under the 0.9 parser below every call
  * would have thrown "returned no JSON result".
+ *
+ * ⚠️ 0.12 DEPRECATED THE RAW-JSON ARGUMENT used here (measured 2026-11-20 on 0.12.1):
+ * every call prints "passing raw JSON to 'cli <tool>' is deprecated and will be removed
+ * in a future release" to stderr, which is discarded on success. It still works; the
+ * next bump must switch to flags or `--args-file` before raising PINNED_VERSION.
  */
 function cli(tool, args) {
   let out
