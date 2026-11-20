@@ -169,6 +169,27 @@ describe('when the door must step aside', () => {
     expect(w.pages.fetch).not.toHaveBeenCalled()
   })
 
+  /*
+   * The deploy tests each new version at 0% by header before visitors get it (7 Nov 2026). Through
+   * the door, a kept page or the viewer's live version would answer that check, and it would pass
+   * without the new version ever running.
+   */
+  it.each([
+    'https://wear-run.com/guides',
+    'https://wear-run.com/products/rxps/wine',
+    'https://cms.wear-run.help/api/public/viewer/rxps/wine',
+  ])('a deploy’s pre-live check for %s reaches the site Worker, header and all', async (url) => {
+    const w = world()
+    const override = 'run-apparel-viewer-cms="dc8dcd28-271b-4367-9840-6c244f84cb40"'
+    const asked = get(url, { 'Cloudflare-Workers-Version-Overrides': override })
+    const response = await door.fetch(asked, w.env, w.ctx)
+    expect(await response.text()).toBe('from the site Worker')
+    expect(w.pages.fetch).not.toHaveBeenCalled()
+    expect(w.viewer.fetch).not.toHaveBeenCalled()
+    const handedOn = w.origin.fetch.mock.calls[0]?.[0] as Request
+    expect(handedOn.headers.get('cloudflare-workers-version-overrides')).toBe(override)
+  })
+
   it('a store that throws never fails the page', async () => {
     const w = world()
     w.pages.fetch.mockRejectedValue(new Error('store down'))

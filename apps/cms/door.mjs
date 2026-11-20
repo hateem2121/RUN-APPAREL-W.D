@@ -50,6 +50,9 @@ import { WORKER_VERSION_PATH } from './workerVersion.mjs'
 /** The KV key (SITE_CACHE) holding the live website build's name; absent = hand everything on. */
 export const DOOR_BUILD_KEY = 'door-build'
 
+/** Cloudflare's header that sends a request to one named version of a Worker (Version overrides). */
+export const VERSION_OVERRIDES_HEADER = 'cloudflare-workers-version-overrides'
+
 /** The site's Worker, as the origin behind this route: the request goes on as the visitor sent it. */
 function handOn(request, env) {
   // A local preview has no origin behind it: there the site's Worker is a binding (`ORIGIN`).
@@ -94,6 +97,13 @@ export default {
   async fetch(request, env, ctx) {
     try {
       const url = new URL(request.url)
+      // ⚠️ A DEPLOY'S PRE-LIVE CHECK ASKS FOR A NEW VERSION BY HEADER, and must reach it. The
+      // deploy tests each new version at 0% through `Cloudflare-Workers-Version-Overrides`
+      // (scripts/version-overrides.mjs, owner decision 7 Nov 2026). A kept answer from the store,
+      // or the viewer's live version over the binding, would pass that check without the new
+      // version ever running. So such a request is handed on whole, header and all, and the
+      // site's Worker answers it exactly as it did before the door.
+      if (request.headers.has(VERSION_OVERRIDES_HEADER)) return handOn(request, env)
       // Garment pages and the viewer's files: straight to the small viewer Worker.
       if (env.VIEWER && forwardsToViewer(url)) return env.VIEWER.fetch(request)
       if (alwaysHandedOn(url)) return handOn(request, env)
