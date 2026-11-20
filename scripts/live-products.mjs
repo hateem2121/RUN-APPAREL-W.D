@@ -331,6 +331,32 @@ export const LIVE_PRODUCTS = [
     colourways: ['orange', 'pink', 'aqua', 'lavender', 'blue-grey'],
     productCode: 'R-KZN',
   },
+  // The three balls added 2026-11-20 (owner). The first colour is each ball's default and the
+  // colour its 360° film shows (packages/shared/src/productFilms.ts).
+  {
+    slug: 'maxfly',
+    colourway: 'red',
+    colourways: ['red', 'blue-orange', 'green', 'blue-grey', 'purple'],
+    productCode: 'R-MXF',
+  },
+  {
+    slug: 'kura',
+    colourway: 'red-navy',
+    colourways: ['red-navy', 'teal', 'lime-olive', 'pink-purple', 'blue-yellow'],
+    productCode: 'R-KRA',
+  },
+  {
+    slug: 'orbx',
+    colourway: 'purple-cyan',
+    colourways: [
+      'purple-cyan',
+      'green-magenta',
+      'blue-yellow',
+      'orange-pink',
+      'violet-orange-green',
+    ],
+    productCode: 'R-ORB',
+  },
 ]
 
 /**
