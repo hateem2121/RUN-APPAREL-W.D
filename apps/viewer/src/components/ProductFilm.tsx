@@ -2,7 +2,6 @@ import {
   PRODUCT_FILM_SIZE,
   PRODUCT_FILM_TYPES,
   productFilmFor,
-  productFilmUrl,
   type ViewerApiSuccess,
 } from '@run-apparel/shared'
 import { useEffect, useRef, useState } from 'react'
@@ -110,7 +109,7 @@ export function ProductFilm({ data }: { data: ViewerApiSuccess }) {
         className="product-film__video"
         width={PRODUCT_FILM_SIZE}
         height={PRODUCT_FILM_SIZE}
-        poster={productFilmUrl(film.still)}
+        poster={film.still}
         muted
         loop
         playsInline
@@ -119,8 +118,8 @@ export function ProductFilm({ data }: { data: ViewerApiSuccess }) {
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
       >
-        {near && <source src={productFilmUrl(film.av1)} type={PRODUCT_FILM_TYPES.av1} />}
-        {near && <source src={productFilmUrl(film.h264)} type={PRODUCT_FILM_TYPES.h264} />}
+        {near && <source src={film.av1} type={PRODUCT_FILM_TYPES.av1} />}
+        {near && <source src={film.h264} type={PRODUCT_FILM_TYPES.h264} />}
       </video>
       <figcaption className="product-film__caption">
         <span>{caption}</span>

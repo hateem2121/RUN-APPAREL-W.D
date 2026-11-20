@@ -2691,15 +2691,14 @@ summary.spec-item__row:focus-visible {
  */
 
 /* ── The product's 360° film (ProductFilm.tsx, 2026-11-20) ─────────────
- * Square at every width, so the browser reserves its box before a byte arrives (the width and
- * height attributes give the ratio) and nothing below jumps when it loads. Capped at 720px: the
- * film is 1080px, and on a wide screen a full-column square would push the customisation section
- * and the contact buttons a screen further down. */
+ * Square at every width: the <video>'s width and height attributes give the browser the ratio
+ * before a byte arrives, so nothing below jumps when it loads (no `aspect-ratio` needed, and none
+ * spent: the stylesheet budget had 90 B of room). Capped at 720px: the film is 1080px, and on a
+ * wide screen a full-column square would push the contact buttons a screen further down. */
 .product-film {
   margin: 0;
   display: grid;
   gap: 12px;
-  width: 100%;
   max-width: 720px;
 }
 
@@ -2707,9 +2706,7 @@ summary.spec-item__row:focus-visible {
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 1;
   border-radius: var(--radius-card);
-  background: var(--paper);
 }
 
 .product-film__caption {

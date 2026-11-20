@@ -269,12 +269,23 @@ const REPORT_ONLY = process.argv.includes('--report')
  *   that is all this takes, and the headroom main already had carries over. Decoder, font and
  *   stylesheet read the same in CI as on main. Not measured: whether any later `motion` release drops
  *   the extra code; check its changelog before the next raise.
+ *   ⚠️ 2026-11-20, the soccer balls' 360° films (#435; the owner chose "Raise the limit by 1 KB" over
+ *   dropping the film's Pause button, which WCAG 2.2 SC 2.2.2 requires, or its load-when-on-screen
+ *   rule). On CI's figures: the first push read script 495.8 KB, OVER by 704 B (507,674 B, run
+ *   44762180563, verify job 136377464654), and stylesheet OVER by 1 B. Before asking, the film was
+ *   trimmed: its encode measurements moved to a test-only file (productFilms.measured.ts) and three
+ *   CSS declarations the browser already infers went. This Mac, gzip level 9, before/after the trim:
+ *       script      main 492.9 KB -> branch 493.8 KB -> trimmed 493.6 KB   (the film: about +0.7 KB)
+ *       stylesheet  main 90 B left -> branch 13 B left -> trimmed 29 B left (no raise: CI ~15 B left)
+ *   CI builds this shell about 2.0 KB heavier than this Mac (704 B over against 1.3 KB under, same
+ *   commit), so the trimmed branch is expected about 0.5 KB over in CI; NOT MEASURED until the next run.
+ *       script        budget 506,970 -> 507,994 (+1,024; expected CI headroom about 0.5 KB)
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
  */
 const BUDGETS = {
-  script: { bytes: 506_970, note: 'app chunks + the meshopt decoder every model needs' },
+  script: { bytes: 507_994, note: 'app chunks + the meshopt decoder every model needs' },
   decoder: { bytes: 507_000, note: 'draco + basis — vendored, in dist, never fetched' },
   wasm: {
     bytes: 20_000,
