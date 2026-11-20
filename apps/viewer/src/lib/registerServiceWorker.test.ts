@@ -124,4 +124,40 @@ describe('registerServiceWorker', () => {
     process.off('unhandledRejection', unhandled)
     expect(unhandled).not.toHaveBeenCalled()
   })
+
+  /**
+   * `register` can hand back NOTHING (Sentry VIEWER-N, 20 Nov 2026).
+   *
+   * 10 events in 3 seconds on a live garment page: "Cannot read properties of undefined
+   * (reading 'catch')", unhandled. The breadcrumb 9 ms earlier read "Service Worker registration
+   * blocked by Playwright": an automated browser had swapped `register` for a stand-in that
+   * returns no promise, so the `.catch` chained onto it threw. The fixtures above could not show
+   * it, because every one of them returns a promise.
+   */
+  it('does not throw when register returns nothing', () => {
+    const h = harness({ register: vi.fn(() => undefined) as unknown as () => Promise<unknown> })
+    registerServiceWorker({
+      production: true,
+      navigatorLike: h.navigatorLike,
+      windowLike: h.windowLike,
+    })
+    expect(() => h.fireLoad()).not.toThrow()
+    // The control that the planted stand-in was really used.
+    expect(h.register).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not throw when register throws at once', () => {
+    const h = harness({
+      register: vi.fn(() => {
+        throw new Error('blocked')
+      }),
+    })
+    registerServiceWorker({
+      production: true,
+      navigatorLike: h.navigatorLike,
+      windowLike: h.windowLike,
+    })
+    expect(() => h.fireLoad()).not.toThrow()
+    expect(h.register).toHaveBeenCalledTimes(1)
+  })
 })

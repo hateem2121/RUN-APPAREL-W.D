@@ -1263,7 +1263,8 @@ export function Stage({
       swatch: selected.hexSwatch || null,
       kind: 'full',
       timing: readDyeTiming((token) => getComputedStyle(layer).getPropertyValue(token)),
-      after: picture.decode().catch(() => undefined),
+      // `Promise.resolve`: a stand-in `decode` can return nothing (VIEWER-N, 20 Nov 2026).
+      after: Promise.resolve(picture.decode()).catch(() => undefined),
     })
     return () => run.cancel()
   }, [hdUrl, selected.slug, selected.hexSwatch])
@@ -1295,7 +1296,8 @@ export function Stage({
       // A skipped transition (two quick presses, a tab sent to the back) rejects `ready`, which
       // reached Sentry as an uncaught error from the theme switch (VIEWER-9, lib/theme.ts says
       // more); the swap itself has already happened, so it is not one.
-      void document.startViewTransition(swap).ready.catch(() => {})
+      // Optional links, as lib/theme.ts has them: a stand-in can return nothing (VIEWER-N, 20 Nov).
+      void document.startViewTransition(swap)?.ready?.catch(() => {})
     } else {
       swap()
     }

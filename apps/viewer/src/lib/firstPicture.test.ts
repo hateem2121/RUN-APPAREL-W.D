@@ -73,6 +73,21 @@ describe('the opening screen waits for the garment picture (12 Nov 2026, B2)', (
     expect(fakeImage.crossOrigin).toBe('')
     vi.unstubAllGlobals()
   })
+
+  // Sentry VIEWER-N (20 Nov 2026): an automated browser's stand-in for a browser call returned no
+  // promise. A `decode()` that does the same must still let the opening screen leave.
+  it('still settles when decode() hands back nothing', async () => {
+    const decode = vi.fn(() => undefined)
+    vi.stubGlobal(
+      'Image',
+      vi.fn(function makeImage() {
+        return { crossOrigin: '', src: '', decode }
+      }),
+    )
+    await expect(waitForFirstPicture({ src: 'https://m/x.webp' }, 1500)).resolves.toBe('decoded')
+    expect(decode).toHaveBeenCalledTimes(1)
+    vi.unstubAllGlobals()
+  })
 })
 
 describe('the wait never outlasts its allowance (review M6, M5; 13 Nov 2026)', () => {

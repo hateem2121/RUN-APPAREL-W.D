@@ -25,7 +25,9 @@ function loadPicture(request: PictureRequest): Promise<void> {
   const picture = new Image()
   if (request.crossOrigin) picture.crossOrigin = request.crossOrigin
   picture.src = request.src
-  return picture.decode()
+  // `Promise.resolve`, because a stand-in for a browser call can return nothing (Sentry VIEWER-N,
+  // 20 Nov 2026, lib/registerServiceWorker.ts): chaining onto `undefined` would throw.
+  return Promise.resolve(picture.decode())
 }
 
 export function waitForFirstPicture(

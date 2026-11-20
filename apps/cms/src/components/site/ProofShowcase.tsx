@@ -284,7 +284,8 @@ function useArrivingStill(
     } else {
       const image = new Image()
       image.src = still.src
-      image.decode().then(arrive, arrive)
+      // `Promise.resolve`: a stand-in `decode` can return nothing (Sentry VIEWER-N, 20 Nov 2026).
+      Promise.resolve(image.decode()).then(arrive, arrive)
     }
     return () => {
       alive = false

@@ -177,7 +177,8 @@ export default function HdImageDialog({
       swatch: selected.hexSwatch || null,
       kind: 'full',
       timing: readDyeTiming((token) => getComputedStyle(layer).getPropertyValue(token)),
-      after: picture.decode().catch(() => undefined),
+      // `Promise.resolve`: a stand-in `decode` can return nothing (VIEWER-N, 20 Nov 2026).
+      after: Promise.resolve(picture.decode()).catch(() => undefined),
     })
     run.finished.then(() => picture.removeAttribute('data-dyeing'))
     return () => {

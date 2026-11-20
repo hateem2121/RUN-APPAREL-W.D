@@ -82,7 +82,20 @@ export function registerServiceWorker(options: RegisterOptions = {}): boolean {
     // A rejected registration must never reach the error boundary. Offline caching
     // is an enhancement; the page works without it, and a visitor whose browser
     // refuses the worker should see the garment, not a branded failure screen.
-    navigatorLike.serviceWorker.register(SERVICE_WORKER_URL, scopeFor(pathname)).catch(() => {})
+    //
+    // ⚠️ `register` IS NOT ALWAYS THE BROWSER'S OWN (Sentry VIEWER-N, 20 Nov 2026: 10 unhandled
+    // "Cannot read properties of undefined (reading 'catch')" in 3 seconds on a live garment
+    // page). The breadcrumb 9 ms before read "Service Worker registration blocked by
+    // Playwright": an automated browser had replaced `register` with a stand-in that returned
+    // no promise, so chaining `.catch` straight onto the call threw. `Promise.resolve` takes
+    // whatever comes back, and the `try` covers a stand-in that throws at once.
+    try {
+      Promise.resolve(
+        navigatorLike.serviceWorker.register(SERVICE_WORKER_URL, scopeFor(pathname)),
+      ).catch(() => {})
+    } catch {
+      // Refused outright: the page works without the offline shell.
+    }
   })
   return true
 }
