@@ -257,7 +257,8 @@ export const PRESS_PAGE: CompanyPage = {
   path: '/press',
   title: 'Press',
   metaTitle: 'Press Kit: Facts, Photos and Media Contact',
-  description: 'Facts, photos and a contact for anyone writing about RUN APPAREL.',
+  description:
+    'Company facts, photographs and a direct media contact for journalists and anyone writing about RUN APPAREL, a sportswear manufacturer in Pakistan.',
   eyebrow: '[ Press ]',
   heading: 'For journalists, researchers,',
   headingAccent: 'and the curious.',

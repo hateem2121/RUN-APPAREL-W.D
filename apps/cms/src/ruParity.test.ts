@@ -93,6 +93,14 @@ const IDENTITY = new Set([
   'number',
 ])
 
+/**
+ * Keys one language may have without the other. `metaTitle` is a shorter `<title>` for search
+ * results only (`metaTitleOf`), needed where ONE language's title runs long: the Russian fibers
+ * guide's title was 71 characters with the suffix (Ahrefs "too long", 19 Nov 2026) while its
+ * English twin fits. The page still says the same; only the search result's title is shorter.
+ */
+const ONE_SIDED = new Set(['metaTitle'])
+
 /** The figures of an English string: "6,894.757" is 6894.757, "100,000" is 100000. */
 const englishFigures = (text: string) =>
   text.replace(/(\d),(?=\d{3}\b)/g, '$1').match(/\d+(?:\.\d+)?/g) ?? []
@@ -137,8 +145,10 @@ function sameShape(en: unknown, ru: unknown, at = '$', problems: string[] = []):
   if (en && typeof en === 'object') {
     if (!ru || typeof ru !== 'object')
       return [...problems, `${at}: an object in English, not in Russian`]
-    const enKeys = Object.keys(en).sort()
-    const ruKeys = Object.keys(ru).sort()
+    // A key in ONE_SIDED may be on one side only; where both have it, it is compared as usual.
+    const both = (key: string) => !ONE_SIDED.has(key) || (key in en && key in ru)
+    const enKeys = Object.keys(en).filter(both).sort()
+    const ruKeys = Object.keys(ru).filter(both).sort()
     if (enKeys.join() !== ruKeys.join())
       problems.push(`${at}: keys ${enKeys.join(',')} in English, ${ruKeys.join(',')} in Russian`)
     for (const key of enKeys) {

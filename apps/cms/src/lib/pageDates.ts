@@ -114,7 +114,8 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/guides': page(SEARCH_WORDING, '0b0fc05abcb9'),
   '/policies': page(SOLAR_83, '588f4d10159e'),
   '/community': page(SITE_CHECK, '36f3ce5c8098'),
-  '/press': page(WAVE_ONE, '7e4f664702ee'),
+  // A longer search description, approved by the owner on 20 Nov 2026 (Ahrefs "too short", 65 characters).
+  '/press': page('2026-11-20T09:28:50+05:00', '0940ba624478'),
   '/faq': page(PRICE_TERMS, '5538ae04c15c'),
   '/faq/orders-and-samples': page(LIBRARY, 'b639076d64e1'),
   '/faq/quality-and-certifications': page(HELD_GUIDES, '2cc85d4d4a71'),
