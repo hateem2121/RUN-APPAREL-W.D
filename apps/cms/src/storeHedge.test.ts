@@ -294,15 +294,17 @@ describe('hedgeOn', () => {
  * worker.mjs imports cloudflare:workers and the built site, so it is read as text, the way
  * pageCopy.test.ts and pageCache.test.ts check it.
  */
-describe('worker.mjs hedges a page and a tap miss', () => {
-  const worker = readFileSync(join(import.meta.dirname, '..', 'worker.mjs'), 'utf8')
+describe('siteEdge.mjs hedges a page and a tap miss', () => {
+  // worker.mjs held these steps until 20 Nov 2026; siteEdge.mjs holds them for it and the front door.
+  const worker = readFileSync(join(import.meta.dirname, '..', 'siteEdge.mjs'), 'utf8')
+  const entry = readFileSync(join(import.meta.dirname, '..', 'worker.mjs'), 'utf8')
   const pages = worker.slice(
     worker.indexOf('async function fromSharedStore'),
     worker.indexOf('async function fromTapStore'),
   )
   const taps = worker.slice(
     worker.indexOf('async function fromTapStore'),
-    worker.indexOf('export default {'),
+    worker.indexOf('export function sendPage'),
   )
 
   it('asks the store through hedgedAnswer, only for a hedgeable request with the switch on', () => {
@@ -311,12 +313,16 @@ describe('worker.mjs hedges a page and a tap miss', () => {
       // No KV wait between the timer starting and the store being asked (11 Nov 2026).
       expect(part).not.toMatch(/await hedgeOn/)
       expect(part).toMatch(/await hedgedAnswer\(\{\s+askStore,/)
-      expect(part).toMatch(/drawDirect: \(\) => openNext\.fetch\(request, env, ctx\),/)
+      expect(part).toMatch(/drawDirect: \(\) => edge\.draw\(request, env, ctx\),/)
       expect(part).toMatch(/headStartMs: HEDGE_HEAD_START_MS,/)
       expect(part).toMatch(/waitUntil: \(p\) => ctx\.waitUntil\(p\),/)
       // Not hedged: exactly the path before the hedge.
       expect(part).toMatch(/\} else \{\s+kept = await askStore\(\)\s+\}/)
     }
+  })
+
+  it('the site Worker draws directly with OpenNext', () => {
+    expect(entry).toMatch(/draw: \(request, env, ctx\) => openNext\.fetch\(request, env, ctx\),/)
   })
 
   it('still never follows a redirect from the store', () => {

@@ -1,0 +1,62 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // THE FRONT DOOR (door.mjs, 20 Nov 2026): the small Worker Cloudflare runs before the site's own
+  // (run-apparel-viewer-cms, wrangler.jsonc) on the routes below. door.mjs says why and how; the
+  // short of it is that the site's Worker takes 1.2 to 2.0 s to start and this one does not.
+  "name": "run-apparel-site-door",
+  "main": "door.mjs",
+  // Reached only by its routes: no workers.dev address and no per-version preview address.
+  "workers_dev": false,
+  "preview_urls": false,
+  "compatibility_date": "2026-10-23",
+  // pageCache.mjs imports node:async_hooks (the kept-drawing mark the site's Worker uses).
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "upload_source_maps": false,
+  // serveViewerApi (viewerApiCache.mjs) answers only inside a deployed Worker, which it tells by
+  // this binding. No key is named by this Worker's version (door.mjs, "THE WEBSITE BUILD'S NAME").
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+  // ⚠️ ROUTES, NEVER CUSTOM DOMAINS. A Worker on a route runs BEFORE the Worker that holds the
+  // address as a Custom Domain, and that Worker stays the origin behind it. A Custom Domain here
+  // would TAKE the address from the site's Worker (wrangler.jsonc's routes say how that goes).
+  // src/workerConfigs.test.ts pins both halves.
+  //
+  // UNDO: delete these routes (dashboard: Workers Routes on each zone, or deploy this file with an
+  // empty list). The site's Worker then answers every request itself, exactly as before.
+  //
+  // STAGE 1 (this list): the garment pages, the viewer's files and the garment data. Every one is
+  // either handed straight to the viewer Worker or answered from the store's garment data, so the
+  // website's pages are not touched yet. `wear-run.com/products/*` does not match `/products`
+  // itself (the website's list page), and anything under it that is not a garment page is handed
+  // on (viewerForward.mjs decides, as it does in the site's Worker).
+  "routes": [
+    { "pattern": "wear-run.com/products/*", "zone_name": "wear-run.com" },
+    { "pattern": "wear-run.com/ru/products/*", "zone_name": "wear-run.com" },
+    { "pattern": "wear-run.com/assets/*", "zone_name": "wear-run.com" },
+    { "pattern": "wear-run.com/basis/*", "zone_name": "wear-run.com" },
+    { "pattern": "wear-run.com/draco/*", "zone_name": "wear-run.com" },
+    { "pattern": "wear-run.com/env/*", "zone_name": "wear-run.com" },
+    { "pattern": "wear-run.com/og/*", "zone_name": "wear-run.com" },
+    { "pattern": "wear-run.com/meshopt_decoder.js", "zone_name": "wear-run.com" },
+    { "pattern": "wear-run.com/sw.js", "zone_name": "wear-run.com" },
+    { "pattern": "cms.wear-run.help/api/public/viewer/*", "zone_name": "wear-run.help" }
+  ],
+  "services": [
+    // The garment pages and the viewer's files, as the site's Worker forwards them.
+    { "binding": "VIEWER", "service": "run-apparel-viewer-site" },
+    // The shared store: Workers Cache in front of the site Worker's SitePages entrypoint. A kept
+    // copy is answered without running that Worker; a miss runs SitePages, which draws.
+    { "binding": "SITE_PAGES", "service": "run-apparel-viewer-cms", "entrypoint": "SitePages" }
+  ],
+  // The same namespace as the site's Worker: the store's switches, the content version, and the
+  // door's own off switch (`front-door` = `off`, door.mjs). Read only.
+  "kv_namespaces": [{ "binding": "SITE_CACHE", "id": "68732140e2544366a8d0c0d0cc8a48cc" }],
+  // The shared page copy (pageCopy.mjs): read when a region's store does not hold a page yet.
+  "r2_buckets": [{ "binding": "PAGE_COPIES", "bucket_name": "run-apparel-page-copies" }],
+  "vars": {
+    // The same three values as wrangler.jsonc; src/workerConfigs.test.ts holds them equal.
+    "PAGE_COPY": "on",
+    "STORE_HEDGE": "on",
+    "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help,https://wear-run.help,https://wear-run.com"
+  }
+}

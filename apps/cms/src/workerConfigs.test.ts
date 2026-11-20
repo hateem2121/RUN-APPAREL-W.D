@@ -471,8 +471,11 @@ describe('the site Worker entry runs the script guard (SE-04, 2026-09-18)', () =
   it('worker.mjs re-exports everything OpenNext exports and applies the pure decisions', () => {
     const entry = read('apps/cms/worker.mjs')
     expect(entry).toContain("export * from './.open-next/worker.js'")
-    expect(entry).toContain("from './cspNonce.mjs'")
-    expect(entry).toContain('new HTMLRewriter()')
+    // The decisions are applied in siteEdge.mjs since 20 Nov 2026 (shared with the front door).
+    expect(entry).toContain("from './siteEdge.mjs'")
+    const edge = read('apps/cms/siteEdge.mjs')
+    expect(edge).toContain("from './cspNonce.mjs'")
+    expect(edge).toContain('new HTMLRewriter()')
   })
 
   it('the main reader can fail (negative control)', () => {

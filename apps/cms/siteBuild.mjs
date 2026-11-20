@@ -32,7 +32,7 @@
  */
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -62,6 +62,19 @@ export const SITE_BUILD_PATTERN = /^site-[0-9a-f]{20}\.[0-9a-f]{12}$/
 /** Where OpenNext leaves the build ID and the built files (relative to apps/cms). */
 export const BUILD_ID_FILE = '.open-next/server-functions/default/apps/cms/.next/BUILD_ID'
 export const ASSETS_DIR = '.open-next/assets/_next/static'
+
+/**
+ * The build's name as a FILE among the site's static files (front door, 20 Nov 2026): the door
+ * Worker (door.mjs) asks for `/__site-build.txt` to learn which website build is live. It is a
+ * static file on purpose: Cloudflare serves it with the deployed version's other files and without
+ * starting the site's Worker, so it changes at the very moment the pages' script files do, and a
+ * door that is a separate deploy can never name the wrong build. Outside `_next/static`, so it is
+ * not one of the file names the fingerprint is made from. The name is already public: every page
+ * answers with it in `Server-Timing`.
+ */
+export const SITE_BUILD_ASSET = '.open-next/assets/__site-build.txt'
+/** What the file says when the build carries no fingerprint: the door then hands every page on. */
+export const NO_SITE_BUILD = 'per-deploy'
 
 const sha256 = (text) => createHash('sha256').update(text).digest('hex')
 
@@ -115,11 +128,25 @@ export function siteBuildKeyOf(cmsDir = HERE) {
   return siteBuildKey(readFileSync(idFile, 'utf8').trim(), builtFileNames(assets))
 }
 
+/**
+ * Write the build's name where the door reads it; returns what it wrote. Nothing is written when
+ * there is no built site to put it in.
+ */
+export function writeSiteBuildAsset(cmsDir = HERE) {
+  const assets = join(cmsDir, dirname(SITE_BUILD_ASSET))
+  if (!existsSync(assets)) return null
+  const name = siteBuildKeyOf(cmsDir) ?? NO_SITE_BUILD
+  writeFileSync(join(cmsDir, SITE_BUILD_ASSET), name)
+  return name
+}
+
 /*
  * `node siteBuild.mjs` prints the `--var` argument for `wrangler deploy` (package.json "deploy"), or
  * a variable that keys by the deploy when the build carries no fingerprint. It prints only the key,
  * which is a hash of public source: nothing secret can reach the public Actions log this way.
+ * The same run writes the name among the static files (writeSiteBuildAsset), so the Worker's
+ * variable and the file the front door reads are one value from one command and cannot differ.
  */
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  process.stdout.write(`SITE_BUILD:${siteBuildKeyOf() ?? 'per-deploy'}`)
+  process.stdout.write(`SITE_BUILD:${writeSiteBuildAsset() ?? siteBuildKeyOf() ?? NO_SITE_BUILD}`)
 }

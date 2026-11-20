@@ -782,16 +782,17 @@ describe('what the cache relies on', () => {
     expect(await keptStoreKey('https://wear-run.com/about', 'deploy-A', kv)).not.toBe(
       await keptStoreKey('https://wear-run.com/about', 'deploy-B', kv),
     )
-    // worker.mjs builds every page and tap key from the deploy id, never from anything else.
+    // siteEdge.mjs builds every page and tap key from the deploy id, never from anything else.
     // keptStoreKeys (10 Nov 2026, shared page copy) is the same key plus what it read.
-    const pageAndTapKeys = [...worker.matchAll(/kept(?:Tap)?StoreKeys?\(([^)]*)\)/g)].map(
-      (m) => m[1],
-    )
+    const pageAndTapKeys = [...edge.matchAll(/kept(?:Tap)?StoreKeys?\(([^)]*)\)/g)].map((m) => m[1])
     expect(pageAndTapKeys.length).toBeGreaterThanOrEqual(2)
     for (const args of pageAndTapKeys) expect(args).toMatch(/,\s*deploy,/)
   })
 
   const worker = readFileSync(join(import.meta.dirname, '..', 'worker.mjs'), 'utf8')
+  // The steps around the store moved to siteEdge.mjs on 20 Nov 2026, word for word, so the front
+  // door (door.mjs) applies the same ones; what these tests pin moved with them.
+  const edge = readFileSync(join(import.meta.dirname, '..', 'siteEdge.mjs'), 'utf8')
   it('worker.mjs exports the cached entrypoint and no longer keeps pages in the per-data-centre cache', () => {
     expect(worker).toMatch(/export class SitePages extends WorkerEntrypoint/)
     expect(worker).not.toMatch(/caches\.default/)
@@ -823,10 +824,10 @@ describe('what the cache relies on', () => {
    * A redirect from the store is dropped instead, and the visitor's own request is drawn as it was
    * before the store; a real redirect is never kept, so nothing that worked is lost.
    */
-  it('worker.mjs never hands a visitor a redirect from the tap store', () => {
-    const start = worker.indexOf('async function fromTapStore(')
-    expect(start, 'worker.mjs has no fromTapStore').toBeGreaterThan(-1)
-    const method = worker.slice(start, worker.indexOf('\n}\n', start))
+  it('siteEdge.mjs never hands a visitor a redirect from the tap store', () => {
+    const start = edge.indexOf('async function fromTapStore(')
+    expect(start, 'siteEdge.mjs has no fromTapStore').toBeGreaterThan(-1)
+    const method = edge.slice(start, edge.indexOf('\n}\n', start))
     const guard =
       /if \(kept\.status >= 300 && kept\.status < 400\) \{\s*await kept\.body\?\.cancel\(\)\s*return null\s*\}/
     expect(method).toMatch(guard)
@@ -837,23 +838,23 @@ describe('what the cache relies on', () => {
     expect(method.search(guard)).toBeLessThan(served)
   })
 
-  it('worker.mjs keys every lookup through keptStoreKey and answers a HEAD without a body', () => {
-    expect(worker).not.toMatch(/CONTENT_VERSION_KEY/)
-    expect(worker).toMatch(
+  it('siteEdge.mjs keys every lookup through keptStoreKey and answers a HEAD without a body', () => {
+    expect(edge).not.toMatch(/CONTENT_VERSION_KEY/)
+    expect(edge).toMatch(
       /await keptStoreKeys?\(\s*request\.url,\s*deploy,\s*env\.SITE_CACHE,\s*env\.CF_VERSION_METADATA\?\.id,?\s*\)/,
     )
     // The build, not the deploy, names a kept page (keptBuild, 4 Nov 2026), for pages and taps.
-    expect(worker.match(/const deploy = keptBuild\(env\)/g)).toHaveLength(2)
-    expect(worker).not.toMatch(/const deploy = env\.CF_VERSION_METADATA/)
-    expect(worker).toMatch(/storeLookupRequest\(request\)/)
-    expect(worker).toMatch(/request\.method === 'HEAD' \? null : kept\.body/)
+    expect(edge.match(/const deploy = keptBuild\(env\)/g)).toHaveLength(2)
+    expect(edge).not.toMatch(/const deploy = env\.CF_VERSION_METADATA/)
+    expect(edge).toMatch(/storeLookupRequest\(request\)/)
+    expect(edge).toMatch(/request\.method === 'HEAD' \? null : kept\.body/)
   })
 
-  it('worker.mjs asks the store never to follow a redirect', () => {
+  it('siteEdge.mjs asks the store never to follow a redirect', () => {
     // Every call, with or without a nested call inside: the page call became `store.fetch(clean,
     // …)` on 10 Nov 2026 (shared page copy), which the old pattern skipped without failing.
-    const calls = [...worker.matchAll(/store\.fetch\(((?:[^()]|\([^()]*\))*)\)/g)].map((m) => m[1])
-    expect(calls.length).toBe((worker.match(/store\.fetch\(/g) ?? []).length)
+    const calls = [...edge.matchAll(/store\.fetch\(((?:[^()]|\([^()]*\))*)\)/g)].map((m) => m[1])
+    expect(calls.length).toBe((edge.match(/store\.fetch\(/g) ?? []).length)
     expect(calls.length).toBeGreaterThan(0)
     for (const call of calls) expect(call).toMatch(/redirect:\s*'manual'/)
   })
@@ -863,14 +864,14 @@ describe('what the cache relies on', () => {
    * every hit, and nothing measured a hit INSIDE the Worker (measure-taps' numbers carry the
    * network too). Each store answer logs its time, for pages and for taps alike.
    */
-  it('worker.mjs logs how long each store answer took, for pages and for taps', () => {
+  it('siteEdge.mjs logs how long each store answer took, for pages and for taps', () => {
     for (const [name, kind] of [
       ['async function fromSharedStore(', 'page'],
       ['async function fromTapStore(', 'tap'],
     ] as const) {
-      const start = worker.indexOf(name)
-      expect(start, `worker.mjs has no ${name}`).toBeGreaterThan(-1)
-      const method = worker.slice(start, worker.indexOf('\n}\n', start))
+      const start = edge.indexOf(name)
+      expect(start, `siteEdge.mjs has no ${name}`).toBeGreaterThan(-1)
+      const method = edge.slice(start, edge.indexOf('\n}\n', start))
       const clock = method.indexOf('const askedAt = Date.now()')
       // The store is asked through askStore (storeHedge.mjs, 11 Nov 2026), hedged or not.
       const asked = method.indexOf('const askStore = ')

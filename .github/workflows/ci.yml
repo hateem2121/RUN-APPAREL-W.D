@@ -1751,6 +1751,22 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @run-apparel/cms exec wrangler triggers deploy
 
+      # THE FRONT DOOR (apps/cms/door.mjs, 20 Nov 2026): the 38 KiB Worker Cloudflare runs before the
+      # site's own on the routes in apps/cms/wrangler.door.jsonc, so a kept page never waits 1.2 to
+      # 2.0 s for the 40.8 MiB one to start. AFTER the site's Worker is at 100%: its bindings name
+      # that Worker's SitePages entrypoint and the viewer, and a binding to a Worker that does not
+      # exist fails the deploy. A plain `wrangler deploy`, which also applies its routes; it is NOT
+      # staged at 0% like the two above, because it has no address of its own to check it on. What
+      # makes that safe: it hands on every request it is not sure of, it hands a pre-live check on
+      # whole (the version-override header), and the checks below this step all pass through it.
+      # UNDO: delete its routes (the site's Worker then answers every request itself), or set KV
+      # `front-door` = `off`. It prints its bindings and routes: names only, nothing secret.
+      - name: Deploy the front door (the small Worker in front of the site)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter @run-apparel/cms exec wrangler deploy --config wrangler.door.jsonc --message "${GITHUB_SHA:0:7}@${GITHUB_REF_NAME}"
+
       # A pre-live check failed: the new versions sit at 0% and nobody received them. Take them out
       # of the deployment so the next deploy starts from a single live version (stage refuses a split).
       - name: Undo the staging (a pre-live check failed; nothing reached visitors)
