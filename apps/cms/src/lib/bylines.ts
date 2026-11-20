@@ -177,6 +177,11 @@ const SEARCH_WORDING = '2026-11-15T11:30:02+05:00'
  * 2026-11-07T00:05:06+05:00).
  */
 const SECP_ABROAD_NOTE = '2026-11-15T13:39:31+05:00'
+/**
+ * A stray paragraph removed from the vetting guide, "activewear brand." on its own after the list of
+ * what we can show (live since #331, 5 Nov; found 20 Nov 2026, owner approved the removal).
+ */
+const STRAY_LINE_REMOVED = '2026-11-20T10:41:27+05:00'
 /*
  * The fabrics guide's fiber list after the wave-2 fact check (owner approved, 2026-11-05): "bamboo" is
  * gone (the FTC: most bamboo textiles are rayon) and nylon is "strong and hard-wearing". Its date is
@@ -255,8 +260,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-to-vet-a-clothing-manufacturer': byline(
     AUTHORS.merchandiser,
     LIBRARY,
-    SECP_ABROAD_NOTE,
-    '3da920f37d0e',
+    STRAY_LINE_REMOVED,
+    '36a13e31ea22',
   ),
   '/guides/clothing-labels': byline(AUTHORS.merchandiser, LIBRARY, GUIDE_PHOTOS, '55969ba4932a'),
   '/guides/apparel-trims': byline(AUTHORS.production, LIBRARY, TRIMS_SOURCE, '2356141baad0'),

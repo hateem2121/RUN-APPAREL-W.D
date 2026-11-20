@@ -293,7 +293,6 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
               'A visit. Come and see the stitching floor and the rest of the works, or ask us for a video call.',
             ],
           },
-          { kind: 'text', text: 'activewear brand.' },
         ],
       },
     ],
