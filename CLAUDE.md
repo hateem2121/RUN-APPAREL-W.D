@@ -142,7 +142,7 @@ this file comes back; a hook names the others.
   `apps/viewer/CLAUDE.md` indexes them and keeps what every viewer session needs.
 - **The pipeline's 24 traps are in three `pipeline-*` path rules** (table below); read
   `tools/asset-pipeline/CLAUDE.md` before changing any preset, threshold or export setting.
-- **Thirteen more traps live in `apps/cms/CLAUDE.md`** — Payload and its gotchas; the
+- **Fourteen more traps live in `apps/cms/CLAUDE.md`** — Payload and its gotchas; the
   website and scripted product writes are in `cms-*` path rules.
 - **Seventeen more traps live in `.github/CLAUDE.md`** — workflows, the ruleset, and
   reading CI.

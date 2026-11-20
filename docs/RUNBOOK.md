@@ -332,6 +332,32 @@ second deploy is refused while the first still holds it. `scripts/apex-probe.mjs
 then FAIL on the apex root (it expects the site), which is correct and is the reminder to
 revert this section's steps in the repo too.
 
+### The front door: switching it off
+
+Since 20 Nov 2026 a small Worker, `run-apparel-site-door` (`apps/cms/door.mjs`), runs in front
+of the site's Worker on the routes listed in `apps/cms/wrangler.door.jsonc`. It answers a page
+the store already holds without the site's 40.8 MiB Worker having to start, sends garment pages
+straight to the viewer Worker, and hands everything else on untouched.
+
+If a page looks wrong and the door is suspected, switch it off first and look second. Two ways,
+fastest first:
+
+1. **No deploy, about 30 seconds:** in Cloudflare, Workers KV, the `SITE_CACHE` namespace, add
+   the key `front-door` with the value `off`. The door then hands every website page and every
+   garment-data request on to the site's Worker. Garment pages still go to the viewer Worker, as
+   the site's Worker would send them. Delete the key to switch the door back on.
+2. **Remove it from the path altogether:** in Cloudflare, on the `wear-run.com` zone and the
+   `wear-run.help` zone, Workers Routes, delete the routes that name `run-apparel-site-door`. The
+   site's Worker keeps its Custom Domains, so it answers every request itself at once, exactly as
+   before the door. The next deploy puts the routes back unless the `routes` list in
+   `apps/cms/wrangler.door.jsonc` is emptied in the same change.
+
+To check which Worker answered: a kept website page says `page-cache;desc="hit"` in its
+`Server-Timing` header either way, so compare times instead. The first request after 5 quiet
+minutes takes about 1 to 1.5 s through the site's Worker alone (probes of 20 Nov 2026, US and
+Australia). Through the door it was NOT yet measured when this was written; the host that
+already skips the site's Worker answered the same probes in 38 to 57 ms.
+
 ### ⚠️ Rollback does not undo a database migration
 
 `ci.yml` applies pending D1 migrations **before** the Workers deploy, in a

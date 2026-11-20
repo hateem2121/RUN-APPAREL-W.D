@@ -315,11 +315,13 @@ describe('worker.mjs and wrangler.jsonc wire the copy in', () => {
   })
 
   it('the default entrypoint names the copy from what the store key read', () => {
-    expect(worker).toMatch(/await keptStoreKeys\(/)
-    expect(worker).toMatch(
+    // In siteEdge.mjs since 20 Nov 2026 (the steps the site Worker and the front door share).
+    const edge = readFileSync(join(cms, 'siteEdge.mjs'), 'utf8')
+    expect(edge).toMatch(/await keptStoreKeys\(/)
+    expect(edge).toMatch(
       /clean\.headers\.set\(COPY_KEY_HEADER, copyKey\(clean\.url, named, contentVersion\)\)/,
     )
-    expect(worker).toMatch(/store\.fetch\(clean, \{ cf, redirect: 'manual' \}\)/)
+    expect(edge).toMatch(/store\.fetch\(clean, \{ cf, redirect: 'manual' \}\)/)
   })
 
   const wrangler = JSON.parse(
