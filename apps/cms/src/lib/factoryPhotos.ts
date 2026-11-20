@@ -251,6 +251,28 @@ export const WHOLE_PHOTOS: readonly WholePhoto[] = [
     widths: [640, 1280, 1920, 2560],
     alt: 'Rows of workers stitching soccer balls by hand at white benches in a long, bright hall.',
   },
+  // Three guide photos (owner, 2026-11-19), each the whole background of the section that names it:
+  // the yarn guide's spun and filament cones, the outerwear guide's taped seams, the labels guide's
+  // three label kinds. The files are the owner's screenshots; `WHOLE_SOURCES` in the script says
+  // why, and what the owner chose to keep in two of them.
+  {
+    slug: 'whole-yarn-cones',
+    ratio: [2302, 1536],
+    widths: [640, 1280, 1920, 2302],
+    alt: 'A cone of spun cotton yarn beside a cone of filament polyester yarn, each labeled with its count.',
+  },
+  {
+    slug: 'whole-taped-seams',
+    ratio: [2302, 1536],
+    widths: [640, 1280, 1920, 2302],
+    alt: 'The inside of a jacket laid open: stitched seams with no tape on one side, seams sealed with tape on the other.',
+  },
+  {
+    slug: 'whole-neck-labels',
+    ratio: [2070, 1544],
+    widths: [640, 1280, 2070],
+    alt: 'Three RUN APPAREL neck labels side by side: a woven label, a printed satin label and a tagless label printed inside the collar.',
+  },
 ]
 
 /**

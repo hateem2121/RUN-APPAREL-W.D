@@ -271,6 +271,32 @@ export const WHOLE_SOURCES = [
       [0.91, 0.13, 1, 0.26],
     ],
   },
+  /*
+   * Three guide photos (owner, 2026-11-19). The owner has no camera originals of these, so the
+   * files are the screenshots they keep (2,070–2,302 px wide; "use the screenshots"), and no width
+   * passes that. Two are used knowingly as they are: the labels photo prints "EST. 1992" on the
+   * woven label while /about dates RUN later (owner: "Use it as it is"), and the seam photo carries
+   * its own captions and arrows (owner: "Use it as it is"). The same day the owner ruled out a
+   * cutting-line picture that was made with AI, so only these three are here.
+   */
+  {
+    slug: 'whole-yarn-cones',
+    file: 'spun cotton vs filament polyester yarn cone.png',
+    original: [2302, 1536],
+    widths: [640, 1280, 1920, 2302],
+  },
+  {
+    slug: 'whole-taped-seams',
+    file: 'Seam vs No Seam.png',
+    original: [2302, 1536],
+    widths: [640, 1280, 1920, 2302],
+  },
+  {
+    slug: 'whole-neck-labels',
+    file: 'Different Neck Labels.png',
+    original: [2070, 1544],
+    widths: [640, 1280, 2070],
+  },
 ]
 
 /** How strongly a `blur` box is softened, in pixels of the original (5,482 px wide for the hall). */

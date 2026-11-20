@@ -428,7 +428,21 @@ describe('a guide shows a factory photo only beside words that name it (polish X
       'whole-stitching',
       'stitching floor',
     ],
+    // The owner's three guide photos (2026-11-19), each behind words that name what it shows.
+    [
+      '/guides/clothing-labels',
+      'Woven, printed or tagless labels',
+      'whole-neck-labels',
+      'woven labels, printed labels and tagless',
+    ],
+    ['/guides/yarn-count-and-denier', 'Spun or filament yarn', 'whole-yarn-cones', 'filament'],
     ['/guides/stitch-and-seam-types', 'On our floor', 'whole-stitching', 'Our stitching floor'],
+    [
+      '/guides/outerwear-and-waterproof-fabrics',
+      'Sealed seams',
+      'whole-taped-seams',
+      'Taped seams',
+    ],
     [
       '/guides/apparel-manufacturing-machinery',
       'What are the main types of industrial sewing machine?',

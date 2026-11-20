@@ -61,6 +61,15 @@ export const FACTORY_PHOTO_TEXT_RU: Readonly<Record<string, FactoryPhotoTextRu>>
   'whole-ball-stitching': {
     alt: 'Ряды работников вручную сшивают футбольные мячи за белыми столами в длинном светлом цехе.',
   },
+  'whole-yarn-cones': {
+    alt: 'Бобина штапельной хлопковой пряжи рядом с бобиной комплексной полиэфирной нити, на каждой указан номер.',
+  },
+  'whole-taped-seams': {
+    alt: 'Изнанка развёрнутой куртки: с одной стороны швы только прострочены, с другой закрыты герметизирующей лентой.',
+  },
+  'whole-neck-labels': {
+    alt: 'Три этикетки RUN APPAREL рядом: тканая, печатная атласная и бесшовная, напечатанная внутри горловины.',
+  },
 }
 
 /** `HERO_PHOTO.alt`: the home hero, the stitching floor. */

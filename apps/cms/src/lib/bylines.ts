@@ -137,6 +137,12 @@ const TECH_PACK_AND_TOOLS = '2026-11-06T20:34:06+05:00'
  */
 const FRANCE_KNIT_LINE = '2026-11-07T12:23:35+05:00'
 /**
+ * The owner's three guide photos (2026-11-19): the yarn cones, the taped seams and the neck labels,
+ * each the whole background of the section that names it. The words did not change; a page's date
+ * follows what it shows, and the photos are part of that.
+ */
+const GUIDE_PHOTOS = '2026-11-19T19:44:55+05:00'
+/**
  * The three held guides (C2, C3, C7) and the links to them that came back in the stitches and
  * machinery guides (owner approved every word on 2026-11-06). The time the words were committed on
  * `site/held-guides`; it moves again when a team fact is filled in, as the test says.
@@ -252,10 +258,15 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     SECP_ABROAD_NOTE,
     '3da920f37d0e',
   ),
-  '/guides/clothing-labels': byline(AUTHORS.merchandiser, LIBRARY, LIBRARY, '77895275599e'),
+  '/guides/clothing-labels': byline(AUTHORS.merchandiser, LIBRARY, GUIDE_PHOTOS, '55969ba4932a'),
   '/guides/apparel-trims': byline(AUTHORS.production, LIBRARY, TRIMS_SOURCE, '2356141baad0'),
   '/guides/sportswear-fibers': byline(AUTHORS.production, LIBRARY, LIBRARY, '1a47decee35b'),
-  '/guides/yarn-count-and-denier': byline(AUTHORS.production, LIBRARY, LIBRARY, '961eae748c05'),
+  '/guides/yarn-count-and-denier': byline(
+    AUTHORS.production,
+    LIBRARY,
+    GUIDE_PHOTOS,
+    'a06d09e8b2fc',
+  ),
   '/guides/sportswear-pattern-making': byline(
     AUTHORS.production,
     LIBRARY,
@@ -266,8 +277,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/outerwear-and-waterproof-fabrics': byline(
     AUTHORS.production,
     LIBRARY,
-    LIBRARY,
-    '9daf6c1686f0',
+    GUIDE_PHOTOS,
+    'd496addb82bc',
   ),
   '/guides/dyeing-and-color-matching': byline(AUTHORS.production, LIBRARY, LIBRARY, 'ea6796c8deb0'),
   '/guides/garment-cutting': byline(AUTHORS.production, LIBRARY, LIBRARY, '639a05723561'),
