@@ -164,6 +164,12 @@ export function buildCsp({ html, apiBaseUrl, sentryDsn }) {
     // injection is far lower risk than script injection (which stays hash-locked).
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob: ${apiOrigin} ${ZONE} ${TRACKER_IMG}`,
+    // The products' 360° films (owner, 2026-11-20). Without this line a <video> falls back to
+    // default-src 'self' and is refused. ONE host, not ZONE: the films live only on the media
+    // host, because Safari plays video only from a server that answers Range with 206 and Workers
+    // Static Assets answer 200 (packages/shared/src/productFilms.ts). csp.test.ts ties this host
+    // to PRODUCT_FILM_ORIGIN.
+    `media-src 'self' https://media.wear-run.com`,
     `font-src 'self'`,
     // blob: — the Meshopt decoder builds its worker's source as a Blob and loads
     // it through a blob: URL (meshoptimizer/meshopt_decoder.cjs, initWorkers), and

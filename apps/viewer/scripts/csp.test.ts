@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { TRACKER_CSP } from '@run-apparel/shared'
+import { PRODUCT_FILM_ORIGIN, TRACKER_CSP } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
 import { SHARED_SECURITY_HEADERS, workerResponseHeaders } from '../worker/securityHeaders'
 import { buildCsp, buildHeadersFile } from './csp.mjs'
@@ -503,5 +503,17 @@ describe('the AR comment matches the AR that ships', () => {
     // The header itself, not the comment: the correction must not have quietly
     // widened the policy while explaining it.
     expect(buildHeadersFile({ apiBaseUrl: API, html: '<html></html>' })).toContain('camera=()')
+  })
+})
+
+describe('buildCsp — the products’ 360° films (2026-11-20)', () => {
+  it('lets a <video> load from the host the films are served from, and nowhere else', () => {
+    const media = directive(buildCsp({ html: '', apiBaseUrl: API }), 'media-src')
+    // Tied to the constant the page builds its <source> addresses from, so the two cannot drift:
+    // a film moved to another host without this line is refused, silently, as a black box.
+    expect(media.split(' ')).toEqual(['media-src', "'self'", PRODUCT_FILM_ORIGIN])
+    // The control: the CMS host is in img-src and connect-src, and must NOT be a film source.
+    expect(media).not.toContain('cms.wear-run.help')
+    expect(media).not.toContain('*')
   })
 })
