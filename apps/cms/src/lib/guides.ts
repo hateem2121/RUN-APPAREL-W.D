@@ -169,6 +169,13 @@ export type Guide = {
   readonly path: string
   /** The `<title>`; the layout adds " | RUN APPAREL". */
   readonly title: string
+  /**
+   * A shorter `<title>` for search results only, when `title` is too long there; `title` still names
+   * the guide on its card and in links (`metaTitleOf`). Used once: the Russian fibers guide, whose
+   * title ran 71 characters with the suffix (Ahrefs "too long", 19 Nov 2026); the owner approved the
+   * 68-character one on 20 Nov 2026 and kept the full name on the cards.
+   */
+  readonly metaTitle?: string
   readonly description: string
   /** The one `<h1>`, in two parts: plain, then the single serif accent. */
   readonly heading: string

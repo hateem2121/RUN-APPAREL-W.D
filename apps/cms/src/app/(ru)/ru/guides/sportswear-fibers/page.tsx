@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import { GuidePage } from '../../../../../components/site/GuidePage'
 import { getProductCards } from '../../../../../lib/content'
 import { guideAtRu as guideAt } from '../../../../../lib/i18n/ruNames'
-import { buildMetadata } from '../../../../../lib/seo'
+import { buildMetadata, metaTitleOf } from '../../../../../lib/seo'
 
 /** Rendered per request, like every page here (the layout reads the site settings). */
 export const dynamic = 'force-dynamic'
@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic'
 const PATH = '/guides/sportswear-fibers'
 
 export const metadata: Metadata = buildMetadata({
-  title: guideAt(PATH).title,
+  title: metaTitleOf(guideAt(PATH)),
   description: guideAt(PATH).description,
   path: PATH,
   locale: 'ru',
