@@ -2690,6 +2690,35 @@ summary.spec-item__row:focus-visible {
  * they stay in `tokens.css` for the next elevated surface.
  */
 
+/* ── The product's 360° film (ProductFilm.tsx, 2026-11-20) ─────────────
+ * Square at every width: the <video>'s width and height attributes give the browser the ratio
+ * before a byte arrives, so nothing below jumps when it loads (no `aspect-ratio` needed, and none
+ * spent: the stylesheet budget had 90 B of room). Capped at 720px: the film is 1080px, and on a
+ * wide screen a full-column square would push the contact buttons a screen further down. */
+.product-film {
+  margin: 0;
+  display: grid;
+  gap: 12px;
+  max-width: 720px;
+}
+
+.product-film__video {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-card);
+}
+
+.product-film__caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
 /* ── Customisation section ─────────────────────────────────────────── */
 .customise {
   display: grid;

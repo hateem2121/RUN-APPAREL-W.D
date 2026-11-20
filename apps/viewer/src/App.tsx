@@ -13,6 +13,7 @@ import { ConsentBanner } from './components/ConsentBanner'
 import { ContactClicks } from './components/ContactClicks'
 import { ContactSection, MobileActionBar, StageContact } from './components/Contact'
 import { CustomisationSection } from './components/CustomisationSection'
+import { ProductFilm } from './components/ProductFilm'
 import { Footer } from './components/Footer'
 import { GarmentTrail } from './components/GarmentTrail'
 import { Header } from './components/Header'
@@ -717,6 +718,9 @@ export default function App() {
               showIdentity={!identityInAside}
               showSpecs={!specsInCorners}
             />
+            {/* The product's 360° film, part of №01 and unnumbered so the sections after keep theirs
+                (owner, 2026-11-20). Renders nothing for a product without a film. */}
+            <ProductFilm data={data} />
             <CustomisationSection data={data} />
             {/* Before the contact section, so the page still ends on its one prompt (S6, Q42). */}
             <RelatedGarments data={data} />

@@ -2065,6 +2065,126 @@
           "needsOwnerEye": false
         }
       ]
+    },
+    "maxfly": {
+      "productName": "MAXFLY",
+      "colours": [
+        {
+          "variantId": "Red",
+          "displayName": "Boxing Glove / Home Maroon",
+          "slug": "red",
+          "hex": "#CD331E",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Blue / Orange",
+          "displayName": "Varsity Navy / Basketball",
+          "slug": "blue-orange",
+          "hex": "#062B6D",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Green",
+          "displayName": "Baize Green / Tennis Ball",
+          "slug": "green",
+          "hex": "#114006",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Blue / Grey",
+          "displayName": "Pit Petrol",
+          "slug": "blue-grey",
+          "hex": "#174252",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Purple",
+          "displayName": "Slam Purple / Varsity Navy",
+          "slug": "purple",
+          "hex": "#492D8E",
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "kura": {
+      "productName": "KURA",
+      "colours": [
+        {
+          "variantId": "Red / navy",
+          "displayName": "Cricket Ball / Derby Red",
+          "slug": "red-navy",
+          "hex": "#B10C16",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Teal",
+          "displayName": "Deep End",
+          "slug": "teal",
+          "hex": "#3D8388",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Lime / olive",
+          "displayName": "Fairway Sage / Scrum Olive",
+          "slug": "lime-olive",
+          "hex": "#97A144",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Pink / purple",
+          "displayName": "Away Plum / Night Indigo",
+          "slug": "pink-purple",
+          "hex": "#A0467E",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Blue / yellow",
+          "displayName": "Blue Line / Yellow Card",
+          "slug": "blue-yellow",
+          "hex": "#0D5681",
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "orbx": {
+      "productName": "ORBX",
+      "colours": [
+        {
+          "variantId": "Purple / cyan",
+          "displayName": "Slam Purple",
+          "slug": "purple-cyan",
+          "hex": "#5C3067",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Green / magenta",
+          "displayName": "Varsity Navy / Tennis Ball",
+          "slug": "green-magenta",
+          "hex": "#233068",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Blue / yellow",
+          "displayName": "Deep End",
+          "slug": "blue-yellow",
+          "hex": "#21666F",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Orange / pink",
+          "displayName": "Infield Rust",
+          "slug": "orange-pink",
+          "hex": "#A2572C",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Violet / orange / green",
+          "displayName": "Slam Purple / Croquet Mint",
+          "slug": "violet-orange-green",
+          "hex": "#5D377F",
+          "needsOwnerEye": false
+        }
+      ]
     }
   }
 }

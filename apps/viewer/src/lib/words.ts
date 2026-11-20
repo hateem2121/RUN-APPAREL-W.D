@@ -53,6 +53,10 @@ export type ViewerWords = {
   readonly interactiveReference: string
   readonly viewInYourSpace: string
   readonly studioRenderAlt: (name: string, colour: string) => string
+  /** The 360° film's caption, naming the one colour it shows (ProductFilm.tsx). */
+  readonly filmCaption: (name: string, colour: string) => string
+  readonly filmPlay: string
+  readonly filmPause: string
   readonly rotate: string
   readonly hintTouch: string
   readonly hintPointer: string
@@ -155,6 +159,9 @@ const EN: ViewerWords = {
   interactiveReference: 'Interactive 3D product reference',
   viewInYourSpace: 'View in your space',
   studioRenderAlt: (name, colour) => `${name} in ${colour}, studio render`,
+  filmCaption: (name, colour) => `${name} in ${colour}, turning 360°`,
+  filmPlay: 'Play',
+  filmPause: 'Pause',
   rotate: 'Rotate',
   hintTouch: 'DRAG TO ROTATE · PINCH TO ZOOM',
   hintPointer: 'DRAG TO ROTATE · SCROLL TO ZOOM',
