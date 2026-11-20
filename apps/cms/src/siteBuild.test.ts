@@ -6,12 +6,15 @@ import { SITE_BUILD_PATTERN as WORKER_PATTERN } from '../pageCache.mjs'
 import {
   ASSETS_DIR,
   BUILD_ID_FILE,
+  NO_SITE_BUILD,
+  SITE_BUILD_ASSET,
   SITE_BUILD_PATTERN,
   SITE_SOURCE_PATHS,
   builtFileNames,
   siteBuildKey,
   siteBuildKeyOf,
   siteSourceBuildId,
+  writeSiteBuildAsset,
 } from '../siteBuild.mjs'
 
 /*
@@ -106,6 +109,39 @@ describe('siteBuildKey', () => {
     expect(siteBuildKeyOf(dir)).toBe(
       siteBuildKey(ID, ['chunks/a.js', 'chunks/b.js', 'media/font.woff2']),
     )
+  })
+
+  /*
+   * The front door (door.mjs, 20 Nov 2026) reads the build's name from a static file the deploy
+   * writes. What would have to break: the door naming a build the site is not serving (it would
+   * hand visitors pages whose script files are gone), or the file itself changing the fingerprint
+   * it carries (every deploy would then empty the store again).
+   */
+  it('writes the build’s name among the static files, without changing the name', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'site-build-'))
+    const write = (path: string, text: string) => {
+      mkdirSync(dirname(join(dir, path)), { recursive: true })
+      writeFileSync(join(dir, path), text)
+    }
+    expect(writeSiteBuildAsset(dir), 'no built site to put it in').toBeNull()
+    write(BUILD_ID_FILE, `${ID}\n`)
+    write(`${ASSETS_DIR}/chunks/a.js`, 'a')
+    const name = siteBuildKeyOf(dir)
+    expect(writeSiteBuildAsset(dir)).toBe(name)
+    expect(readFileSync(join(dir, SITE_BUILD_ASSET), 'utf8')).toBe(name)
+    // The file sits outside the folder the fingerprint is made from: writing it changes nothing.
+    expect(siteBuildKeyOf(dir)).toBe(name)
+    expect(writeSiteBuildAsset(dir)).toBe(name)
+  })
+
+  it('a build with no fingerprint says so in the file, and the door then hands pages on', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'site-build-'))
+    mkdirSync(join(dir, ASSETS_DIR), { recursive: true })
+    mkdirSync(dirname(join(dir, BUILD_ID_FILE)), { recursive: true })
+    writeFileSync(join(dir, BUILD_ID_FILE), '0PYAjWjFlx-bFG2t47pBp\n')
+    expect(writeSiteBuildAsset(dir)).toBe(NO_SITE_BUILD)
+    expect(readFileSync(join(dir, SITE_BUILD_ASSET), 'utf8')).toBe(NO_SITE_BUILD)
+    expect(NO_SITE_BUILD).not.toMatch(SITE_BUILD_PATTERN)
   })
 })
 

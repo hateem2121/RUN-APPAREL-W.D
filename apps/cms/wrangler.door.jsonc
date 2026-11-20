@@ -48,8 +48,8 @@
     // copy is answered without running that Worker; a miss runs SitePages, which draws.
     { "binding": "SITE_PAGES", "service": "run-apparel-viewer-cms", "entrypoint": "SitePages" }
   ],
-  // The same namespace as the site's Worker: the store's switches, the content version, and
-  // `door-build`, the live website build's name (door.mjs). Read only.
+  // The same namespace as the site's Worker: the store's switches, the content version, and the
+  // door's own off switch (`front-door` = `off`, door.mjs). Read only.
   "kv_namespaces": [{ "binding": "SITE_CACHE", "id": "68732140e2544366a8d0c0d0cc8a48cc" }],
   // The shared page copy (pageCopy.mjs): read when a region's store does not hold a page yet.
   "r2_buckets": [{ "binding": "PAGE_COPIES", "bucket_name": "run-apparel-page-copies" }],

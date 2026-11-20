@@ -5,7 +5,7 @@
  *
  * WHY. siteEdge.mjs has the measurements: the site's Worker is 40.8 MiB and a fresh copy takes
  * 1.2 to 2.0 s to start, on the first requests after any quiet spell, in every region. This one
- * is a few dozen KiB. It runs the same steps (siteEdge.mjs createSiteFetch) with two differences:
+ * is 38 KiB. It runs the same steps (siteEdge.mjs createSiteFetch) with two differences:
  *   - it reaches the store through the `SITE_PAGES` service binding. Cloudflare answers a kept
  *     copy over a binding without running the Worker that keeps it (Workers Cache, "Service
  *     bindings", read 20 Nov 2026);
@@ -19,17 +19,20 @@
  * keeps its Custom Domains and all of its own code, so DELETING THE ROUTES IS THE WHOLE UNDO: the
  * site then answers exactly as it did before this file existed.
  *
- * ⚠️ THE WEBSITE BUILD'S NAME COMES FROM KV, NOT FROM THIS WORKER'S OWN DEPLOY (`door-build` in
- * SITE_CACHE). The store's key names the website build (pageCache.mjs keptBuild), because a kept
- * page names script files only that build has. The site's Worker is handed the name when it is
- * uploaded (SITE_BUILD). This Worker is a separate deploy, so a name baked into it would be the
- * old build's for as long as the two deploys are apart, and it would answer visitors with the
- * last build's pages. The deploy therefore DELETES `door-build` before it moves the site's Worker
- * to a new version and writes the new name after: with no name, or one that is not a build's
- * name, this Worker hands every request on. That also makes the key the OFF SWITCH, with no
- * deploy: delete it and within 30 seconds (pageCache.mjs VERSION_CACHE_SECONDS) the door is a
- * pass-through. So does the site's own switch `page-store-build` = `per-deploy`, under which keys
- * name a Worker's own version id, and here that would be this Worker's.
+ * ⚠️ THE WEBSITE BUILD'S NAME IS READ FROM THE SITE'S OWN STATIC FILES, NEVER BAKED IN HERE. The
+ * store's key names the website build (pageCache.mjs keptBuild), because a kept page names script
+ * files only that build has. This Worker is a separate deploy from the site's, so a name baked
+ * into it would be the last build's whenever the two deploys are apart, and it would hand
+ * visitors the last build's pages. The site's deploy writes the name into `/__site-build.txt`
+ * (siteBuild.mjs writeSiteBuildAsset), one of the static files Cloudflare serves with the deployed
+ * version and without starting the site's Worker, so it changes at the moment the pages' script
+ * files do. It is read at most every BUILD_MEMO_MS per copy of this Worker. Anything that is not a
+ * build's name (no file, `per-deploy`, a failed read) means: hand every request on.
+ *
+ * THE OFF SWITCH, WITH NO DEPLOY: KV `front-door` = `off` in SITE_CACHE. Within 30 seconds
+ * (pageCache.mjs VERSION_CACHE_SECONDS) the door is a pass-through. The site's own switch
+ * `page-store-build` = `per-deploy` does the same, since keys then name a Worker's own version id,
+ * and here that would be this Worker's.
  *
  * ⚠️ NEVER ANSWER `/__worker/version` HERE. The deploy reads it to prove its pre-live checks
  * reached the site Worker's NEW version (workerVersion.mjs); this Worker's id would be a lie. It
@@ -47,8 +50,15 @@ import { createSiteFetch } from './siteEdge.mjs'
 import { forwardsToViewer } from './viewerForward.mjs'
 import { WORKER_VERSION_PATH } from './workerVersion.mjs'
 
-/** The KV key (SITE_CACHE) holding the live website build's name; absent = hand everything on. */
-export const DOOR_BUILD_KEY = 'door-build'
+/** Where the site's deploy writes the live website build's name (siteBuild.mjs SITE_BUILD_ASSET). */
+export const SITE_BUILD_PATH = '/__site-build.txt'
+
+/** How long one copy of this Worker trusts the name it read. A deploy is followed within this. */
+export const BUILD_MEMO_MS = 10_000
+
+/** The KV key (SITE_CACHE) that switches the door off without a deploy: `off`. */
+export const DOOR_SWITCH_KEY = 'front-door'
+export const DOOR_OFF = 'off'
 
 /** Cloudflare's header that sends a request to one named version of a Worker (Version overrides). */
 export const VERSION_OVERRIDES_HEADER = 'cloudflare-workers-version-overrides'
@@ -61,31 +71,72 @@ function handOn(request, env) {
 
 /**
  * Is this a request the door has nothing to add to? The site's own files, its admin and API on
- * the site's address, the film and the version check. Asked before anything is read from KV, so
- * a script or a picture costs this Worker one line.
+ * the site's address, the film and the version check. Asked before anything else is read, so a
+ * script or a picture costs this Worker one line.
  *
  * @param {URL} url
  */
 export function alwaysHandedOn(url) {
   if (url.hostname !== SITE_HOST) return false
-  return url.pathname === WORKER_VERSION_PATH || NEVER_KEPT_PATHS.test(url.pathname)
+  return (
+    url.pathname === WORKER_VERSION_PATH ||
+    url.pathname === SITE_BUILD_PATH ||
+    NEVER_KEPT_PATHS.test(url.pathname)
+  )
+}
+
+/** What this copy of the Worker last read from the site's static files, and when. */
+let remembered = { at: 0, build: /** @type {string | null} */ (null), reading: null }
+
+/** Forget the remembered name: for tests, which each need a fresh copy of the Worker. */
+export function forgetBuild() {
+  remembered = { at: 0, build: null, reading: null }
 }
 
 /**
- * The live website build's name, or null when the store must not be used: no bindings, no name in
- * KV, a name that is not a build's, or keys that are per deploy (the ⚠️ above). Both reads are
- * remembered for 30 seconds per copy of this Worker (pageCache.mjs memoKvGet).
+ * The live website build's name from the site's static files, or null. Requests that arrive
+ * while a read is in flight share it; a failed read is not remembered, so the next request asks
+ * again (and is handed on meanwhile).
  *
  * @returns {Promise<string | null>}
  */
-export async function liveBuild(env) {
+export async function buildFromSite(env, now = Date.now()) {
+  if (remembered.at > 0 && now - remembered.at < BUILD_MEMO_MS) return remembered.build
+  if (remembered.reading) return remembered.reading
+  const reading = (async () => {
+    try {
+      const answer = await handOn(new Request(`https://${SITE_HOST}${SITE_BUILD_PATH}`), env)
+      const text = answer.ok ? (await answer.text()).trim() : ''
+      const build = SITE_BUILD_PATTERN.test(text) ? text : null
+      // A read that answered is remembered even when it names no build: the site said so.
+      if (answer.ok || answer.status === 404) remembered = { at: now, build, reading: null }
+      else remembered.reading = null
+      return build
+    } catch (error) {
+      console.error('[front-door] could not read the site build; handing requests on', error)
+      remembered.reading = null
+      return null
+    }
+  })()
+  remembered.reading = reading
+  return reading
+}
+
+/**
+ * The live website build's name, or null when the store must not be used: no bindings, the off
+ * switch, keys that are per deploy (the note above), or no build name among the site's files.
+ *
+ * @returns {Promise<string | null>}
+ */
+export async function liveBuild(env, now = Date.now()) {
   if (!env.SITE_PAGES || !env.SITE_CACHE) return null
-  const [build, keying] = await Promise.all([
-    memoKvGet(env.SITE_CACHE, DOOR_BUILD_KEY).catch(() => null),
+  // Remembered reads (pageCache.mjs memoKvGet): 30 seconds per copy of this Worker.
+  const [door, keying] = await Promise.all([
+    memoKvGet(env.SITE_CACHE, DOOR_SWITCH_KEY).catch(() => null),
     memoKvGet(env.SITE_CACHE, STORE_BUILD_KEY).catch(() => null),
   ])
-  if (keying === PER_DEPLOY) return null
-  return typeof build === 'string' && SITE_BUILD_PATTERN.test(build) ? build : null
+  if (door === DOOR_OFF || keying === PER_DEPLOY) return null
+  return buildFromSite(env, now)
 }
 
 const site = createSiteFetch({

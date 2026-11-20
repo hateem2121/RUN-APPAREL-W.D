@@ -1,8 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import door, { alwaysHandedOn, DOOR_BUILD_KEY, liveBuild } from '../door.mjs'
+import door, {
+  alwaysHandedOn,
+  BUILD_MEMO_MS,
+  buildFromSite,
+  DOOR_OFF,
+  DOOR_SWITCH_KEY,
+  forgetBuild,
+  liveBuild,
+  SITE_BUILD_PATH,
+} from '../door.mjs'
 import { forgetKvMemo, keptHeaders, PER_DEPLOY, STORE_BUILD_KEY } from '../pageCache.mjs'
+import { NO_SITE_BUILD, SITE_BUILD_ASSET } from '../siteBuild.mjs'
 
 /**
  * The front door (door.mjs, 20 Nov 2026): the small Worker Cloudflare runs before the site's own.
@@ -14,8 +24,10 @@ import { forgetKvMemo, keptHeaders, PER_DEPLOY, STORE_BUILD_KEY } from '../pageC
  * garment page goes straight to the viewer Worker, and everything the door is not sure of is
  * handed on untouched.
  *
- * `ORIGIN` stands in for the site's Worker behind the route (door.mjs handOn): a call to it is
- * the site's Worker starting, which is exactly what each test counts.
+ * `ORIGIN` stands in for the site behind the route (door.mjs handOn). It answers two things: the
+ * build's name from the static files (`/__site-build.txt`, served without starting the site's
+ * Worker), and everything else, which IS the site's Worker starting. `drawn()` counts only the
+ * second kind, which is what each test is about.
  */
 const BUILD = 'site-0123456789abcdef0123.0123456789ab'
 
@@ -26,21 +38,32 @@ const kvOf = (values: Record<string, string | null>) => ({
 const answering = (body: string, headers: HeadersInit = {}) =>
   vi.fn(async (_request: Request, _init?: unknown) => new Response(body, { headers }))
 
-function world(options: { build?: string | null; keying?: string | null } = {}) {
-  const origin = { fetch: answering('from the site Worker') }
+/** A copy the store holds: drawn a minute ago, which is how storeState tells it from a fresh one. */
+const kept = (type: string) =>
+  keptHeaders(new Headers({ 'content-type': type }), Date.now() - 60_000)
+
+type World = { build?: string | null; keying?: string | null; door?: string | null }
+
+function world(options: World = {}) {
+  const buildFile = options.build === undefined ? BUILD : options.build
+  const origin = {
+    fetch: vi.fn(async (request: Request) => {
+      if (new URL(request.url).pathname !== SITE_BUILD_PATH) {
+        return new Response('from the site Worker')
+      }
+      return buildFile === null
+        ? new Response('not found', { status: 404 })
+        : new Response(`${buildFile}\n`)
+    }),
+  }
   const viewer = { fetch: answering('from the viewer Worker') }
-  // Drawn a minute ago: the store tells a kept copy from a fresh drawing by its age (storeState).
-  const kept = keptHeaders(
-    new Headers({ 'content-type': 'text/plain; charset=utf-8' }),
-    Date.now() - 60_000,
-  )
-  const pages = { fetch: answering('from the store', kept) }
+  const pages = { fetch: answering('from the store', kept('text/plain; charset=utf-8')) }
   const env = {
     ORIGIN: origin,
     VIEWER: viewer,
     SITE_PAGES: pages,
     SITE_CACHE: kvOf({
-      [DOOR_BUILD_KEY]: options.build === undefined ? BUILD : options.build,
+      [DOOR_SWITCH_KEY]: options.door ?? null,
       [STORE_BUILD_KEY]: options.keying ?? null,
       'content-version': '7',
     }),
@@ -49,12 +72,17 @@ function world(options: { build?: string | null; keying?: string | null } = {}) 
     PAGE_COPY: 'off',
   }
   const ctx = { waitUntil: vi.fn() }
-  return { env, ctx, origin, viewer, pages }
+  const drawn = () =>
+    origin.fetch.mock.calls.filter(([asked]) => new URL(asked.url).pathname !== SITE_BUILD_PATH)
+  return { env, ctx, origin, viewer, pages, drawn }
 }
 
 const get = (url: string, headers: HeadersInit = {}) => new Request(url, { headers })
 
-beforeEach(() => forgetKvMemo())
+beforeEach(() => {
+  forgetKvMemo()
+  forgetBuild()
+})
 
 describe('what the door hands straight on', () => {
   it.each([
@@ -63,11 +91,13 @@ describe('what the door hands straight on', () => {
     'https://wear-run.com/admin',
     'https://wear-run.com/film/tie-dye.mp4',
     'https://wear-run.com/__worker/version',
-  ])('%s never reaches the store, and costs no KV read', async (url) => {
+    `https://wear-run.com${SITE_BUILD_PATH}`,
+  ])('%s never reaches the store, and costs no other read', async (url) => {
     const w = world()
     expect(alwaysHandedOn(new URL(url))).toBe(true)
-    const response = await door.fetch(get(url), w.env, w.ctx)
-    expect(await response.text()).toBe('from the site Worker')
+    await door.fetch(get(url), w.env, w.ctx)
+    expect(w.origin.fetch).toHaveBeenCalledTimes(1)
+    expect(new URL(w.origin.fetch.mock.calls[0]?.[0].url ?? '').href).toBe(url)
     expect(w.pages.fetch).not.toHaveBeenCalled()
     expect(w.env.SITE_CACHE.get).not.toHaveBeenCalled()
   })
@@ -87,21 +117,21 @@ describe('garment pages', () => {
     'https://wear-run.com/ru/products/rxps/wine',
     'https://wear-run.com/assets/index-abc.js',
     'https://wear-run.com/sw.js',
-  ])('%s goes to the viewer Worker, and the site Worker is never asked', async (url) => {
+  ])('%s goes to the viewer Worker, and the site is never asked', async (url) => {
     const w = world()
     const response = await door.fetch(get(url), w.env, w.ctx)
     expect(await response.text()).toBe('from the viewer Worker')
     expect(w.origin.fetch).not.toHaveBeenCalled()
   })
 
-  it('still go there with the door switched off (no build name in KV)', async () => {
-    const w = world({ build: null })
+  it('still go there with the door switched off', async () => {
+    const w = world({ door: DOOR_OFF })
     const response = await door.fetch(get('https://wear-run.com/products/rxps/wine'), w.env, w.ctx)
     expect(await response.text()).toBe('from the viewer Worker')
   })
 
   it('the website list page /products is not a garment page', async () => {
-    const w = world({ build: null })
+    const w = world({ door: DOOR_OFF })
     const response = await door.fetch(get('https://wear-run.com/products'), w.env, w.ctx)
     expect(await response.text()).toBe('from the site Worker')
     expect(w.viewer.fetch).not.toHaveBeenCalled()
@@ -115,8 +145,8 @@ describe('a kept answer', () => {
     expect(await response.text()).toBe('from the store')
     expect(response.headers.get('server-timing')).toContain('page-cache;desc="hit"')
     expect(w.pages.fetch).toHaveBeenCalledTimes(1)
-    expect(w.origin.fetch).not.toHaveBeenCalled()
-    // The key names the build KV gave, never this Worker's own version id.
+    expect(w.drawn()).toHaveLength(0)
+    // The key names the build the site's files gave, never this Worker's own version id.
     const init = w.pages.fetch.mock.calls[0]?.[1] as { cf: { cacheKey: string } }
     expect(init.cf.cacheKey).toContain(BUILD)
     expect(init.cf.cacheKey).not.toContain('door-version')
@@ -126,12 +156,7 @@ describe('a kept answer', () => {
     const w = world()
     w.pages.fetch.mockImplementation(
       async () =>
-        new Response('{"product":{"slug":"rxps"}}', {
-          headers: keptHeaders(
-            new Headers({ 'content-type': 'application/json' }),
-            Date.now() - 60_000,
-          ),
-        }),
+        new Response('{"product":{"slug":"rxps"}}', { headers: kept('application/json') }),
     )
     const response = await door.fetch(
       get('https://cms.wear-run.help/api/public/viewer/rxps/wine', {
@@ -143,23 +168,73 @@ describe('a kept answer', () => {
     expect(await response.text()).toBe('{"product":{"slug":"rxps"}}')
     expect(response.headers.get('access-control-allow-origin')).toBe('https://wear-run.com')
     expect(response.headers.get('server-timing')).toContain('api-cache;desc="hit"')
-    expect(w.origin.fetch).not.toHaveBeenCalled()
+    expect(w.drawn()).toHaveLength(0)
   })
 })
 
-describe('when the door must step aside', () => {
-  it('no build name in KV: every page is handed on (the off switch, and every deploy)', async () => {
-    const w = world({ build: null })
+/**
+ * The build's name. A kept page names script files only its own build has, and this Worker is a
+ * separate deploy from the site's, so the name is read from the site's static files and never
+ * baked in: the file changes at the moment the script files do.
+ */
+describe('the live website build’s name', () => {
+  it('is read from the site’s static files, once per memo window', async () => {
+    const w = world()
+    const t0 = 1_000_000
+    expect(await buildFromSite(w.env, t0)).toBe(BUILD)
+    expect(await buildFromSite(w.env, t0 + BUILD_MEMO_MS - 1)).toBe(BUILD)
+    expect(w.origin.fetch).toHaveBeenCalledTimes(1)
+    const asked = w.origin.fetch.mock.calls[0]?.[0] as Request
+    expect(asked.url).toBe(`https://wear-run.com${SITE_BUILD_PATH}`)
+  })
+
+  it('follows a deploy: after the window, a new name replaces the old one', async () => {
+    const before = world()
+    const t0 = 1_000_000
+    expect(await buildFromSite(before.env, t0)).toBe(BUILD)
+    const next = 'site-fedcba9876543210fedc.ba9876543210'
+    const after = world({ build: next })
+    expect(await buildFromSite(after.env, t0 + BUILD_MEMO_MS + 1)).toBe(next)
+  })
+
+  it('requests that arrive together share one read', async () => {
+    const w = world()
+    const all = await Promise.all([1, 2, 3].map(() => buildFromSite(w.env, 5)))
+    expect(all).toEqual([BUILD, BUILD, BUILD])
+    expect(w.origin.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['no file yet (a site deploy from before the door)', null],
+    ['a build with no fingerprint', NO_SITE_BUILD],
+    ['anything that is not a build’s name', '<html>not found</html>'],
+  ])('%s is no name: every page is handed on', async (_why, build) => {
+    const w = world({ build })
     expect(await liveBuild(w.env)).toBeNull()
+    forgetBuild()
     const response = await door.fetch(get('https://wear-run.com/guides'), w.env, w.ctx)
     expect(await response.text()).toBe('from the site Worker')
     expect(w.pages.fetch).not.toHaveBeenCalled()
   })
 
-  it('a value that is not a build’s name is no name', async () => {
-    expect(await liveBuild(world({ build: 'off' }).env)).toBeNull()
-    forgetKvMemo()
-    expect(await liveBuild(world({ build: BUILD }).env)).toBe(BUILD)
+  it('a read that fails is not remembered: the next request asks again', async () => {
+    const w = world()
+    w.origin.fetch.mockRejectedValueOnce(new Error('network'))
+    expect(await buildFromSite(w.env, 5)).toBeNull()
+    expect(await buildFromSite(w.env, 6)).toBe(BUILD)
+  })
+
+  it('the door asks for the very file the site’s deploy writes', () => {
+    expect(SITE_BUILD_ASSET.endsWith(`/assets${SITE_BUILD_PATH}`)).toBe(true)
+  })
+})
+
+describe('when the door must step aside', () => {
+  it('the off switch (KV `front-door` = `off`): every page is handed on', async () => {
+    const w = world({ door: DOOR_OFF })
+    const response = await door.fetch(get('https://wear-run.com/guides'), w.env, w.ctx)
+    expect(await response.text()).toBe('from the site Worker')
+    expect(w.pages.fetch).not.toHaveBeenCalled()
   })
 
   it('keys named per deploy would name THIS Worker’s version: handed on', async () => {
