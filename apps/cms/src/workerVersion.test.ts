@@ -28,17 +28,19 @@ describe('workerVersionResponse', () => {
   })
 
   it('runs in the default entrypoint before OpenNext and before the page store', () => {
-    // Source order is the guarantee: kept answers are served further down.
+    // Source order is the guarantee: kept answers are served further down. Since 20 Nov 2026 the
+    // order is siteEdge.mjs's (it calls the Worker's own early answers, `first`, before the garment
+    // data, the store and the drawing), and worker.mjs's `first` is where the version is answered.
     const worker = readFileSync(join(import.meta.dirname, '..', 'worker.mjs'), 'utf8')
-    const fetchAt = worker.indexOf('  async fetch(request, env, ctx) {')
-    const versionAt = worker.indexOf('workerVersionResponse(', fetchAt)
-    expect(fetchAt).toBeGreaterThan(-1)
-    expect(versionAt).toBeGreaterThan(fetchAt)
-    expect(versionAt).toBeLessThan(worker.indexOf('openNext.fetch(', fetchAt))
-    expect(versionAt).toBeLessThan(
-      worker.indexOf('fromSharedStore(', fetchAt) === -1
-        ? Infinity
-        : worker.indexOf('fromSharedStore(', fetchAt),
-    )
+    const firstAt = worker.indexOf('    first(request, env) {')
+    expect(firstAt).toBeGreaterThan(-1)
+    expect(worker.indexOf('workerVersionResponse(', firstAt)).toBeGreaterThan(firstAt)
+    const edge = readFileSync(join(import.meta.dirname, '..', 'siteEdge.mjs'), 'utf8')
+    const handler = edge.slice(edge.indexOf('export function createSiteFetch('))
+    const early = handler.indexOf('await edge.first?.(request, env, ctx)')
+    expect(early).toBeGreaterThan(-1)
+    for (const later of ['serveViewerApi(', 'fromSharedStore(', 'edge.draw(']) {
+      expect(handler.indexOf(later), later).toBeGreaterThan(early)
+    }
   })
 })

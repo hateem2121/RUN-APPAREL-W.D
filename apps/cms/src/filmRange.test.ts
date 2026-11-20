@@ -135,14 +135,21 @@ describe('the Worker sends the film folder here, and only it', () => {
   const config = readFileSync(join(CMS, 'wrangler.jsonc'), 'utf8')
 
   it('worker.mjs answers film requests before OpenNext sees them', () => {
-    // Measured inside the default handler: SitePages (above it, 2026-10-24) also draws with
-    // openNext.fetch, but only for requests the default handler hands it after the film check.
+    // The film check is one of the Worker's own early answers (`first`), and siteEdge.mjs asks for
+    // those before the store and before the drawing (20 Nov 2026; it was source order in one file).
     const handler = worker.slice(worker.indexOf('export default {'))
+    const first = handler.indexOf('    first(request, env) {')
     const film = handler.indexOf('servesFilm(')
-    const openNext = handler.indexOf('openNext.fetch(')
-    expect(film, 'worker.mjs never asks servesFilm').toBeGreaterThan(-1)
-    expect(film, 'the film check comes after OpenNext').toBeLessThan(openNext)
+    expect(first, 'worker.mjs has no early answers').toBeGreaterThan(-1)
+    expect(film, 'worker.mjs never asks servesFilm').toBeGreaterThan(first)
     expect(worker).toContain('return filmResponse(request, env)')
+    const edge = readFileSync(join(CMS, 'siteEdge.mjs'), 'utf8')
+    const steps = edge.slice(edge.indexOf('export function createSiteFetch('))
+    const early = steps.indexOf('await edge.first?.(request, env, ctx)')
+    expect(early).toBeGreaterThan(-1)
+    expect(early, 'the early answers come after the drawing').toBeLessThan(
+      steps.indexOf('edge.draw('),
+    )
   })
 
   it('wrangler.jsonc runs the Worker first for the film folder alone', () => {
