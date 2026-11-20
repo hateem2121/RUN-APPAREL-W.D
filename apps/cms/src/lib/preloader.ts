@@ -131,7 +131,7 @@ const DRIVER = [
   'for(i=0;i<a.length;i++){n++;if(performance.getEntriesByName(a[i].href||a[i].src).length)d++;else ok=false}',
   'var g=document.querySelectorAll("img");for(i=0;i<g.length;i++){m=g[i];if(m.getAttribute("loading")==="lazy")continue;',
   'if(io&&!m.__io){m.__io=1;io.observe(m)}if(m.__below)continue;n++;',
-  'if(m.complete){if(!m.naturalWidth)m.__rd=2;else if(!m.__rd){m.__rd=1;m.decode().then(function(){this.__rd=2}.bind(m),function(){this.__rd=2}.bind(m))}}',
+  'if(m.complete){if(!m.naturalWidth)m.__rd=2;else if(!m.__rd){m.__rd=1;Promise.resolve(m.decode()).then(function(){this.__rd=2}.bind(m),function(){this.__rd=2}.bind(m))}}',
   'if(m.__rd===2)d++;else ok=false}',
   'var f=!document.fonts||document.fonts.status==="loaded";',
   'ready=ok&&f&&document.readyState!=="loading";target=ready?1:Math.min(.95,n?d/n:0)}',
