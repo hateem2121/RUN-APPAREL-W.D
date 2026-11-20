@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { chooseEncoding as viewerChooses } from '../../viewer/worker/compression'
 import door, {
   alwaysHandedOn,
   BUILD_MEMO_MS,
   buildFromSite,
+  chooseEncoding,
   DOOR_OFF,
   DOOR_SWITCH_KEY,
   forgetBuild,
@@ -325,6 +327,105 @@ describe('the door’s configuration', () => {
     expect(site).toContain(doorConfig.kv_namespaces[0].id)
     for (const name of ['PAGE_COPY', 'STORE_HEDGE', 'VIEWER_ALLOWED_ORIGINS']) {
       expect(site, name).toContain(`"${name}": "${doorConfig.vars[name]}"`)
+    }
+  })
+})
+
+/**
+ * A handed-on page goes out in the VISITOR's encoding (door.mjs inVisitorsEncoding, 20 Nov 2026).
+ * What production did: the deploy of #435 failed PF-13 on all 42 products, "came back uncompressed
+ * to a browser offering only gzip", because the page behind the door was compressed for the door's
+ * own list. The first case is that failure: the site answers brotli, the visitor reads only gzip.
+ */
+describe('a handed-on page, in the visitor’s encoding', () => {
+  const override = 'run-apparel-viewer-site="v1"'
+  /** A request as Cloudflare delivers it: the visitor's own list kept in `cf`. */
+  const fromVisitor = (clientAcceptEncoding: string | undefined) => {
+    const request = get('https://wear-run.com/products/rxps/wine', {
+      'cloudflare-workers-version-overrides': override,
+    })
+    Object.defineProperty(request, 'cf', { value: { clientAcceptEncoding } })
+    return request
+  }
+  const siteAnswering = (encoding: string | null) => {
+    const w = world()
+    w.origin.fetch.mockImplementation(
+      async () =>
+        new Response('<!doctype html><p>page</p>', {
+          headers: {
+            'content-type': 'text/html; charset=utf-8',
+            'content-length': '26',
+            ...(encoding ? { 'content-encoding': encoding } : {}),
+          },
+        }),
+    )
+    return w
+  }
+
+  it('a visitor offering only gzip gets gzip, not the br the door was sent (the PF-13 failure)', async () => {
+    const w = siteAnswering('br')
+    const response = await door.fetch(fromVisitor('gzip'), w.env, w.ctx)
+    expect(response.headers.get('content-encoding')).toBe('gzip')
+    // A length for the brotli bytes would be a lie about the gzip ones.
+    expect(response.headers.get('content-length')).toBeNull()
+    expect(await response.text()).toBe('<!doctype html><p>page</p>')
+  })
+
+  it('a visitor asking for identity gets the page plain', async () => {
+    const w = siteAnswering('br')
+    const response = await door.fetch(fromVisitor('identity'), w.env, w.ctx)
+    expect(response.headers.get('content-encoding')).toBeNull()
+  })
+
+  it('a visitor offering br gets the answer untouched, the same object', async () => {
+    const w = siteAnswering('br')
+    const answered = await (w.origin.fetch as unknown as () => Promise<Response>)()
+    w.origin.fetch.mockResolvedValueOnce(answered)
+    const response = await door.fetch(fromVisitor('gzip, deflate, br'), w.env, w.ctx)
+    expect(response).toBe(answered)
+  })
+
+  it('leaves a plain answer, an unknown encoding and a request with no cf as they are', async () => {
+    for (const [encoding, list] of [
+      [null, 'gzip'],
+      ['zstd', 'gzip'],
+    ] as const) {
+      const w = siteAnswering(encoding)
+      const response = await door.fetch(fromVisitor(list), w.env, w.ctx)
+      expect(response.headers.get('content-encoding'), String(encoding)).toBe(encoding)
+    }
+    const w = siteAnswering('br')
+    const noCf = get('https://wear-run.com/products/rxps/wine', {
+      'cloudflare-workers-version-overrides': override,
+    })
+    const response = await door.fetch(noCf, w.env, w.ctx)
+    expect(response.headers.get('content-encoding')).toBe('br')
+  })
+
+  it('a visitor whose list Cloudflare did not keep gets the page plain, as the viewer would', async () => {
+    const w = siteAnswering('gzip')
+    const response = await door.fetch(fromVisitor(undefined), w.env, w.ctx)
+    expect(response.headers.get('content-encoding')).toBeNull()
+  })
+
+  it('chooses exactly as the viewer does (compression.ts), on every list measured or likely', () => {
+    for (const list of [
+      null,
+      '',
+      'gzip',
+      'br',
+      'identity',
+      '*',
+      'zstd',
+      'gzip, deflate, br',
+      'gzip, deflate, br, zstd',
+      'br;q=0, gzip',
+      'gzip;q=0',
+      '*;q=0, gzip',
+      'BR, GZIP',
+      'gzip;q=abc',
+    ]) {
+      expect(chooseEncoding(list), String(list)).toBe(viewerChooses(list))
     }
   })
 })
