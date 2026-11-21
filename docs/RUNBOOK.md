@@ -385,6 +385,17 @@ Australia). Through the door, three US bursts on the garment data measured p90 1
 Australia got a garment page in 90 to 406 ms. `scripts/first-visit-burst.mjs` asks the same
 question every Monday (`perf-watch.yml`) and fails when the first byte is not under 800 ms at p90.
 
+**If the garment data is slow and the pages are not (21 Nov 2026).** In Workers Logs, look for
+`[front-door] the site build read answered` from `run-apparel-site-door`: the door could not read
+the live build's name (`/__site-build.txt`) and is handing every request on. That happened the
+hour its route became `wear-run.com/*`: the file's address was then on the door's own route, a
+door started by a request on `cms.wear-run.help` could not fetch it, and three US bursts on the
+garment data read p90 1,163 and 933 ms while garment pages (134 and 115 ms) and website pages
+(231 and 95 ms) passed. To tell the two cases apart in the logs: a garment-data request the door
+answered has no matching request on `run-apparel-viewer-cms`; one it handed on has one, with the
+visitor's own user-agent. The door has asked for the file over its `SITE_FILES` service binding
+since that day, which no route or firewall rule can stand in front of.
+
 ### ⚠️ Rollback does not undo a database migration
 
 `ci.yml` applies pending D1 migrations **before** the Workers deploy, in a

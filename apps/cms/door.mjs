@@ -154,6 +154,32 @@ export function forgetBuild() {
 }
 
 /**
+ * The site's build-name file, asked for over the `SITE_FILES` service binding.
+ *
+ * ⚠️ NEVER BY A PUBLIC FETCH (21 Nov 2026, the hour after the door's route became
+ * `wear-run.com/*`). The file's address then sat on the door's OWN route. A door started by a
+ * website page (zone wear-run.com) still read it: a same-zone fetch goes past the routes to the
+ * Custom Domain. A door started by the garment data (cms.wear-run.help, the OTHER zone) could
+ * not, got no build name, and handed every garment-data request to the site's Worker, silently:
+ * US bursts read p90 1,163 and 933 ms where stage 1 had read 145, 293 and 181. Measured from
+ * Lahore the same minute: 4 of 4 data requests sent alone reached the site's Worker; 9 of 9 sent
+ * within 10 s of a page (the memo below) were answered here in 2 to 3 ms.
+ *
+ * A service binding does not pass through any zone's routes or firewall, so the read is the same
+ * wherever this Worker was started (Cloudflare, Workers "Custom Domains" and "Limits", read
+ * 21 Nov 2026: Worker-to-Worker calls on one account belong on service bindings). And it does not
+ * start the site's Worker: a static file asked over a binding is served without the bound
+ * Worker's code running (measured that day on the `VIEWER` binding: 180 `/assets/*` requests
+ * through the door, 0 invocations of the viewer Worker for them; the build file is outside
+ * wrangler.jsonc's `run_worker_first`). Without the binding (a local preview, a test) the file
+ * is asked as before.
+ */
+function readBuildFile(env) {
+  const ask = new Request(`https://${SITE_HOST}${SITE_BUILD_PATH}`)
+  return env.SITE_FILES ? env.SITE_FILES.fetch(ask) : handOn(ask, env)
+}
+
+/**
  * The live website build's name from the site's static files, or null. Requests that arrive
  * while a read is in flight share it; a failed read is not remembered, so the next request asks
  * again (and is handed on meanwhile).
@@ -165,12 +191,16 @@ export async function buildFromSite(env, now = Date.now()) {
   if (remembered.reading) return remembered.reading
   const reading = (async () => {
     try {
-      const answer = await handOn(new Request(`https://${SITE_HOST}${SITE_BUILD_PATH}`), env)
+      const answer = await readBuildFile(env)
       const text = answer.ok ? (await answer.text()).trim() : ''
       const build = SITE_BUILD_PATTERN.test(text) ? text : null
       // A read that answered is remembered even when it names no build: the site said so.
       if (answer.ok || answer.status === 404) remembered = { at: now, build, reading: null }
-      else remembered.reading = null
+      else {
+        // Said out loud: on 21 Nov 2026 this failed without a word for every garment-data request.
+        console.error(`[front-door] the site build read answered ${answer.status}; handing on`)
+        remembered.reading = null
+      }
       return build
     } catch (error) {
       console.error('[front-door] could not read the site build; handing requests on', error)

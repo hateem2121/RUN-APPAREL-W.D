@@ -171,7 +171,10 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   comes back without this Worker running) and hands everything else on. Both Workers apply ONE
   set of steps, `siteEdge.mjs`: change a step there, never in `worker.mjs` or `door.mjs` alone.
   🟡 The door reads the live build's name from the static file `/__site-build.txt`, which
-  `node siteBuild.mjs` writes at upload; never bake a build name into it. 🟡 A request carrying
+  `node siteBuild.mjs` writes at upload; never bake a build name into it. It asks over the
+  `SITE_FILES` binding, NEVER a public fetch: on 21 Nov that address sat on the door's own route,
+  the read failed from `cms.wear-run.help`, and all garment data was handed on (p90 1,163 ms).
+  🟡 A request carrying
   `Cloudflare-Workers-Version-Overrides` is handed on whole, or a deploy's pre-live check would
   pass on a kept page without the new version running; so those checks prove the door does no
   harm, never that its fast path works (`door.test.ts` and `scripts/first-visit-burst.mjs` do
