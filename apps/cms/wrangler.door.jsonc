@@ -50,7 +50,20 @@
     // binding, never a public fetch: on 21 Nov 2026 the route above put that file's address on
     // this Worker's own route, and a door started on cms.wear-run.help could no longer read it.
     // A static file asked over a binding is served without the site's Worker starting.
-    { "binding": "SITE_FILES", "service": "run-apparel-viewer-cms" }
+    { "binding": "SITE_FILES", "service": "run-apparel-viewer-cms" },
+    // THE SITE-ONLY WORKER (wrangler.site.jsonc, 22 Nov 2026): the same code without the admin and
+    // the CMS API, 16,182 KiB against 22,035. It has no address; these two bindings are the only
+    // way in. `SITE_ONLY` is its default entrypoint: a page the store does not hold, and its
+    // static files (served without the Worker starting, as above). `SITE_ONLY_PAGES` is its page
+    // store. The two bindings above stay: the garment data is drawn and kept by the CMS Worker
+    // alone, and KV `front-door` = `full` sends every visitor back to it (door.mjs DOOR_FULL).
+    // ⚠️ The Worker must exist before this file is uploaded, or the upload fails.
+    { "binding": "SITE_ONLY", "service": "run-apparel-site-only" },
+    {
+      "binding": "SITE_ONLY_PAGES",
+      "service": "run-apparel-site-only",
+      "entrypoint": "SitePages"
+    }
   ],
   // The same namespace as the site's Worker: the store's switches, the content version, and the
   // door's own off switch (`front-door` = `off`, door.mjs). Read only.

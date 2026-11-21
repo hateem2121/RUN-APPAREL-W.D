@@ -260,11 +260,11 @@ about 30 s in all, while the old version is still answering, because Cloudflare 
 change takes time to reach every location. Main run 44296435136 stopped on exactly that, 3.45 s
 after staging, and its re-run passed), runs health, payload, link-preview and security checks
 against it, and only then moves it to 100%. So read a red deploy by WHICH step failed:
-- **Before "Move the three new versions to 100%"** — nobody received the new version. The step "Undo the
+- **Before "Move the four new versions to 100%"** — nobody received the new version. The step "Undo the
   staging" takes it back out of the deployment; there is nothing to roll back. Fix and push.
   ⚠️ The D1 migrations DID run (they come first), and the old version is serving against them.
-- **"Move the three new versions to 100%" or later** — it is live, and everything below applies.
-- **"Stage the three new versions" refuses with "already split"** — a version is still at 0% from an
+- **"Move the four new versions to 100%" or later** — it is live, and everything below applies.
+- **"Stage the four new versions" refuses with "already split"** — a version is still at 0% from an
   earlier run. `wrangler versions deploy <live-id>@100% --name <worker> --yes` (the id from
   `wrangler deployments status`) clears it.
 The apex Worker and the shrink still deploy the old way, straight to 100%.
@@ -420,6 +420,44 @@ garment data read p90 1,163 and 933 ms while garment pages (134 and 115 ms) and 
 answered has no matching request on `run-apparel-viewer-cms`; one it handed on has one, with the
 visitor's own user-agent. The door has asked for the file over its `SITE_FILES` service binding
 since that day, which no route or firewall rule can stand in front of.
+
+
+### The site-only Worker: switching it off
+
+Since 22 Nov 2026 the pages of `wear-run.com` are drawn and kept by a second Worker,
+`run-apparel-site-only` (`apps/cms/wrangler.site.jsonc`): the same code as the CMS Worker, built
+with `SITE_ONLY=1`, which leaves out the admin's screens and the CMS API. It is smaller (16,182 KiB
+against 22,035, measured that day), and a smaller Worker starts sooner for a visitor whose page
+is not kept. It has NO address of its own: the front door reaches it over two bindings. The CMS
+Worker (`run-apparel-viewer-cms`) still holds `wear-run.com` as its Custom Domain and still holds
+the whole website, so it can serve every visitor by itself at any moment.
+
+What goes where: a GET or HEAD on `wear-run.com` (a page, its scripts, a photo) goes to the
+site-only Worker. Everything else goes to the CMS Worker as before: the admin and the API on
+`cms.wear-run.help`, the garment data, and every form post (contact, careers, the template
+download), because only the CMS Worker holds the mail and Turnstile secrets.
+
+If a website page looks wrong and this Worker is suspected, switch it off first and look second:
+
+1. **No deploy, about 30 seconds:** in Cloudflare, Workers KV, the `SITE_CACHE` namespace, set the
+   key `front-door` to the value `full`. The door stays on and sends every visitor to the CMS
+   Worker and its page store, exactly as before 22 Nov 2026. Delete the key to use the site-only
+   Worker again. (`off` in the same key still switches the whole door off, as below.)
+2. **Check it worked:** `curl -s https://wear-run.com/__worker/version` names the Worker that
+   answered: `run-apparel-site-only` when it is in use, `run-apparel-viewer-cms` when it is not.
+
+A deploy still gets through while it is switched off: the deploy's checks carry the override
+header, and the door hands a request with that header to the site-only Worker whatever the switch
+says, so a Worker that is switched off is still checked before it could be switched on. If the
+site-only Worker fails by itself (it throws, or answers 500 or more), the door asks the CMS Worker
+for the same page and writes `[front-door] the site-only Worker …` in its logs: search Workers
+Logs for that line before believing all is well.
+
+A CMS save reaches both Workers' kept pages: `src/lib/contentVersion.ts` tells the CMS Worker's
+own store and, over the `SITE_ONLY_PAGES` binding, the site-only Worker's. To remove the Worker
+for good: revert the pull request that added it, wait for that deploy, then delete
+`run-apparel-site-only` in the dashboard (the door and the CMS Worker bind it, so deleting it
+first would fail their next upload).
 
 ### ⚠️ Rollback does not undo a database migration
 

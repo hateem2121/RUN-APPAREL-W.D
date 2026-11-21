@@ -60,6 +60,7 @@ import { forwardsToViewer } from './viewerForward.mjs'
  * @typedef {{
  *   draw: (request: Request, env: any, ctx: any) => Promise<Response>,
  *   store: (env: any, ctx: any) => { fetch: (request: Request, init?: any) => Promise<Response> } | undefined,
+ *   dataStore?: (env: any, ctx: any) => { fetch: (request: Request, init?: any) => Promise<Response> } | undefined,
  *   first?: (request: Request, env: any, ctx: any) => Response | Promise<Response> | null | undefined,
  * }} SiteEdge
  */
@@ -330,7 +331,9 @@ export function createSiteFetch(edge) {
     // 4.0–4.5 s uncached from Pakistan, ~10 database trips from local-ISB to ENAM). The viewer
     // Worker's `CMS` binding asks for the same address, so a robot's garment page gains too.
     // Its CORS headers are worked out per request there; null = not one to keep, serve as before.
-    const store = edge.store(env, ctx)
+    // The garment data's store is the CMS Worker's, whichever Worker runs this (`dataStore`,
+    // 22 Nov 2026: the site-only Worker cannot draw it). An edge that names none uses its `store`.
+    const store = edge.dataStore ? edge.dataStore(env, ctx) : edge.store(env, ctx)
     const garmentData = await serveViewerApi(request, env, ctx, store)
     if (garmentData) return garmentData
     // A touched garment card's warm request (faster-taps plan, Task 5): the store is asked and

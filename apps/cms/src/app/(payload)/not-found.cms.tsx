@@ -16,7 +16,7 @@ import Link from 'next/link'
  * BELOW that segment; a `notFound()` raised in the group's layout, or before the segment
  * resolves, climbs past it.
  *
- * ⚠️ AND IT MUST NOT RENDER `<html>` OR `<body>`. `(payload)/layout.tsx` is a root layout
+ * ⚠️ AND IT MUST NOT RENDER `<html>` OR `<body>`. `(payload)/layout.cms.tsx` is a root layout
  * — it returns Payload's `RootLayout`, which renders the document — so this is a fragment
  * inside it. The public 404 at the app root is the opposite case and must supply its own
  * document; the two files look inconsistent for that reason and both are correct.

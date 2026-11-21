@@ -108,6 +108,66 @@ describe('recording a save for the page cache', () => {
     quiet.mockRestore()
   })
 
+  /*
+   * THE ADMIN SPLIT (22 Nov 2026). The pages of wear-run.com are kept by ANOTHER Worker (the
+   * site-only Worker), and Workers Cache lets a store be marked stale only from inside itself. In
+   * production a save that told only the CMS Worker's own store would leave every visitor on the
+   * old page for up to a day, with every test of the save still green: the stand-in here is that
+   * second Worker's store, and the test fails unless IT is told. The planted fault (delete the
+   * `SITE_ONLY_PAGES` call in contentVersion.ts) fails the first test below; the control is the
+   * second, which shows the stand-in is not told by accident.
+   */
+  it('a save tells the site-only Worker’s page store too, about pages only', async () => {
+    const kv = fakeKv()
+    const own = vi.fn().mockResolvedValue(true)
+    const siteOnly = vi.fn().mockResolvedValue(true)
+    let pending: Promise<unknown> | undefined
+    const waitUntil = vi.fn((promise: Promise<unknown>) => {
+      pending = promise
+    })
+    getCloudflareContext.mockResolvedValue({
+      env: { SITE_CACHE: kv, SITE_ONLY_PAGES: { invalidateKept: siteOnly } },
+      ctx: { waitUntil, exports: { SitePages: { invalidateKept: own } } },
+    })
+    await recordContentChange()
+    await pending
+    expect(siteOnly).toHaveBeenCalledTimes(1)
+    // That store keeps no garment data: the CMS Worker's own store does.
+    expect(siteOnly).toHaveBeenCalledWith(['site-pages'])
+    expect(own).toHaveBeenCalledWith(['site-pages', 'garment-data'])
+  })
+
+  it('negative control: without the binding no second store is told, and the save still records', async () => {
+    const kv = fakeKv()
+    const own = vi.fn().mockResolvedValue(true)
+    const siteOnly = vi.fn().mockResolvedValue(true)
+    getCloudflareContext.mockResolvedValue({
+      env: { SITE_CACHE: kv },
+      ctx: { exports: { SitePages: { invalidateKept: own } } },
+    })
+    await recordContentChange()
+    expect(siteOnly).not.toHaveBeenCalled()
+    expect(own).toHaveBeenCalledTimes(1)
+    expect(kv.put).toHaveBeenCalledTimes(1)
+  })
+
+  it('a site-only store that cannot be told never fails the save, nor stops the other store', async () => {
+    const kv = fakeKv()
+    const own = vi.fn().mockResolvedValue(true)
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    getCloudflareContext.mockResolvedValue({
+      env: {
+        SITE_CACHE: kv,
+        SITE_ONLY_PAGES: { invalidateKept: vi.fn().mockRejectedValue(new Error('RPC failed')) },
+      },
+      ctx: { exports: { SitePages: { invalidateKept: own } } },
+    })
+    await expect(recordContentChange()).resolves.toBeUndefined()
+    expect(own).toHaveBeenCalledTimes(1)
+    expect(kv.put).toHaveBeenCalledTimes(1)
+    quiet.mockRestore()
+  })
+
   it('the hooks record the change and hand the document back untouched', async () => {
     const kv = fakeKv()
     getCloudflareContext.mockResolvedValue({ env: { SITE_CACHE: kv } })

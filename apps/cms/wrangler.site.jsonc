@@ -1,0 +1,98 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // THE SITE-ONLY WORKER (the admin split, 22 Nov 2026, owner's yes): the same code as the CMS
+  // Worker (wrangler.jsonc), built with `SITE_ONLY=1`, which leaves out the admin's screens and the
+  // CMS API (next.config.mjs `pageExtensions`). It draws and keeps the pages of wear-run.com.
+  //
+  // WHY. A visitor whose page is not kept waits for the site's Worker to be loaded, and the wait
+  // follows the Worker's size (wrangler.jsonc `minify`). Measured 21 Nov 2026 with the admin-only
+  // code blanked out of a throwaway copy: 18,262 KiB started cold at a median 487 ms against 640 ms
+  // for the 22,035 KiB control (19 same-city pairs, faster in 14, median -133 ms). This build is
+  // 16,182 KiB (22 Nov, scripts/check-cms-worker-size.mjs --site).
+  //
+  // ⚠️ IT HAS NO ADDRESS: no route, no Custom Domain, no workers.dev, no preview address. Only the
+  // front door reaches it, over service bindings (wrangler.door.jsonc `SITE_ONLY` and
+  // `SITE_ONLY_PAGES`), and the CMS Worker calls its page store after a save (`SITE_ONLY_PAGES` in
+  // wrangler.jsonc). wear-run.com stays the CMS Worker's Custom Domain, so that Worker is still
+  // the origin behind the door and still holds the whole website.
+  //
+  // THE OFF SWITCH, WITH NO DEPLOY: KV `front-door` = `full` in SITE_CACHE (door.mjs DOOR_FULL).
+  // Within 30 seconds the door sends every visitor to the CMS Worker, exactly as before this file
+  // existed. `off` still switches the whole door off. docs/RUNBOOK.md, "The site-only Worker".
+  //
+  // ⚠️ KEEP IT IN STEP WITH wrangler.jsonc. It runs the same worker.mjs on the same data, so the
+  // settings the two share must be equal; src/workerConfigs.test.ts compares them one by one and
+  // lists what may differ (the name, the routes, the cron, the bindings to each other).
+  "name": "run-apparel-site-only",
+  "main": "worker.mjs",
+  "minify": true,
+  "workers_dev": false,
+  "preview_urls": false,
+  "compatibility_date": "2026-10-23",
+  "compatibility_flags": ["nodejs_compat"],
+  // The page store: Workers Cache in front of SitePages only, never `default` (wrangler.jsonc says
+  // why). A Worker's cache is its own (Cloudflare, Workers Cache "Purge", read 22 Nov 2026), so the
+  // pages kept here are a separate store from the CMS Worker's, filled by its own drawings.
+  "cache": { "enabled": false, "cross_version_cache": true },
+  "exports": {
+    "default": { "type": "worker", "cache": { "enabled": false } },
+    "SitePages": { "type": "worker", "cache": { "enabled": true } }
+  },
+  "observability": { "enabled": true },
+  // NO `triggers` AND NO `routes`, ON PURPOSE. The daily clean-up of template download records
+  // runs in the CMS Worker alone (wrangler.jsonc `triggers`): two Workers on one cron would delete
+  // twice. The deploy never runs `wrangler triggers deploy` for this file.
+  "upload_source_maps": false,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+    "run_worker_first": ["/film/*"],
+    "html_handling": "none",
+    "not_found_handling": "none"
+  },
+  "d1_databases": [
+    {
+      "binding": "D1",
+      "database_name": "run-apparel-viewer-db",
+      "database_id": "41e20361-1a5f-4c87-b5ca-781c57c9b3f4"
+    }
+  ],
+  // The same buckets as the CMS Worker, all of them: Payload's configuration names each one when
+  // it starts, whether or not a page reads it.
+  "r2_buckets": [
+    { "binding": "R2", "bucket_name": "run-apparel-viewer-media" },
+    { "binding": "R2_INGEST", "bucket_name": "run-apparel-viewer-ingest" },
+    { "binding": "R2_INQUIRY", "bucket_name": "run-apparel-inquiry-files" },
+    { "binding": "PAGE_COPIES", "bucket_name": "run-apparel-page-copies" },
+    { "binding": "PAGE_COPIES_ENAM", "bucket_name": "run-apparel-page-copies-enam" },
+    { "binding": "PAGE_COPIES_EEUR", "bucket_name": "run-apparel-page-copies-eeur" }
+  ],
+  "services": [
+    // Garment pages and the viewer's files, as in the CMS Worker (viewerForward.mjs).
+    { "binding": "VIEWER", "service": "run-apparel-viewer-site" },
+    // The garment data's store. This build has no CMS API, so it cannot draw a garment's data: a
+    // card's warm request (viewerApiCache.mjs answerWarmRequest) asks the CMS Worker's store.
+    { "binding": "CMS_PAGES", "service": "run-apparel-viewer-cms", "entrypoint": "SitePages" }
+  ],
+  "kv_namespaces": [{ "binding": "SITE_CACHE", "id": "68732140e2544366a8d0c0d0cc8a48cc" }],
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+  "queues": {
+    "producers": [{ "binding": "SHRINK_QUEUE", "queue": "glb-shrink" }]
+  },
+  "vars": {
+    // Which Worker this is: worker.mjs answers it at /__worker/version (the deploy's proof that its
+    // checks reached this Worker's new version) and takes the garment data's store from it.
+    "WORKER_NAME": "run-apparel-site-only",
+    // The rest are wrangler.jsonc's values; src/workerConfigs.test.ts holds them equal.
+    "SITE_INDEXING": "visible",
+    "PAGE_COPY": "on",
+    "STORE_HEDGE": "on",
+    "CMS_PUBLIC_URL": "https://cms.wear-run.help",
+    "PUBLIC_MEDIA_BASE_URL": "https://media.wear-run.help",
+    "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help,https://wear-run.help,https://wear-run.com"
+  }
+  // Secrets: PAYLOAD_SECRET and SENTRY_DSN, applied by the deploy as on the CMS Worker. NOT here:
+  // RESEND_API_KEY, TURNSTILE_SECRET and TEMPLATE_NOTICE_OWNER. The three forms post to the CMS
+  // Worker (door.mjs sends every request that is not a GET or a HEAD there), so this Worker never
+  // sends mail and never checks a Turnstile answer.
+}

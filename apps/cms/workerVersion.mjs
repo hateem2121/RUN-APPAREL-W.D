@@ -15,22 +15,33 @@
  */
 export const WORKER_VERSION_PATH = '/__worker/version'
 
+/** The CMS Worker (wrangler.jsonc), and the site-only Worker built from the same code (wrangler.site.jsonc). */
+export const CMS_WORKER = 'run-apparel-viewer-cms'
+export const SITE_ONLY_WORKER = 'run-apparel-site-only'
+
+/**
+ * Which of the two Workers this code is running as. wrangler.site.jsonc sets `WORKER_NAME`; the CMS
+ * Worker sets nothing, so anything but the site-only name is the CMS Worker, as it always was.
+ * @param {{ WORKER_NAME?: string } | undefined} env
+ */
+export function workerName(env) {
+  return env?.WORKER_NAME === SITE_ONLY_WORKER ? SITE_ONLY_WORKER : CMS_WORKER
+}
+
 /**
  * @param {URL} url
  * @param {{ id?: string } | undefined} metadata
+ * @param {string} [worker] this Worker's name (workerName)
  * @returns {Response | null}
  */
-export function workerVersionResponse(url, metadata) {
+export function workerVersionResponse(url, metadata, worker = CMS_WORKER) {
   if (url.pathname !== WORKER_VERSION_PATH) return null
-  return new Response(
-    `${JSON.stringify({ worker: 'run-apparel-viewer-cms', version: metadata?.id ?? null })}\n`,
-    {
-      headers: {
-        'content-type': 'application/json; charset=utf-8',
-        'cache-control': 'no-store',
-        'x-content-type-options': 'nosniff',
-        'x-robots-tag': 'noindex',
-      },
+  return new Response(`${JSON.stringify({ worker, version: metadata?.id ?? null })}\n`, {
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+      'x-robots-tag': 'noindex',
     },
-  )
+  })
 }

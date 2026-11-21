@@ -84,13 +84,36 @@ function runGit(args) {
 }
 
 /**
+ * ⚠️ ONE SOURCE, TWO BUILDS, TWO NAMES (the admin split, 22 Nov 2026). The same commit is built
+ * twice: whole, for the CMS Worker, and with `SITE_ONLY=1` for the site-only Worker, which leaves
+ * out the admin and the CMS API (next.config.mjs `pageExtensions`). Measured that day on one
+ * commit: the two builds shared 264 browser files and the site-only build had 7 script files the
+ * whole build did not. With one build id for both, a visitor moved from one Worker to the other
+ * (the front door's switch, door.mjs) would keep tapping between pages whose script files the
+ * other Worker does not have. A name of its own makes Next load the whole page instead, as it
+ * does after any deploy that changed the website.
+ */
+export const SITE_ONLY_FLAVOUR = 'site-only'
+
+/**
+ * Which build this process is making: '' for the whole app, SITE_ONLY_FLAVOUR for the site-only one.
+ * @param {{ SITE_ONLY?: string }} [env]
+ */
+export function buildFlavour(env = process.env) {
+  return env.SITE_ONLY === '1' ? SITE_ONLY_FLAVOUR : ''
+}
+
+/**
  * The source half: `site-` and 20 hex digits, or null when it cannot be trusted.
  * @param {(args: string[]) => string} [git] for the tests
+ * @param {string} [flavour] '' or SITE_ONLY_FLAVOUR; read from SITE_ONLY when not given
  */
-export function siteSourceBuildId(git = runGit) {
+export function siteSourceBuildId(git = runGit, flavour = buildFlavour()) {
   try {
     if (git(['status', '--porcelain', '--', ...SITE_SOURCE_PATHS]) !== '') return null
     const ids = SITE_SOURCE_PATHS.map((path) => `${path} ${git(['rev-parse', `HEAD:${path}`])}`)
+    // The site-only build gets a name of its own (the note on SITE_ONLY_FLAVOUR, below).
+    if (flavour) ids.push(`flavour ${flavour}`)
     return `site-${sha256(ids.join('\n')).slice(0, 20)}`
   } catch {
     return null

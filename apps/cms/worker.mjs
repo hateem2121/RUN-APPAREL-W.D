@@ -48,7 +48,7 @@ import { keepableTapAnswer, keptTapHeaders } from './tapStore.mjs'
 import { keepableApiRequest, keepApiAnswer } from './viewerApiCache.mjs'
 import { reportToSentry } from './src/lib/sentry.ts'
 import { runTemplateRetention } from './templateDownloadRetention.mjs'
-import { workerVersionResponse } from './workerVersion.mjs'
+import { SITE_ONLY_WORKER, workerName, workerVersionResponse } from './workerVersion.mjs'
 
 export * from './.open-next/worker.js'
 
@@ -162,11 +162,17 @@ export default {
   fetch: createSiteFetch({
     draw: (request, env, ctx) => openNext.fetch(request, env, ctx),
     store: (_env, ctx) => ctx?.exports?.SitePages,
+    // ⚠️ THE GARMENT DATA IS DRAWN BY THE CMS WORKER ALONE (the admin split, 22 Nov 2026). This
+    // file runs as two Workers. The site-only build has no CMS API, so its own store would draw a
+    // garment's data as a 404; it asks the CMS Worker's store over `CMS_PAGES` instead
+    // (wrangler.site.jsonc). The CMS Worker asks its own, as before.
+    dataStore: (env, ctx) =>
+      workerName(env) === SITE_ONLY_WORKER ? env.CMS_PAGES : ctx?.exports?.SitePages,
     first(request, env) {
       const url = new URL(request.url)
       // Which version answered: the deploy's proof its pre-live checks reached the new version
       // (workerVersion.mjs, 2026-11-07). Before OpenNext and the page store, so nothing keeps it.
-      const version = workerVersionResponse(url, env.CF_VERSION_METADATA)
+      const version = workerVersionResponse(url, env.CF_VERSION_METADATA, workerName(env))
       if (version) return version
       // The /products film, in the pieces iPhone Safari asks for: the static assets would send the
       // whole file to every range request (filmRange.mjs has the measurements). Only `/film/*` reaches

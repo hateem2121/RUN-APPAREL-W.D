@@ -24,27 +24,47 @@ import { CONTENT_VERSION_KEY, KEPT_TAGS } from '../../pageCache.mjs'
  * runs after the response (`waitUntil`), so a save is not slowed either. Without the binding
  * (tests, `next dev`, a preview with no KV) it does nothing.
  */
-/** The part of the Worker's context this needs: worker.mjs's SitePages entrypoint, over RPC. */
-type SitePagesContext = {
-  exports?: { SitePages?: { invalidateKept: (tags: string[]) => Promise<boolean> } }
+/** A page store's own entrypoint (worker.mjs SitePages), reached over RPC. */
+type PageStore = { invalidateKept: (tags: string[]) => Promise<boolean> }
+
+/** The part of the Worker's context this needs: this Worker's own SitePages entrypoint. */
+type SitePagesContext = { exports?: { SitePages?: PageStore } }
+
+/**
+ * ⚠️ TWO WORKERS KEEP PAGES, AND EACH STORE CAN ONLY BE MARKED STALE FROM INSIDE ITSELF (the admin
+ * split, 22 Nov 2026). The saves happen in the CMS Worker; the pages of wear-run.com are kept by
+ * the site-only Worker (wrangler.site.jsonc). Cloudflare scopes `invalidate()` to the Worker and
+ * entrypoint that call it (Workers Cache, "Purge", read 22 Nov 2026), so a save that told only
+ * this Worker's store would leave every visitor on the old page for up to a day
+ * (PAGE_CACHE_SECONDS). `SITE_ONLY_PAGES` (wrangler.jsonc) is that Worker's SitePages entrypoint:
+ * its `invalidateKept` runs there. Absent (tests, a preview, the site-only Worker itself, which
+ * saves nothing a page shows) it is skipped. contentVersion.test.ts fails if this call is removed.
+ */
+type StoreBindings = { SITE_CACHE?: KVNamespace; SITE_ONLY_PAGES?: PageStore }
+
+/** Tell one store, and never let its failure reach the save or the other store. */
+function markStale(store: PageStore | undefined, tags: string[], which: string): Promise<unknown> {
+  // Inside an async function, so even a stub that throws at once becomes a logged rejection.
+  return (async () => store?.invalidateKept(tags))().catch((err: unknown) =>
+    console.error(`[page-cache] could not mark ${which} kept copies stale`, err),
+  )
 }
 
 export async function recordContentChange(): Promise<void> {
   try {
     const context = await getCloudflareContext({ async: true }).catch(() => null)
-    const kv = (context?.env as { SITE_CACHE?: KVNamespace } | undefined)?.SITE_CACHE
+    const env = context?.env as StoreBindings | undefined
+    const kv = env?.SITE_CACHE
     if (!kv) return
     const write = kv
       .put(CONTENT_VERSION_KEY, crypto.randomUUID())
       .catch((err: unknown) => console.error('[page-cache] could not record a save', err))
     // The store's own entrypoint, the one place Workers Cache lets the copies be marked stale.
     const store = (context?.ctx as SitePagesContext | undefined)?.exports?.SitePages
-    // Inside an async function, so even a stub that throws at once becomes a logged rejection.
-    const stale = (async () =>
-      store?.invalidateKept([KEPT_TAGS.pages, KEPT_TAGS.garmentData]))().catch((err: unknown) =>
-      console.error('[page-cache] could not mark the kept copies stale', err),
-    )
-    const both = Promise.all([write, stale])
+    const stale = markStale(store, [KEPT_TAGS.pages, KEPT_TAGS.garmentData], 'the')
+    // The site-only Worker's store keeps pages only; the garment data is kept here.
+    const staleSite = markStale(env?.SITE_ONLY_PAGES, [KEPT_TAGS.pages], "the site-only Worker's")
+    const both = Promise.all([write, stale, staleSite])
     if (context?.ctx) context.ctx.waitUntil(both)
     else await both
   } catch (err) {

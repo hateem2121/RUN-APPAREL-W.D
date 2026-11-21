@@ -155,9 +155,33 @@ const GATES = [
     argv: [...PNPM, '--filter', '@run-apparel/cms', 'exec', 'opennextjs-cloudflare', 'build'],
   },
   {
+    // The admin split (22 Nov 2026): the app is built twice, and only the WHOLE build may
+    // become the CMS Worker. A build that lost the `.cms.` route files has no admin and no API.
+    name: 'whole-build-routes',
+    why: 'the CMS Worker’s build still has the admin and the CMS API — needs cms-worker-build',
+    argv: ['node', 'scripts/check-site-only-build.mjs', '--whole'],
+  },
+  {
     name: 'cms-worker-size',
     why: 'fails over 80% of the 64 MiB limit — needs cms-worker-build',
     argv: ['node', 'scripts/check-cms-worker-size.mjs'],
+  },
+  {
+    // ⚠️ It REPLACES `.next` and `.open-next` with the site-only build, so it comes after every
+    // gate that reads the whole one. Rebuild before previewing the CMS afterwards.
+    name: 'site-only-build',
+    why: 'builds the site-only Worker (SITE_ONLY=1: no admin, no CMS API), as CI verify does',
+    argv: [...PNPM, '--filter', '@run-apparel/cms', 'build:site-only'],
+  },
+  {
+    name: 'site-only-routes',
+    why: 'the site-only build has the website and neither CMS route — needs site-only-build',
+    argv: ['node', 'scripts/check-site-only-build.mjs', '--site'],
+  },
+  {
+    name: 'site-only-size',
+    why: 'fails over 18,000 KiB (measured 16,182) — needs site-only-build',
+    argv: ['node', 'scripts/check-cms-worker-size.mjs', '--site'],
   },
   {
     name: 'eval-artwork',

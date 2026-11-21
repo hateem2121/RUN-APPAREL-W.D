@@ -9,11 +9,13 @@ import {
   OVERRIDE_WAITS_MS,
   ROUTE_ONLY_WORKERS,
   VERSION_URLS,
+  BEHIND_DOOR_WORKERS,
   askUntilApplied,
   configArgs,
   isTagNotListed,
   isVersionNotFound,
   judgeAnswer,
+  judgeBehindDoor,
   judgeControl,
   judgeRouteOnly,
   liveVersion,
@@ -593,4 +595,53 @@ test('the door’s own config file reaches every wrangler call; without it none 
   const without = stageWithLateList(0)
   assert.equal(without.status, 0, without.stderr)
   for (const call of without.calls) assert.doesNotMatch(call, /--config/, call)
+})
+
+/*
+ * THE SITE-ONLY WORKER (the admin split, 22 Nov 2026) has no address: the door hands
+ * wear-run.com/__worker/version to it over a binding, and the CMS Worker answers the same address
+ * whenever the door does not (the switch is off, or the door live at that moment predates the
+ * split). What production would do if this were judged wrong, both ways: a control that demanded
+ * the site-only Worker's old id would fail EVERY deploy while the switch is off, the door's own
+ * fault of 20 Nov 2026 over again; and a with-header answer from the CMS Worker passed as "no door
+ * in front" would let every pre-live check test the Worker that is already live.
+ */
+const SITE_ONLY = 'run-apparel-site-only'
+const CMS = 'run-apparel-viewer-cms'
+
+test('the site-only Worker has a version address, behind the door, on the website’s host', () => {
+  assert.deepEqual(BEHIND_DOOR_WORKERS, [SITE_ONLY])
+  assert.equal(VERSION_URLS[SITE_ONLY], 'https://wear-run.com/__worker/version')
+  // Never the admin host: there the CMS Worker answers, with or without any header.
+  assert.notEqual(new URL(VERSION_URLS[SITE_ONLY]).hostname, new URL(VERSION_URLS[CMS]).hostname)
+})
+
+test('control for the site-only Worker: the CMS Worker answering (switch off, or an older door) passes', () => {
+  assert.equal(judgeControl(200, { worker: CMS, version: OLD }, SITE_ONLY, NEW, OLD), 'ok')
+  assert.equal(judgeControl(200, { worker: SITE_ONLY, version: OLD }, SITE_ONLY, NEW, OLD), 'ok')
+  // Negative controls: the NEW version answering without the header is still the fault it guards,
+  assert.equal(judgeControl(200, { worker: SITE_ONLY, version: NEW }, SITE_ONLY, NEW, OLD), 'wrong')
+  assert.equal(judgeControl(200, { worker: CMS, version: NEW }, SITE_ONLY, NEW, OLD), 'wrong')
+  // and for a Worker with an address of its own, another Worker answering is still wrong.
+  assert.equal(
+    judgeControl(200, { worker: 'run-apparel-viewer-site', version: OLD }, CMS, NEW, OLD),
+    'wrong',
+  )
+})
+
+test('with the header: the CMS Worker answering for the site-only Worker FAILS while a door is in front', () => {
+  const fromCms = { worker: CMS, version: OLD }
+  // PLANTED FAULT: a door that did not pass the check on. The door answered (doorUnrouted false).
+  assert.equal(judgeBehindDoor('wrong', fromCms, SITE_ONLY, false), 'wrong')
+  // The door's undo (its routes deleted): no door in front, so nothing reaches the Worker. A warning.
+  assert.equal(judgeBehindDoor('wrong', fromCms, SITE_ONLY, true), 'unrouted')
+  // The site-only Worker itself answering with the wrong id is an override not applied, door or no door.
+  assert.equal(
+    judgeBehindDoor('wrong', { worker: SITE_ONLY, version: OLD }, SITE_ONLY, true),
+    'wrong',
+  )
+  assert.equal(judgeBehindDoor('ok', { worker: SITE_ONLY, version: NEW }, SITE_ONLY, false), 'ok')
+  // Any other Worker's verdict is left as it was.
+  assert.equal(judgeBehindDoor('wrong', fromCms, CMS, true), 'wrong')
+  assert.equal(judgeBehindDoor('unrouted', null, 'run-apparel-site-door', false), 'unrouted')
 })
