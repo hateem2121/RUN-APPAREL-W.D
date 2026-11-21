@@ -24,21 +24,20 @@
   // UNDO: delete these routes (dashboard: Workers Routes on each zone, or deploy this file with an
   // empty list). The site's Worker then answers every request itself, exactly as before.
   //
-  // STAGE 1 (this list): the garment pages, the viewer's files and the garment data. Every one is
-  // either handed straight to the viewer Worker or answered from the store's garment data, so the
-  // website's pages are not touched yet. `wear-run.com/products/*` does not match `/products`
-  // itself (the website's list page), and anything under it that is not a garment page is handed
-  // on (viewerForward.mjs decides, as it does in the site's Worker).
+  // STAGE 2 (this list, 21 Nov 2026, owner's yes): every address on wear-run.com, and the garment
+  // data on the admin host. Stage 1 (20 Nov) was the garment pages, the viewer's files and the
+  // garment data only; measured the next day, those answered a first visit in 90 to 490 ms (three
+  // US bursts: p90 145, 293 and 181 ms against 1,467, 1,389 and 1,791 before), while the website's
+  // own pages, not yet behind the door, still took 981 to 4,593 ms. `wear-run.com/*` covers what
+  // stage 1 listed one by one. The door hands on what it must never answer (door.mjs
+  // alwaysHandedOn: `/_next`, `/api`, `/admin`, `/film`, the version addresses).
+  //
+  // ⚠️ NOT wear-run.help or www.wear-run.help: the site's Worker holds those two as ROUTES, not
+  // Custom Domains (wrangler.jsonc), a pattern belongs to one Worker at a time, and a Worker on a
+  // route cannot be fetched from the same zone (Cloudflare, Workers "Routes", read 21 Nov 2026).
+  // ⚠️ NOT www.wear-run.com either: it only redirects, and a redirect is never kept.
   "routes": [
-    { "pattern": "wear-run.com/products/*", "zone_name": "wear-run.com" },
-    { "pattern": "wear-run.com/ru/products/*", "zone_name": "wear-run.com" },
-    { "pattern": "wear-run.com/assets/*", "zone_name": "wear-run.com" },
-    { "pattern": "wear-run.com/basis/*", "zone_name": "wear-run.com" },
-    { "pattern": "wear-run.com/draco/*", "zone_name": "wear-run.com" },
-    { "pattern": "wear-run.com/env/*", "zone_name": "wear-run.com" },
-    { "pattern": "wear-run.com/og/*", "zone_name": "wear-run.com" },
-    { "pattern": "wear-run.com/meshopt_decoder.js", "zone_name": "wear-run.com" },
-    { "pattern": "wear-run.com/sw.js", "zone_name": "wear-run.com" },
+    { "pattern": "wear-run.com/*", "zone_name": "wear-run.com" },
     { "pattern": "cms.wear-run.help/api/public/viewer/*", "zone_name": "wear-run.help" }
   ],
   "services": [

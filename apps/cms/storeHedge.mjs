@@ -21,6 +21,20 @@
 /** The larger of the page and tap hit p95 (39 ms and 13 ms, 24 h to 11 Nov 2026), rounded up. */
 export const HEDGE_HEAD_START_MS = 40
 
+/**
+ * How long the hedge waits for the shared copy (pageCopy.mjs). Longer than SitePages' own 400 ms
+ * (COPY_READ_TIMEOUT_MS), on purpose: SitePages' read once held the drawing up, so it gives up
+ * early, while here the copy RACES the store and the drawing and the first answer wins, so a late
+ * copy costs nothing and a copy at 700 ms still beats a drawing at 2 s.
+ *
+ * WHY (21 Nov 2026, the front door's trial route). Six first visits to a guide from Frankfurt,
+ * London and Sydney, pages their regions' stores did not hold, took 1,544 to 4,554 ms: SitePages
+ * drew each one (1,385 to 3,030 ms of wall time, up to 1,900 ms of CPU on a fresh copy), and its
+ * own read of the copy gave up at exactly 400 ms five times out of six (the sixth found it in
+ * 360 ms). The copies were there to be read; the wait for them was the short one.
+ */
+export const HEDGE_COPY_WAIT_MS = 1_500
+
 /** Our warm-up robot and Globalping's probes: nobody waits on them (plan ruling 1, 28 Oct). */
 const NEVER_HEDGED_AGENTS = /run-apparel-store-warmup|globalping/i
 

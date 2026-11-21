@@ -2,10 +2,15 @@
 /**
  * Test each new Worker version BEFORE visitors get it (owner decision, 2026-11-07).
  *
- *   node scripts/version-overrides.mjs stage   <worker> <package-dir> <tag>   → prints old=…, new=…
+ *   node scripts/version-overrides.mjs stage   <worker> <package-dir> <tag> [config]  → prints old=…, new=…
  *   node scripts/version-overrides.mjs verify                                 (reads CF_VERSION_PAIRS)
- *   node scripts/version-overrides.mjs promote <worker> <package-dir> <version-id>
- *   node scripts/version-overrides.mjs unstage <worker> <package-dir> <old-version-id>
+ *   node scripts/version-overrides.mjs promote <worker> <package-dir> <version-id> [config]
+ *   node scripts/version-overrides.mjs unstage <worker> <package-dir> <old-version-id> [config]
+ *
+ * `[config]` names a wrangler config file in the package directory, for a Worker that is not the
+ * directory's default one: the front door is `apps/cms` + `wrangler.door.jsonc`. It matters because
+ * `versions deploy` also writes the config's non-versioned settings (logging) onto the Worker it
+ * names, and without it the door would be given the site Worker's.
  *
  * WHY. Of 73 ci.yml runs on `main` from 25 Oct to 7 Nov, 8 deploys needed fixing ("Deploy failed"
  * issues), and in 3 of the 4 opened the failing step was a check that runs AFTER the deploy — the
@@ -46,6 +51,30 @@ export const HEADER = 'Cloudflare-Workers-Version-Overrides'
 export const VERSION_URLS = {
   'run-apparel-viewer-cms': 'https://cms.wear-run.help/__worker/version',
   'run-apparel-viewer-site': 'https://wear-run.com/products/__worker/version',
+  // The front door (apps/cms/door.mjs DOOR_VERSION_PATH), staged with the other two since
+  // 21 Nov 2026 so the pre-live checks pass through the NEW door, not the live one.
+  'run-apparel-site-door': 'https://wear-run.com/products/__door/version',
+}
+
+/**
+ * Workers that answer only on ROUTES, and so may be on none: the front door's whole undo is
+ * deleting its routes (docs/RUNBOOK.md, "The front door"), and a deploy must still get through
+ * with the door taken away, or the undo would block every later deploy the way the door's own
+ * fault did on 20 Nov 2026 (runs 44767665680 and 44781104367).
+ */
+export const ROUTE_ONLY_WORKERS = ['run-apparel-site-door']
+
+/**
+ * The WITH-header answer for a route-only Worker, judged once the waits have run out.
+ * 'unrouted' means no version of that Worker answered at all (the viewer's page or a 404 came
+ * back instead), so there is no door in front of the site to test: a warning, never a failure.
+ * An answer FROM the Worker with another version id stays wrong: that is an override not applied.
+ * @param {'ok' | 'wrong' | 'inconclusive'} verdict
+ * @returns {'ok' | 'wrong' | 'inconclusive' | 'unrouted'}
+ */
+export function judgeRouteOnly(verdict, body, worker) {
+  if (verdict !== 'wrong' || !ROUTE_ONLY_WORKERS.includes(worker)) return verdict
+  return body?.worker === worker ? 'wrong' : 'unrouted'
 }
 
 /** Hosts whose requests carry the override header (both Workers answer on them). */
@@ -251,16 +280,19 @@ export async function withRetries(attempt, retryable, waits, sleep, note = () =>
  * just created. Repeating it is safe: it names the same versions and the same percentages, and
  * the failure it repeats after is one where nothing was deployed.
  */
-function deployVersions(dir, args) {
-  const waits = process.env.CF_VERSION_RETRY_WAITS_MS
+function retryWaits() {
+  return process.env.CF_VERSION_RETRY_WAITS_MS
     ? process.env.CF_VERSION_RETRY_WAITS_MS.split(',').map(Number)
     : VERSION_RETRY_WAITS_MS
+}
+
+function deployVersions(dir, args) {
   return withRetries(
     () => wrangler(dir, args),
     isVersionNotFound,
-    waits,
+    retryWaits(),
     (ms) => new Promise((done) => setTimeout(done, ms)),
-    // To stderr: this step's stdout is piped into $GITHUB_OUTPUT (ci.yml, "Stage both new versions").
+    // To stderr: this step's stdout is piped into $GITHUB_OUTPUT (ci.yml, "Stage the three new versions").
     (line) => console.error(`::warning::${line}`),
   )
 }
@@ -268,6 +300,28 @@ function deployVersions(dir, args) {
 function jsonOf(text) {
   const start = text.search(/[[{]/)
   return JSON.parse(text.slice(start))
+}
+
+/**
+ * Is this the list not showing a version that was uploaded a moment ago?
+ *
+ * ⚠️ 20 Nov 2026, main run 44733082549, attempt 1 (PR #432): both uploads had answered with a
+ * version id (12:31:01 and 12:31:26 UTC), the stage step started at 12:31:26 and stopped 1.4 s
+ * later with "no uploaded version carries the tag r44733082549a1". Attempt 2, the same commit
+ * re-run by hand, passed. Cloudflare's list most likely had not caught up with its own write (not
+ * proven: the list's answer was not kept, and the log does not say which Worker's list it was),
+ * the same shape as the 100146 above, one call earlier. So the list is asked again after each of
+ * VERSION_RETRY_WAITS_MS; a tag that is truly missing still fails, 20 seconds later.
+ */
+export function isTagNotListed(message) {
+  return /no uploaded version carries the tag/i.test(String(message ?? ''))
+}
+
+/** `--config <file>` for a Worker that is not its directory's default one, else nothing. */
+export function configArgs(config) {
+  if (config === undefined || config === '') return []
+  if (!/^[\w.-]+\.jsonc?$/.test(config)) throw new Error(`not a wrangler config file: ${config}`)
+  return ['--config', config]
 }
 
 async function ask(url, headers) {
@@ -291,23 +345,25 @@ async function ask(url, headers) {
 
 async function main([command, ...args]) {
   if (command === 'stage') {
-    const [worker, dir, tag] = args
+    const [worker, dir, tag, config] = args
     if (!worker || !dir || !tag) return usage()
-    const fresh = versionWithTag(
-      jsonOf(wrangler(dir, ['versions', 'list', '--name', worker, '--json'])),
-      tag,
+    const named = ['--name', worker, ...configArgs(config)]
+    const fresh = await withRetries(
+      () => versionWithTag(jsonOf(wrangler(dir, ['versions', 'list', ...named, '--json'])), tag),
+      isTagNotListed,
+      retryWaits(),
+      (ms) => new Promise((done) => setTimeout(done, ms)),
+      // To stderr, like deployVersions: this step's stdout is piped into $GITHUB_OUTPUT.
+      (line) => console.error(`::warning::${line} (the list did not show the tag ${tag})`),
     )
-    const old = liveVersion(
-      jsonOf(wrangler(dir, ['deployments', 'status', '--name', worker, '--json'])),
-    )
+    const old = liveVersion(jsonOf(wrangler(dir, ['deployments', 'status', ...named, '--json'])))
     if (fresh === old) throw new Error(`the tagged version ${fresh} is already live`)
     await deployVersions(dir, [
       'versions',
       'deploy',
       `${old}@100%`,
       `${fresh}@0%`,
-      '--name',
-      worker,
+      ...named,
       '--message',
       `staged ${tag} at 0%`,
       '--yes',
@@ -317,7 +373,7 @@ async function main([command, ...args]) {
     return 0
   }
   if (command === 'promote' || command === 'unstage') {
-    const [worker, dir, id] = args
+    const [worker, dir, id, config] = args
     if (!worker || !dir || !UUID.test(id ?? '')) return usage()
     await deployVersions(dir, [
       'versions',
@@ -325,6 +381,7 @@ async function main([command, ...args]) {
       `${id}@100%`,
       '--name',
       worker,
+      ...configArgs(config),
       '--message',
       `${command}d ${id}`,
       '--yes',
@@ -365,7 +422,9 @@ async function main([command, ...args]) {
             asks: 1,
           }
         }
-        const { status, body, verdict, asks } = answer
+        const { status, body, asks } = answer
+        const verdict =
+          want === fresh[worker] ? judgeRouteOnly(answer.verdict, body, worker) : answer.verdict
         const tries =
           asks > 1
             ? `, after ${asks} asks over ${((Date.now() - started) / 1000).toFixed(1)} s`
@@ -374,6 +433,10 @@ async function main([command, ...args]) {
         if (verdict === 'ok') console.log(`✓ ${line}`)
         else if (verdict === 'inconclusive')
           console.log(`::warning::${line} — inconclusive (Bot Fight Mode), not a wrong version`)
+        else if (verdict === 'unrouted')
+          console.log(
+            `::warning::${line} — no version of ${worker} answered, so it is on no route and the checks do not pass through it`,
+          )
         else {
           console.log(`::error::${line}`)
           failed++

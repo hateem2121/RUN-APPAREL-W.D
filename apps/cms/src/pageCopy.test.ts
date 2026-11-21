@@ -14,6 +14,7 @@ import {
   writeCopy,
 } from '../pageCopy.mjs'
 import { KEPT_CACHE_CONTROL, STALE_SECONDS, VERSION_CACHE_SECONDS } from '../pageCache.mjs'
+import { HEDGE_COPY_WAIT_MS } from '../storeHedge.mjs'
 
 const BUILD = 'site-0123456789abcdef0123.0123456789ab'
 
@@ -113,6 +114,58 @@ describe('writeCopy and readCopy', () => {
 
   it('reads within 400 ms, the plan’s ceiling', () => {
     expect(COPY_READ_TIMEOUT_MS).toBe(400)
+  })
+})
+
+/*
+ * The hedge's longer wait (storeHedge.mjs HEDGE_COPY_WAIT_MS, 21 Nov 2026). What production did:
+ * SitePages' read of the copy gave up at exactly 400 ms five times out of six from Frankfurt,
+ * London and Sydney, and the visitor then waited 1.5 to 4.5 s for a drawing. In the hedge the copy
+ * races the drawing, so it may wait: a copy that R2 hands over in 700 ms is still the faster answer.
+ */
+describe('the hedge waits longer for the copy than SitePages does', () => {
+  const KEY = `pages/wear-run.com/${BUILD}/7/guides`
+  const asked = new Request('https://wear-run.com/guides', { headers: { [COPY_KEY_HEADER]: KEY } })
+  const slowBucket = () => {
+    const bucket = fakeBucket({ getDelayMs: 700 })
+    bucket.store.set(
+      KEY,
+      JSON.stringify({ v: 1, headers: [['content-type', 'text/html']], text: '<html>g</html>' }),
+    )
+    return bucket
+  }
+
+  it('a copy R2 hands over in 700 ms is served when the hedge asks', async () => {
+    vi.useFakeTimers()
+    const answer = answerFromCopy(asked, { PAGE_COPIES: slowBucket() }, HEDGE_COPY_WAIT_MS)
+    await vi.advanceTimersByTimeAsync(701)
+    expect(await (await answer)?.text()).toBe('<html>g</html>')
+  })
+
+  it('negative control: the same 700 ms read is "no copy" at SitePages’ 400 ms', async () => {
+    vi.useFakeTimers()
+    const answer = answerFromCopy(asked, { PAGE_COPIES: slowBucket() })
+    await vi.advanceTimersByTimeAsync(COPY_READ_TIMEOUT_MS + 1)
+    expect(await answer).toBeNull()
+  })
+
+  it('still gives up: a read slower than the hedge’s wait is "no copy" there too', async () => {
+    vi.useFakeTimers()
+    const bucket = fakeBucket({ getDelayMs: HEDGE_COPY_WAIT_MS + 500 })
+    const answer = answerFromCopy(asked, { PAGE_COPIES: bucket }, HEDGE_COPY_WAIT_MS)
+    await vi.advanceTimersByTimeAsync(HEDGE_COPY_WAIT_MS + 1)
+    expect(await answer).toBeNull()
+  })
+
+  it('the hedge is where the longer wait is used, and SitePages keeps the short one', () => {
+    expect(HEDGE_COPY_WAIT_MS).toBeGreaterThan(COPY_READ_TIMEOUT_MS)
+    const cms = join(import.meta.dirname, '..')
+    expect(readFileSync(join(cms, 'siteEdge.mjs'), 'utf8')).toContain(
+      'askCopy: () => answerFromCopy(clean, env, HEDGE_COPY_WAIT_MS)',
+    )
+    expect(readFileSync(join(cms, 'worker.mjs'), 'utf8')).toContain(
+      'raceCopy(answerFromCopy(request, this.env), drawing, this.ctx)',
+    )
   })
 })
 

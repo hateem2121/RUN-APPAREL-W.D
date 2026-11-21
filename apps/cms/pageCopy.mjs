@@ -71,12 +71,14 @@ export function copyLog(state, ms) {
  *
  * @param {Request} request the clean request SitePages was handed
  * @param {{ PAGE_COPIES?: any, PAGE_COPY?: string }} env
+ * @param {number} [timeoutMs] how long to wait for R2: the hedge waits longer (storeHedge.mjs
+ *   HEDGE_COPY_WAIT_MS), because there the copy races the drawing instead of holding it up
  * @returns {Promise<Response | null>}
  */
-export async function answerFromCopy(request, env) {
+export async function answerFromCopy(request, env, timeoutMs = COPY_READ_TIMEOUT_MS) {
   if (!copyable(request, env)) return null
   const askedAt = Date.now()
-  const copy = await readCopy(env.PAGE_COPIES, request.headers.get(COPY_KEY_HEADER))
+  const copy = await readCopy(env.PAGE_COPIES, request.headers.get(COPY_KEY_HEADER), timeoutMs)
   console.log(copyLog(copy ? 'hit' : 'miss', Date.now() - askedAt))
   if (!copy) return null
   const headers = keptHeaders(copy.headers, Date.now(), KEPT_TAGS.pages)

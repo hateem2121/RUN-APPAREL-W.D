@@ -162,18 +162,24 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   NEVER kept and are worked out for each request, because the Cache API ignores `Vary`.
 
 - **🟡 A SMALL WORKER RUNS IN FRONT OF THIS ONE (the front door, 20 Nov 2026).** `door.mjs` +
-  `wrangler.door.jsonc` deploy `run-apparel-site-door` (38 KiB) on ROUTES, and Cloudflare runs a
-  route's Worker before the Worker that holds the address as a Custom Domain. Why: a fresh copy of
-  this 40.8 MiB Worker takes 1.2 to 2.0 s to start (Cloudflare's start-up figure, every hour of
-  24), and a kept page waited for it; the deploy log's "Worker Startup Time: 23 ms" does NOT show
-  it, because that counts start-up code and not loading the script. The door asks the store over a
-  service binding (a kept copy comes back without this Worker running) and hands everything else
-  on. Both Workers apply ONE set of steps, `siteEdge.mjs`: change a step there, never in
-  `worker.mjs` or `door.mjs` alone. 🟡 The door reads the live build's name from the static file
-  `/__site-build.txt`, which `node siteBuild.mjs` writes at upload; never bake a build name into
-  it. 🟡 A request carrying `Cloudflare-Workers-Version-Overrides` is handed on whole, or a
-  deploy's pre-live check would pass on a kept page without the new version running. Undo: delete
-  the door's routes, or KV `front-door` = `off` (`docs/RUNBOOK.md`, "The front door").
+  `wrangler.door.jsonc` deploy `run-apparel-site-door` on ROUTES (all of `wear-run.com` since
+  21 Nov, and the garment data on the admin host), and Cloudflare runs a route's Worker before the
+  Worker that holds the address as a Custom Domain. Why: a fresh copy of this Worker takes 1.2 to
+  2.0 s to start, and a kept page waited for it; its start-up CODE runs for about 31 ms
+  (`wrangler check startup`, 21 Nov), so the wait is the script being loaded, which is why
+  `wrangler.jsonc` sets `minify`. The door asks the store over a service binding (a kept copy
+  comes back without this Worker running) and hands everything else on. Both Workers apply ONE
+  set of steps, `siteEdge.mjs`: change a step there, never in `worker.mjs` or `door.mjs` alone.
+  🟡 The door reads the live build's name from the static file `/__site-build.txt`, which
+  `node siteBuild.mjs` writes at upload; never bake a build name into it. 🟡 A request carrying
+  `Cloudflare-Workers-Version-Overrides` is handed on whole, or a deploy's pre-live check would
+  pass on a kept page without the new version running; so those checks prove the door does no
+  harm, never that its fast path works (`door.test.ts` and `scripts/first-visit-burst.mjs` do
+  that). 🟡 The door is STAGED AT 0% WITH THE OTHER TWO since 21 Nov: deployed after the checks,
+  a faulty door failed every deploy, its own fix included (runs 44767665680, 44781104367).
+  🟡 Never route it on `wear-run.help` or `www.wear-run.help`: this Worker holds those as routes,
+  not Custom Domains. Undo: delete the door's routes, or KV `front-door` = `off`
+  (`docs/RUNBOOK.md`, "The front door").
 
 - **`apps/viewer/src/styles/tokens.test.ts` scans JSX as well as CSS**, so a literal
   `style={{ padding: '20px' }}` in a `.tsx` fails the build — three had walked past a

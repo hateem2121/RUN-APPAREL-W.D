@@ -3,6 +3,7 @@
  *
  *   node e2e/csp-nonce-edge.mjs                                # opennextjs-cloudflare preview on :8787
  *   node e2e/csp-nonce-edge.mjs --origin=https://wear-run.com  # production, after a deploy
+ *   node e2e/csp-nonce-edge.mjs --origin=https://wear-run.com --only=/guides   # only those pages
  *
  * For every page type, in Chromium, Firefox and WebKit, it checks four things:
  * - the policy carries a nonce;
@@ -73,6 +74,18 @@ const PAGES = [
   ['/case-studies', 200],
   ['/definitely-not-a-page', 404],
 ]
+// `--only=/guides` checks only the pages under that address: the front door's trial route
+// (21 Nov 2026) put the guides behind it first, and loading all 70 live pages in three engines to
+// check eight is traffic nobody needs. A filter that matches nothing is an error, never a pass.
+const ONLY = process.argv.find((arg) => arg.startsWith('--only='))?.slice('--only='.length)
+const CHECKED = ONLY
+  ? PAGES.filter(([path]) => path === ONLY || path.startsWith(`${ONLY}/`))
+  : PAGES
+if (CHECKED.length === 0) {
+  console.error(`[csp-nonce-edge] --only=${ONLY} matches no page in the list.`)
+  process.exit(2)
+}
+
 const ENGINES = [
   ['chromium', chromium, {}],
   ['firefox', firefox, { firefoxUserPrefs: FIREFOX_USER_PREFS }],
@@ -89,7 +102,7 @@ try {
 let failures = 0
 for (const [name, engine, launchOptions] of ENGINES) {
   const browser = await engine.launch(launchOptions)
-  for (const [path, expectedStatus] of PAGES) {
+  for (const [path, expectedStatus] of CHECKED) {
     const context = await browser.newContext()
     const page = await context.newPage()
     const consoleErrors = []

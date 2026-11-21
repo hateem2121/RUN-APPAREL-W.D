@@ -7,13 +7,19 @@ import door, {
   BUILD_MEMO_MS,
   buildFromSite,
   chooseEncoding,
+  DOOR_NAME,
   DOOR_OFF,
   DOOR_SWITCH_KEY,
+  DOOR_VERSION_PATH,
+  doorVersionResponse,
   forgetBuild,
   liveBuild,
   SITE_BUILD_PATH,
 } from '../door.mjs'
+import { NONCED_PAGE_CACHE_CONTROL } from '../cspNonce.mjs'
 import { forgetKvMemo, keptHeaders, PER_DEPLOY, STORE_BUILD_KEY } from '../pageCache.mjs'
+import { PUBLIC_PAGE_CSP } from '../publicViewerHeaders.mjs'
+import { REDIRECT_SECURITY_HEADERS } from '../redirectHeaders.mjs'
 import { NO_SITE_BUILD, SITE_BUILD_ASSET } from '../siteBuild.mjs'
 
 /**
@@ -306,6 +312,30 @@ describe('the door’s configuration', () => {
     expect(doorConfig.preview_urls).toBe(false)
   })
 
+  /*
+   * Stage 2 (21 Nov 2026): the whole of wear-run.com. The two old addresses are ROUTES of the
+   * site's Worker (wrangler.jsonc), and a pattern belongs to one Worker at a time: a door route
+   * there would take the address from the Worker that answers it.
+   */
+  it('covers every address on wear-run.com and nothing on the hosts the site holds as routes', () => {
+    const patterns = doorConfig.routes.map((route: { pattern: string }) => route.pattern)
+    expect(patterns).toEqual(['wear-run.com/*', 'cms.wear-run.help/api/public/viewer/*'])
+    // Read as text: wrangler.jsonc carries comments after values, which `strip` does not remove.
+    const site = readFileSync(join(cms, 'wrangler.jsonc'), 'utf8')
+    const siteRoutes = [
+      ...site.matchAll(/\{ "pattern": "([^"/]+)\/\*", "zone_name": "[^"]+" \}/g),
+    ].map((match) => match[1])
+    expect(siteRoutes).toEqual(['wear-run.help', 'www.wear-run.help'])
+    for (const host of [...siteRoutes, 'www.wear-run.com']) {
+      expect(
+        patterns.filter((pattern: string) => pattern.split('/')[0] === host),
+        host,
+      ).toEqual([])
+    }
+    // The door's own version address must sit under one of its routes.
+    expect(patterns).toContain('wear-run.com/*')
+  })
+
   it('never routes the admin, and only the garment data on the admin host', () => {
     const adminHost = doorConfig.routes
       .map((route: { pattern: string }) => route.pattern)
@@ -427,5 +457,231 @@ describe('a handed-on page, in the visitor’s encoding', () => {
     ]) {
       expect(chooseEncoding(list), String(list)).toBe(viewerChooses(list))
     }
+  })
+})
+
+/**
+ * The door's own version address (door.mjs DOOR_VERSION_PATH, 21 Nov 2026). What production did:
+ * the deploy updated the door after its pre-live checks, the checks passed through the LIVE door,
+ * and runs 44767665680 and 44781104367 both failed PF-13 through it, the second being the door's
+ * own fix. The door is now staged at 0% and checked like the other two Workers, and this address
+ * is how the deploy knows its override header reached the new version.
+ */
+describe('the door’s own version address', () => {
+  const address = `https://wear-run.com${DOOR_VERSION_PATH}`
+
+  it('answers this Worker’s name and version id, and asks nothing else', async () => {
+    const w = world()
+    const response = await door.fetch(get(address), w.env, w.ctx)
+    expect(await response.json()).toEqual({ worker: DOOR_NAME, version: 'door-version' })
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(w.origin.fetch).not.toHaveBeenCalled()
+    expect(w.viewer.fetch).not.toHaveBeenCalled()
+    expect(w.pages.fetch).not.toHaveBeenCalled()
+    expect(w.env.SITE_CACHE.get).not.toHaveBeenCalled()
+  })
+
+  it('answers the deploy’s check, which carries the override header, instead of handing it on', async () => {
+    const w = world()
+    const override = `${DOOR_NAME}="dc8dcd28-271b-4367-9840-6c244f84cb40"`
+    const asked = get(address, { 'Cloudflare-Workers-Version-Overrides': override })
+    const response = await door.fetch(asked, w.env, w.ctx)
+    expect((await response.json()).worker).toBe(DOOR_NAME)
+    expect(w.origin.fetch).not.toHaveBeenCalled()
+  })
+
+  it('is under the route the door has carried since its first day, and names the deploy’s Worker', () => {
+    expect(DOOR_VERSION_PATH.startsWith('/products/')).toBe(true)
+    const config = readFileSync(join(import.meta.dirname, '..', 'wrangler.door.jsonc'), 'utf8')
+    expect(config).toContain(`"name": "${DOOR_NAME}"`)
+    const script = readFileSync(
+      join(import.meta.dirname, '..', '..', '..', 'scripts', 'version-overrides.mjs'),
+      'utf8',
+    )
+    expect(script).toContain(`'${DOOR_NAME}': 'https://wear-run.com${DOOR_VERSION_PATH}'`)
+  })
+
+  it('negative control: the viewer’s version address still goes to the viewer, not the door', async () => {
+    const w = world()
+    const asked = get('https://wear-run.com/products/__worker/version')
+    expect(doorVersionResponse(new URL(asked.url), w.env.CF_VERSION_METADATA)).toBeNull()
+    const response = await door.fetch(asked, w.env, w.ctx)
+    expect(await response.text()).toBe('from the viewer Worker')
+  })
+
+  it('negative control: the same path on the admin host is not the door’s to answer', () => {
+    const url = new URL(`https://cms.wear-run.help${DOOR_VERSION_PATH}`)
+    expect(doorVersionResponse(url, { id: 'door-version' })).toBeNull()
+  })
+})
+
+/**
+ * Website pages behind the door (stage 2, 21 Nov 2026). Until then the door's routes held garment
+ * pages, the viewer's files and the garment data only, so these paths ran in production for the
+ * first time with the route `wear-run.com/*`: the script guard's nonce stamped by THIS Worker on a
+ * kept page, a visitor who must never get everyone's copy, a HEAD, a redirect.
+ *
+ * vitest has no HTMLRewriter (apps/cms/src/cspNonce.test.ts), and without one siteEdge.mjs
+ * sendPage falls back to the page as it came. The stand-in below does what these tests need of it,
+ * which is the headers; the rewrite of the body is proven in real browsers by
+ * e2e/csp-nonce-edge.mjs against the live route.
+ */
+describe('a website page behind the door', () => {
+  const page = '<!DOCTYPE html><html><head><script>1</script></head><body>guides</body></html>'
+  const nonceOf = (response: Response) =>
+    /script-src[^;]*'nonce-([A-Za-z0-9+/]{22}==)'/.exec(
+      response.headers.get('content-security-policy') ?? '',
+    )?.[1]
+
+  /** The store holding a whole public page: the policy as Next sends it, no nonce in it. */
+  function worldWithKeptPage() {
+    const w = world()
+    w.pages.fetch.mockImplementation(async () => {
+      const headers = kept('text/html; charset=utf-8')
+      headers.set('content-security-policy', PUBLIC_PAGE_CSP)
+      return new Response(page, { headers })
+    })
+    return w
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      'HTMLRewriter',
+      class {
+        on() {
+          return this
+        }
+        onDocument() {
+          return this
+        }
+        transform(response: Response) {
+          return response
+        }
+      },
+    )
+    return () => vi.unstubAllGlobals()
+  })
+
+  it('a kept page leaves with a nonce of its own, and the next visitor gets another', async () => {
+    const w = worldWithKeptPage()
+    const first = await door.fetch(get('https://wear-run.com/guides'), w.env, w.ctx)
+    const second = await door.fetch(get('https://wear-run.com/guides'), w.env, w.ctx)
+    expect(nonceOf(first)).toBeDefined()
+    expect(nonceOf(second)).toBeDefined()
+    expect(nonceOf(first)).not.toBe(nonceOf(second))
+    const scripts = /script-src[^;]*/.exec(first.headers.get('content-security-policy') ?? '')
+    expect(scripts?.[0]).not.toContain("'unsafe-inline'")
+    // A page with one visitor's nonce in it is never a browser's or a proxy's to keep.
+    expect(first.headers.get('cache-control')).toBe(NONCED_PAGE_CACHE_CONTROL)
+    expect(first.headers.get('server-timing')).toContain('page-cache;desc="hit"')
+    expect(w.drawn()).toHaveLength(0)
+  })
+
+  it('negative control: the copy the store holds carries no nonce, so the door is what stamps it', async () => {
+    const w = worldWithKeptPage()
+    const stored = (await w.pages.fetch(get('https://wear-run.com/guides'))) as Response
+    expect(nonceOf(stored)).toBeUndefined()
+    expect(stored.headers.get('content-security-policy')).toBe(PUBLIC_PAGE_CSP)
+  })
+
+  it('a page the site’s Worker drew arrives with ITS nonce, and the door leaves it alone', async () => {
+    const w = world({ door: DOOR_OFF })
+    const theirs = "default-src 'self'; script-src 'self' 'nonce-AAAAAAAAAAAAAAAAAAAAAA=='"
+    w.origin.fetch.mockImplementation(
+      async () =>
+        new Response(page, {
+          headers: { 'content-type': 'text/html', 'content-security-policy': theirs },
+        }),
+    )
+    const response = await door.fetch(get('https://wear-run.com/guides'), w.env, w.ctx)
+    expect(response.headers.get('content-security-policy')).toBe(theirs)
+  })
+
+  it.each([
+    ['a signed-in editor', { cookie: 'payload-token=abc' }, 'https://wear-run.com/guides'],
+    ['a draft preview', { cookie: 'a=1; __prerender_bypass=x' }, 'https://wear-run.com/guides'],
+    ['a page asked with a query', {}, 'https://wear-run.com/guides?utm=1&x=2'],
+    ['a range request', { range: 'bytes=0-99' }, 'https://wear-run.com/guides'],
+  ])('%s never gets everyone’s copy: the site’s Worker answers', async (_who, headers, url) => {
+    const w = worldWithKeptPage()
+    const response = await door.fetch(get(url, headers), w.env, w.ctx)
+    expect(await response.text()).toBe('from the site Worker')
+    expect(w.pages.fetch).not.toHaveBeenCalled()
+    const handedOn = w.origin.fetch.mock.calls.at(-1)?.[0] as Request
+    expect(handedOn.url).toBe(url)
+    for (const [name, value] of Object.entries(headers)) {
+      expect(handedOn.headers.get(name)).toBe(value)
+    }
+  })
+
+  /*
+   * The trial route (`wear-run.com/guides*`, 21 Nov 2026): the live 404 under /guides carried
+   * `page-cache;desc="miss-direct"` twice, once from the site's Worker and once from the door.
+   */
+  it('a page the site’s Worker drew says what the store did once, in that Worker’s words', async () => {
+    const w = world()
+    // The store is slow, so the hedge draws the page by handing it on (storeHedge.mjs).
+    w.pages.fetch.mockImplementation(() => new Promise(() => {}))
+    w.origin.fetch.mockImplementation(async (request: Request) =>
+      new URL(request.url).pathname === SITE_BUILD_PATH
+        ? new Response(`${BUILD}\n`)
+        : new Response(page, {
+            status: 404,
+            headers: {
+              'content-type': 'text/html',
+              'server-timing': `page-cache;desc="hit", site-build;desc="${BUILD}"`,
+            },
+          }),
+    )
+    const browser = { 'user-agent': 'Mozilla/5.0', accept: 'text/html' }
+    const response = await door.fetch(
+      get('https://wear-run.com/guides/nope', browser),
+      w.env,
+      w.ctx,
+    )
+    expect(response.status).toBe(404)
+    const timing = response.headers.get('server-timing') ?? ''
+    expect(timing.match(/page-cache;/g)).toHaveLength(1)
+    expect(timing).toContain('page-cache;desc="hit"')
+  })
+
+  it('negative control: a drawn page that says nothing about the store still gets the door’s answer', async () => {
+    const w = world()
+    w.pages.fetch.mockImplementation(() => new Promise(() => {}))
+    const browser = { 'user-agent': 'Mozilla/5.0', accept: 'text/html' }
+    const response = await door.fetch(
+      get('https://wear-run.com/guides/nope', browser),
+      w.env,
+      w.ctx,
+    )
+    expect(await response.text()).toBe('from the site Worker')
+    expect(response.headers.get('server-timing')).toContain('page-cache;desc="miss-direct"')
+  })
+
+  it('a HEAD is looked up as the GET it describes and answered without a body', async () => {
+    const w = worldWithKeptPage()
+    const head = new Request('https://wear-run.com/guides', { method: 'HEAD' })
+    const response = await door.fetch(head, w.env, w.ctx)
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('')
+    const asked = w.pages.fetch.mock.calls[0]?.[0] as Request
+    expect(asked.method).toBe('GET')
+    expect(w.drawn()).toHaveLength(0)
+  })
+
+  it('a redirect from the store is handed back with its security headers, never followed', async () => {
+    const w = world()
+    w.pages.fetch.mockImplementation(
+      async () =>
+        new Response(null, { status: 308, headers: { location: 'https://wear-run.com/about' } }),
+    )
+    const response = await door.fetch(get('https://wear-run.com/factory'), w.env, w.ctx)
+    expect(response.status).toBe(308)
+    expect(response.headers.get('location')).toBe('https://wear-run.com/about')
+    for (const [name, value] of Object.entries(REDIRECT_SECURITY_HEADERS)) {
+      expect(response.headers.get(name), name).toBe(value)
+    }
+    const init = w.pages.fetch.mock.calls[0]?.[1] as { redirect: string }
+    expect(init.redirect).toBe('manual')
   })
 })
