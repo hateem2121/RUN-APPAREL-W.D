@@ -6,11 +6,13 @@ import {
   COPY_KEY_HEADER,
   COPY_READ_TIMEOUT_MS,
   COPY_SERVED_CACHE_CONTROL,
+  copyBuckets,
   copyKey,
   copyOn,
   keepCopy,
   raceCopy,
   readCopy,
+  readFirstCopy,
   writeCopy,
 } from '../pageCopy.mjs'
 import { KEPT_CACHE_CONTROL, STALE_SECONDS, VERSION_CACHE_SECONDS } from '../pageCache.mjs'
@@ -157,15 +159,18 @@ describe('the hedge waits longer for the copy than SitePages does', () => {
     expect(await answer).toBeNull()
   })
 
-  it('the hedge is where the longer wait is used, and SitePages keeps the short one', () => {
+  it('the door’s hedge and SitePages both wait the longer time: each one races a drawing', () => {
+    // 21 Nov 2026: at 400 ms SitePages abandoned 80 of 84 reads in three minutes, with the copies
+    // there, and drew each page instead (947 ms at the median, 2,826 ms at p90).
     expect(HEDGE_COPY_WAIT_MS).toBeGreaterThan(COPY_READ_TIMEOUT_MS)
     const cms = join(import.meta.dirname, '..')
     expect(readFileSync(join(cms, 'siteEdge.mjs'), 'utf8')).toContain(
       'askCopy: () => answerFromCopy(clean, env, HEDGE_COPY_WAIT_MS)',
     )
-    expect(readFileSync(join(cms, 'worker.mjs'), 'utf8')).toContain(
-      'raceCopy(answerFromCopy(request, this.env), drawing, this.ctx)',
-    )
+    const worker = readFileSync(join(cms, 'worker.mjs'), 'utf8')
+    expect(worker).toContain('const copy = answerFromCopy(request, this.env, HEDGE_COPY_WAIT_MS)')
+    // NEGATIVE CONTROL: the short wait is nowhere in SitePages any more.
+    expect(worker).not.toContain('answerFromCopy(request, this.env)')
   })
 })
 
@@ -354,9 +359,7 @@ describe('worker.mjs and wrangler.jsonc wire the copy in', () => {
   it('SitePages starts the drawing BEFORE it asks the copy, and races the two', () => {
     // 11 Nov 2026: asking first made every miss wait up to COPY_READ_TIMEOUT_MS before drawing.
     const draws = sitePages.indexOf('const drawing = keptRenders().run(render, () =>')
-    const races = sitePages.indexOf(
-      'await raceCopy(answerFromCopy(request, this.env), drawing, this.ctx)',
-    )
+    const races = sitePages.indexOf('await raceCopy(copy, drawing, this.ctx)')
     expect(draws).toBeGreaterThan(-1)
     expect(races).toBeGreaterThan(draws)
     expect(sitePages).not.toMatch(/await answerFromCopy\(/)
@@ -391,5 +394,131 @@ describe('worker.mjs and wrangler.jsonc wire the copy in', () => {
       bucket_name: 'run-apparel-page-copies',
     })
     expect(wrangler.vars.PAGE_COPY).toBe('on')
+  })
+})
+
+/*
+ * Two buckets, the first answer wins (21 Nov 2026). The first bucket is in Asia-Pacific; a found
+ * copy took a median 805 ms from the door that day and 988 ms from London. The second is in
+ * Eastern North America. These hold the race to what makes it safe: a slow, empty or broken
+ * bucket never keeps the other's answer back, and never invents one.
+ */
+describe('copies in two buckets', () => {
+  const stored = JSON.stringify({
+    v: 1,
+    headers: [['content-type', 'text/html']],
+    text: '<p>kept</p>',
+  })
+  const holding = (ms: number) => ({
+    get: vi.fn(
+      () => new Promise((resolve) => setTimeout(() => resolve({ text: async () => stored }), ms)),
+    ),
+    put: vi.fn(async () => undefined),
+  })
+  const empty = (ms: number) => ({
+    get: vi.fn(() => new Promise((resolve) => setTimeout(() => resolve(null), ms))),
+    put: vi.fn(async () => undefined),
+  })
+  const broken = () => ({
+    get: vi.fn(async () => {
+      throw new Error('R2 is down')
+    }),
+    put: vi.fn(async () => {
+      throw new Error('R2 is down')
+    }),
+  })
+
+  it('names both buckets, and only the ones that are bound', () => {
+    const a = holding(0)
+    const b = holding(0)
+    expect(copyBuckets({ PAGE_COPIES: a, PAGE_COPIES_ENAM: b }).map((x) => x.name)).toEqual([
+      'apac',
+      'enam',
+    ])
+    expect(copyBuckets({ PAGE_COPIES: a }).map((x) => x.name)).toEqual(['apac'])
+    expect(copyBuckets(undefined)).toEqual([])
+  })
+
+  it('the nearer bucket answers: the slow one is not waited for', async () => {
+    const far = holding(300)
+    const near = holding(5)
+    const startedAt = Date.now()
+    const copy = await readFirstCopy(
+      copyBuckets({ PAGE_COPIES: far, PAGE_COPIES_ENAM: near }),
+      'pages/k',
+      1_000,
+    )
+    expect(copy?.from).toBe('enam')
+    expect(copy?.text).toBe('<p>kept</p>')
+    expect(Date.now() - startedAt).toBeLessThan(250)
+  })
+
+  it('a bucket that is empty or down never keeps the other’s copy back', async () => {
+    for (const other of [empty(1), broken()]) {
+      const copy = await readFirstCopy(
+        copyBuckets({ PAGE_COPIES: other, PAGE_COPIES_ENAM: holding(20) }),
+        'pages/k',
+        1_000,
+      )
+      expect(copy?.from).toBe('enam')
+    }
+  })
+
+  it('negative control: no bucket holds it, or the wait runs out, and there is no copy', async () => {
+    expect(
+      await readFirstCopy(
+        copyBuckets({ PAGE_COPIES: empty(1), PAGE_COPIES_ENAM: broken() }),
+        'k',
+        500,
+      ),
+    ).toBeNull()
+    expect(
+      await readFirstCopy(
+        copyBuckets({ PAGE_COPIES: holding(200), PAGE_COPIES_ENAM: holding(200) }),
+        'k',
+        20,
+      ),
+    ).toBeNull()
+    expect(await readFirstCopy([], 'k', 20)).toBeNull()
+  })
+
+  it('a drawn page is written to every bucket, and a failed write stops neither', async () => {
+    const a = holding(0)
+    const b = broken()
+    const waits: Promise<unknown>[] = []
+    const request = new Request('https://wear-run.com/guides', {
+      headers: { [COPY_KEY_HEADER]: 'pages/wear-run.com/b/1/guides' },
+    })
+    const kept = keepCopy(
+      request,
+      { PAGE_COPIES: a, PAGE_COPIES_ENAM: b },
+      { waitUntil: (p: Promise<unknown>) => void waits.push(p) },
+      { 'content-type': 'text/html' },
+      '<p>page</p>',
+    )
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      await Promise.all(waits)
+      expect(kept).toBe(true)
+      expect(a.put).toHaveBeenCalledTimes(1)
+      expect(b.put).toHaveBeenCalledTimes(1)
+      expect(log).toHaveBeenCalledWith({ pageCopy: 'written', ms: 0, from: 'apac' })
+      expect(log).toHaveBeenCalledWith({ pageCopy: 'write-failed', ms: 0, from: 'enam' })
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  it('both Workers bind both buckets, under the same names', () => {
+    const cms = join(import.meta.dirname, '..')
+    for (const file of ['wrangler.jsonc', 'wrangler.door.jsonc']) {
+      const config = readFileSync(join(cms, file), 'utf8')
+      expect(config, file).toMatch(
+        /"binding": "PAGE_COPIES",\s+"bucket_name": "run-apparel-page-copies"/,
+      )
+      expect(config, file).toMatch(
+        /"binding": "PAGE_COPIES_ENAM",\s+"bucket_name": "run-apparel-page-copies-enam"/,
+      )
+    }
   })
 })

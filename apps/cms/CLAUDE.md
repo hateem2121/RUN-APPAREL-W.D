@@ -174,7 +174,8 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   `node siteBuild.mjs` writes at upload; never bake a build name into it. It asks over the
   `SITE_FILES` binding, NEVER a public fetch: on 21 Nov that address sat on the door's own route,
   the read failed from `cms.wear-run.help`, and all garment data was handed on (p90 1,163 ms).
-  🟡 The door is IN FRONT OF `public/` too: a file is handed on (`isStaticFile`), or the page
+  🟡 Page copies live in TWO R2 buckets (APAC + ENAM), read at once; SitePages waits 1.5 s, not
+  400 ms (it gave up 80 of 84 times, 21 Nov). 🟡 The door is IN FRONT OF `public/` too: a file is handed on (`isStaticFile`), or the page
   store draws it as a page and its 404 replaces the photo (live 73 minutes, 21 Nov).
   🟡 A request carrying
   `Cloudflare-Workers-Version-Overrides` is handed on whole, or a deploy's pre-live check would

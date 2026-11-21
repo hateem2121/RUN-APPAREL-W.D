@@ -16,6 +16,7 @@ export type RegionMeasurement = { id: string; results: unknown[] }
 export declare const REGION_TARGETS_MAX: number
 export declare const REGION_GARMENTS_MAX: number
 export declare const PROBES_PER_COUNTRY: number
+export declare const JUDGED_COUNTRIES: readonly string[]
 export declare const WARM_BUDGET_MS: number
 export declare const READ_BACK_BUDGET_MS: number
 export declare const READ_BACK_MAX: number

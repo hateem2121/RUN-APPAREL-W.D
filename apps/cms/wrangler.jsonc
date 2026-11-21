@@ -215,6 +215,13 @@
       // Not in scripts/backup-r2.mjs on purpose: every object is redrawn from D1 on demand.
       "binding": "PAGE_COPIES",
       "bucket_name": "run-apparel-page-copies"
+    },
+    {
+      // The same copies, in Eastern North America (created 21 Nov 2026, owner's yes; the first
+      // bucket is in Asia-Pacific and a bucket cannot be moved). Written and read alongside it;
+      // the first answer wins (pageCopy.mjs copyBuckets). Same 8-day lifecycle rule.
+      "binding": "PAGE_COPIES_ENAM",
+      "bucket_name": "run-apparel-page-copies-enam"
     }
   ],
   // The garment pages live inside the website at /products/<product>/<colour> since the

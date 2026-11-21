@@ -42,6 +42,7 @@ import {
   wholePage,
 } from './pageCache.mjs'
 import { answerFromCopy, keepCopy, raceCopy } from './pageCopy.mjs'
+import { HEDGE_COPY_WAIT_MS } from './storeHedge.mjs'
 import { createSiteFetch } from './siteEdge.mjs'
 import { keepableTapAnswer, keptTapHeaders } from './tapStore.mjs'
 import { keepableApiRequest, keepApiAnswer } from './viewerApiCache.mjs'
@@ -74,7 +75,14 @@ export class SitePages extends WorkerEntrypoint {
     // Null for a tap, a kept file, no copy, R2 slow or down, or PAGE_COPY = "off": use the drawing.
     const render = { spoiled: false }
     const drawing = keptRenders().run(render, () => openNext.fetch(request, this.env, this.ctx))
-    const copied = await raceCopy(answerFromCopy(request, this.env), drawing, this.ctx)
+    // ⚠️ THE COPY IS WAITED FOR AS LONG AS THE DOOR WAITS (HEDGE_COPY_WAIT_MS), NOT 400 ms
+    // (21 Nov 2026). It races the drawing, so a longer wait holds nothing up; but at 400 ms the
+    // read was abandoned 80 times out of 84 in three minutes (13:49 to 13:52 UTC, 23 minutes
+    // after a deploy), the copies were there (194 written in that deploy's warm-up), found copies
+    // took a median 638 ms here and 805 ms from the door, and each abandoned read was followed by
+    // a drawing of 947 ms at the median and 2,826 ms at p90.
+    const copy = answerFromCopy(request, this.env, HEDGE_COPY_WAIT_MS)
+    const copied = await raceCopy(copy, drawing, this.ctx)
     if (copied) return copied
     const response = await drawing
     // Tap data (tapStore.mjs): only fromSharedStore sends an `rsc` request here, already checked.

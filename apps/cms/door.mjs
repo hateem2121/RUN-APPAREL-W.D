@@ -164,7 +164,14 @@ export function alwaysHandedOn(url) {
  * file in it to this, so a file this rule does not recognise fails there, not in production.
  */
 const FILE_EXTENSION = /\.[a-z0-9]{1,8}$/i
+/**
+ * The one static file the site's build writes WITHOUT an extension (Next's `BUILD_ID`; found
+ * 21 Nov 2026 by listing all 342 files of a build against the rule above). No page links to it,
+ * but it answered 200 before the door and must not answer Next's 404 behind it.
+ */
+const EXTENSIONLESS_FILES = Object.freeze(['/BUILD_ID'])
 export function isStaticFile(pathname) {
+  if (EXTENSIONLESS_FILES.includes(pathname)) return true
   return FILE_EXTENSION.test(pathname) && !KEPT_FILES.includes(pathname)
 }
 

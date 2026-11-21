@@ -35,15 +35,25 @@ export const HEDGE_HEAD_START_MS = 40
  */
 export const HEDGE_COPY_WAIT_MS = 1_500
 
-/** Our warm-up robot and Globalping's probes: nobody waits on them (plan ruling 1, 28 Oct). */
-const NEVER_HEDGED_AGENTS = /run-apparel-store-warmup|globalping/i
+/**
+ * Our own warm-up robot: nobody waits on it, and its job is to make the store draw.
+ *
+ * ⚠️ GLOBALPING'S PROBES ARE HEDGED LIKE ANY VISITOR SINCE 21 NOV 2026 (owner's decision; until
+ * then "nobody waits on them", plan ruling 1 of 28 Oct). The first-visit guard
+ * (scripts/first-visit-burst.mjs) asks through those probes, so unhedged it measured a path no
+ * browser takes: that day a region that did not hold a page answered a browser from the door's
+ * own copy read in a median 956 ms and a probe from a drawing in 1.5 to 3.5 s, and the guard
+ * failed on the second. The store's losing answer is still read to the end (hedgedAnswer), so
+ * scripts/warm-regions.mjs, which warms through the same probes, still leaves the page kept.
+ */
+const NEVER_HEDGED_AGENTS = /run-apparel-store-warmup/i
 
 /** The shape of a page of the site: lower-case words, digits, hyphens, up to three segments. */
 const PAGE_SHAPED = /^\/(?:[a-z0-9-]+(?:\/[a-z0-9-]+){0,2})?\/?$/
 
 /**
  * Whether a person is waiting on this request: a GET for a page-shaped path, not a fetch-ahead,
- * not our warm-up robot or Globalping. Scanner paths (`.php`, `.env`) are never drawn twice.
+ * not our warm-up robot. Scanner paths (`.php`, `.env`) are never drawn twice.
  *
  * @param {Request} request
  */

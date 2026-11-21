@@ -385,6 +385,19 @@ Australia). Through the door, three US bursts on the garment data measured p90 1
 Australia got a garment page in 90 to 406 ms. `scripts/first-visit-burst.mjs` asks the same
 question every Monday (`perf-watch.yml`) and fails when the first byte is not under 800 ms at p90.
 
+**If first visits are slow right after a deploy (21 Nov 2026).** A deploy that changes the website
+empties every region's page store, by design: a kept page names script files only its own build
+has. What refills it: `warm-shared-store.mjs` from the CI runner's US region, then
+`warm-regions.mjs` from seven countries (`scripts/warm-regions.countries.json`: 25 addresses each,
+one probe each, 231 of Globalping's 250 free tests an hour). Every other first visit is covered by
+the shared copy of the page in R2, kept in TWO buckets (`run-apparel-page-copies`, Asia-Pacific,
+and `run-apparel-page-copies-enam`, Eastern North America), read at once, first answer wins. In
+Workers Logs, `{"pageCopy":"hit","from":"enam"}` says which bucket answered and how long it took;
+`"miss"` at 1,500 ms is a read that ran out of time. Measured before the second bucket and the
+longer wait: copies took a median 805 ms to read, the site's Worker gave up at 400 ms 80 times out
+of 84, and each of those pages was drawn instead (947 ms at the median, 2,826 ms at p90). Garment
+data has no shared copy: after a change to its shape only the warm-up refills it.
+
 **If the site's own pictures answer 404 (21 Nov 2026).** Switch the door off first (way 1 above),
 then look. That day, from 09:52 to 11:05 UTC, every file in `apps/cms/public` (factory photos,
 the favicon, the standards logos) answered 404 on `wear-run.com` and 200 on `www.wear-run.help`,
