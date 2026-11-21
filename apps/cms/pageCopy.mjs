@@ -68,13 +68,18 @@ export const COPY_SERVED_CACHE_CONTROL = `public, max-age=180, stale-while-reval
  * both at once; `from` in the log line says which bucket answered, which is the measurement of
  * whether the second one earns its place.
  *
- * @param {{ PAGE_COPIES?: any, PAGE_COPIES_ENAM?: any } | undefined} env
+ * @param {{ PAGE_COPIES?: any, PAGE_COPIES_ENAM?: any, PAGE_COPIES_EEUR?: any } | undefined} env
  * @returns {Array<{ name: string, bucket: any }>}
  */
 export function copyBuckets(env) {
   return [
     { name: 'apac', bucket: env?.PAGE_COPIES },
     { name: 'enam', bucket: env?.PAGE_COPIES_ENAM },
+    // A THIRD, IN EASTERN EUROPE (21 Nov 2026, owner's yes): with two, a copy read took about
+    // 100 to 250 ms from US sites, 284 ms from London and 246 ms from Singapore, but 737 to
+    // 844 ms from Lahore, which is far from both. This one is the test for Pakistan and the
+    // Middle East; `from` in the log says whether it wins there.
+    { name: 'eeur', bucket: env?.PAGE_COPIES_EEUR },
   ].filter((entry) => entry.bucket)
 }
 
@@ -93,7 +98,7 @@ export function copyLog(state, ms, from) {
  * SitePages' answer from the shared copy, or null to draw the page as before.
  *
  * @param {Request} request the clean request SitePages was handed
- * @param {{ PAGE_COPIES?: any, PAGE_COPIES_ENAM?: any, PAGE_COPY?: string }} env
+ * @param {{ PAGE_COPIES?: any, PAGE_COPIES_ENAM?: any, PAGE_COPIES_EEUR?: any, PAGE_COPY?: string }} env
  * @param {number} [timeoutMs] how long to wait for R2: the hedge waits longer (storeHedge.mjs
  *   HEDGE_COPY_WAIT_MS), because there the copy races the drawing instead of holding it up
  * @returns {Promise<Response | null>}
@@ -149,7 +154,7 @@ export async function raceCopy(copy, drawing, ctx) {
  * the render was not spoiled), write the copy in waitUntil. True when a write was started.
  *
  * @param {Request} request
- * @param {{ PAGE_COPIES?: any, PAGE_COPIES_ENAM?: any, PAGE_COPY?: string }} env
+ * @param {{ PAGE_COPIES?: any, PAGE_COPIES_ENAM?: any, PAGE_COPIES_EEUR?: any, PAGE_COPY?: string }} env
  * @param {{ waitUntil: (p: Promise<unknown>) => void }} ctx
  * @param {HeadersInit} headers the drawn page's own headers
  * @param {string} text

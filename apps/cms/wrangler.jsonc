@@ -222,6 +222,12 @@
       // the first answer wins (pageCopy.mjs copyBuckets). Same 8-day lifecycle rule.
       "binding": "PAGE_COPIES_ENAM",
       "bucket_name": "run-apparel-page-copies-enam"
+    },
+    {
+      // A third, in Eastern Europe (created 21 Nov 2026, owner's yes): the test for Pakistan and
+      // the Middle East, where a copy read from the other two took 737 to 844 ms.
+      "binding": "PAGE_COPIES_EEUR",
+      "bucket_name": "run-apparel-page-copies-eeur"
     }
   ],
   // The garment pages live inside the website at /products/<product>/<colour> since the
