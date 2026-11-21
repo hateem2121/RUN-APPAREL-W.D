@@ -106,7 +106,7 @@ function discard(answer) {
  *
  * @param {{
  *   askStore: () => Promise<Response>,
- *   drawDirect: () => Promise<Response>,
+ *   drawDirect?: () => Promise<Response>,
  *   askCopy?: () => Promise<Response | null>,
  *   headStartMs: number,
  *   waitUntil: (promise: Promise<unknown>) => void,
@@ -132,7 +132,10 @@ export async function hedgedAnswer({ askStore, drawDirect, askCopy, headStartMs,
     return early.error ? null : { response: early.response, winner: 'store' }
   }
 
-  const answers = { store, direct: drawDirect() }
+  // `drawDirect` is left out for the garment data (viewerApiCache.mjs): there the store's own
+  // drawing is the only one, and the copy alone races it.
+  const answers = { store }
+  if (drawDirect) answers.direct = drawDirect()
   if (askCopy) answers.copy = askCopy()
   const pending = new Map(Object.entries(answers).map(([who, p]) => [who, tag(who, p)]))
   /** @type {Response | null} */

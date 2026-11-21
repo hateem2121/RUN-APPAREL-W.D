@@ -68,7 +68,10 @@ export class SitePages extends WorkerEntrypoint {
   async fetch(request) {
     // The garment data on the admin host (viewerApiCache.mjs decides what is kept there).
     if (keepableApiRequest(request)) {
-      return keepApiAnswer(request, (clean) => openNext.fetch(clean, this.env, this.ctx))
+      return keepApiAnswer(request, (clean) => openNext.fetch(clean, this.env, this.ctx), {
+        env: this.env,
+        ctx: this.ctx,
+      })
     }
     // A whole page this region does not hold yet: the drawing starts AT ONCE and races one R2
     // read (pageCopy.mjs raceCopy, 11 Nov 2026: asking first made every miss wait up to 400 ms).

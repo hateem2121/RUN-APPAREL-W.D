@@ -22,6 +22,8 @@ import {
   API_HOST,
   API_RENDER_HEADERS,
   allowedOrigins,
+  answerFromApiCopy,
+  apiCopyName,
   keepableApiAnswer,
   keepableApiRequest,
   keepApiAnswer,
@@ -740,5 +742,158 @@ describe('Server-Timing says where the time went (19 Nov 2026)', () => {
     await world.ask() // the first answer reads the three flags and keeps them (memoKvGet)
     const { kv } = spans(await world.ask())
     expect(kv).toBeLessThan(5)
+  })
+})
+
+/*
+ * THE GARMENT DATA'S SHARED COPY (21 Nov 2026). What production did without one: 23 minutes after
+ * a deploy that changed the data's shape, a region whose store did not hold r-atw/turquoise and
+ * r-xmp/wine had nothing to read, SitePages drew each (1.3 to 1.4 s on a Worker that had just
+ * started), and three of thirty US first visits took 2,171 to 2,344 ms.
+ *
+ * R2 here is a Map. `slowDraw` is the drawing of that afternoon: it takes longer than a read.
+ */
+describe('the garment data’s shared copy', () => {
+  const COPY_HEADER = 'x-run-copy-key'
+  const garment = (colour: string) =>
+    JSON.stringify({ product: { slug: 'rxps' }, selectedColourway: { slug: colour } })
+  const bucket = () => {
+    const held = new Map<string, string>()
+    return {
+      held,
+      get: vi.fn(async (key: string) => {
+        const body = held.get(key)
+        return body === undefined ? null : { text: async () => body }
+      }),
+      put: vi.fn(async (key: string, body: string) => void held.set(key, body)),
+    }
+  }
+  const world = () => {
+    const apac = bucket()
+    const enam = bucket()
+    const waits: Promise<unknown>[] = []
+    return {
+      apac,
+      enam,
+      env: { PAGE_COPIES: apac, PAGE_COPIES_ENAM: enam },
+      ctx: { waitUntil: (p: Promise<unknown>) => void waits.push(p) },
+      settle: () => Promise.all(waits),
+    }
+  }
+  const drawOf = (text: string, ms = 0) =>
+    vi.fn(
+      () =>
+        new Promise<Response>((resolve) =>
+          setTimeout(
+            () => resolve(new Response(text, { headers: { 'content-type': 'application/json' } })),
+            ms,
+          ),
+        ),
+    )
+  const asked = (version: string | null) =>
+    new Request(`${API}/rxps/wine`, {
+      headers: { [COPY_HEADER]: apiCopyName(`${API}/rxps/wine`, version) },
+    })
+
+  it('its name holds the data’s shape and the content version', () => {
+    const name = apiCopyName(`${API}/rxps/wine`, 'v7')
+    expect(name).toContain(VIEWER_DATA_SHAPE)
+    expect(name).toContain('/v7/')
+    expect(name.endsWith('/api/public/viewer/rxps/wine')).toBe(true)
+    expect(apiCopyName(`${API}/rxps/wine`, 'v8')).not.toBe(name)
+  })
+
+  it('a drawn garment is copied to both buckets; a region without it then reads the copy and draws nothing new', async () => {
+    const w = world()
+    const first = await keepApiAnswer(asked('v7'), drawOf(garment('wine')), w)
+    expect(first.headers.get('x-run-kept')).toBe('yes')
+    await w.settle()
+    expect(w.apac.held.size).toBe(1)
+    expect(w.enam.held.size).toBe(1)
+
+    // The same afternoon's drawing, in another region: 150 ms here, 1.3 s there.
+    const slowDraw = drawOf(garment('STALE-IF-SERVED'), 150)
+    const second = await keepApiAnswer(asked('v7'), slowDraw, w)
+    expect(await second.text()).toBe(garment('wine'))
+    // Marked kept, so that region's store holds it from now on.
+    expect(second.headers.get('x-run-kept')).toBe('yes')
+    await w.settle()
+  })
+
+  it('negative control: without the buckets the same request waits for the drawing', async () => {
+    const drawn = await keepApiAnswer(asked('v7'), drawOf(garment('drawn'), 30))
+    expect(await drawn.text()).toBe(garment('drawn'))
+  })
+
+  it('a CMS save changes the content version, and the old copy is never read again', async () => {
+    const w = world()
+    await keepApiAnswer(asked('v7'), drawOf(garment('wine')), w)
+    await w.settle()
+    // The product was saved: the next request names version v8, which no copy has.
+    const after = await keepApiAnswer(asked('v8'), drawOf(garment('wine-renamed'), 20), w)
+    expect(await after.text()).toBe(garment('wine-renamed'))
+    await w.settle()
+    expect(w.apac.held.size).toBe(2)
+  })
+
+  it('a copy that is not a whole, real garment is refused, and the data is drawn', async () => {
+    const w = world()
+    const name = apiCopyName(`${API}/rxps/wine`, 'v7')
+    const broken = JSON.stringify({
+      v: 1,
+      headers: [['content-type', 'application/json']],
+      text: '{"error":"not found"}',
+    })
+    w.apac.held.set(name, broken)
+    w.enam.held.set(name, broken)
+    expect(await answerFromApiCopy(asked('v7'), w.env, 200)).toBeNull()
+    const drawn = await keepApiAnswer(asked('v7'), drawOf(garment('wine'), 20), w)
+    expect(await drawn.text()).toBe(garment('wine'))
+    await w.settle()
+  })
+
+  it('an answer the store would not keep is never copied', async () => {
+    const w = world()
+    const refusal = vi.fn(async () => new Response('{"error":"no such garment"}', { status: 404 }))
+    await keepApiAnswer(asked('v7'), refusal, w)
+    await w.settle()
+    expect(w.apac.put).not.toHaveBeenCalled()
+    expect(w.enam.put).not.toHaveBeenCalled()
+  })
+
+  it('at the door: the store is still drawing, the copy answers, with this request’s CORS grant', async () => {
+    const w = world()
+    await keepApiAnswer(asked('v1'), drawOf(garment('wine')), w)
+    await w.settle()
+    // A region that does not hold it: the store's answer is a SitePages that takes a second.
+    const slowStore = {
+      fetch: vi.fn(
+        (_request: Request, _init?: unknown) =>
+          new Promise<Response>((resolve) =>
+            setTimeout(() => resolve(new Response(garment('late'))), 600),
+          ),
+      ),
+    }
+    const env = {
+      ...w.env,
+      CF_VERSION_METADATA: { id: 'deploy-1' },
+      SITE_CACHE: { get: vi.fn(async (key: string) => (key === STORE_MODE_KEY ? null : 'v1')) },
+      VIEWER_ALLOWED_ORIGINS: ALLOWED,
+    }
+    const startedAt = Date.now()
+    const answer = await serveViewerApi(
+      new Request(`${API}/rxps/wine`, { headers: { origin: 'https://wear-run.com' } }),
+      env,
+      w.ctx,
+      slowStore,
+    )
+    expect(Date.now() - startedAt).toBeLessThan(500)
+    expect(await answer?.text()).toBe(garment('wine'))
+    expect(answer?.headers.get('server-timing')).toContain('api-cache;desc="miss-copy"')
+    expect(answer?.headers.get('access-control-allow-origin')).toBe('https://wear-run.com')
+    // The render request named the copy, and carried nothing of the visitor's.
+    const render = slowStore.fetch.mock.calls[0]?.[0] as unknown as Request
+    expect(render.headers.get(COPY_HEADER)).toBe(apiCopyName(`${API}/rxps/wine`, 'v1'))
+    expect(render.headers.get('origin')).toBeNull()
   })
 })
