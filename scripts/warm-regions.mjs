@@ -38,9 +38,20 @@ import { API_ORIGIN, SITE_ORIGIN, warmTapTargets, warmTargets } from './warm-sha
  * probes + the second pass's 30 = 170). 30 until 4 Nov 2026, when the cap and the top-level-only
  * rule left every nested page to the US warm-up: 45 minutes after a deploy, 33 of the 43 website
  * pages were cold from Lahore (0.66-3.12 s to the first byte, every guide, policy and FAQ page among
- * them). 43 pages + 10 taps + 10 garments = 63 today, so 70 leaves room for a few new pages.
+ * them). 43 pages + 10 taps + 10 garments = 63 that day, so it became 70.
+ *
+ * ⚠️ 25 SINCE 21 NOV 2026, IN SEVEN COUNTRIES INSTEAD OF ONE (owner's decision: "top pages
+ * everywhere"). That day, 23 and 45 minutes after two deploys, US probes drew /faq, /guides and
+ * /privacy (1.5 to 3.5 s) and London drew the home page (7.1 s): only Pakistan and the CI
+ * runner's own US region had been warmed. The free hour is 250 tests, so seven countries cannot
+ * each have 70 addresses: 25 addresses x 7 countries x 1 probe + the second pass's 8 x 7 = 231.
+ * The 25 are the five judged pages, the tap into each, the first ten garments' data and five more
+ * top-level pages. THE PRICE, for Pakistan: its nested pages (guides, policies, FAQ pages) are
+ * no longer warmed there, as before 4 Nov. What covers them now is the shared copy, read from
+ * two buckets and waited for 1.5 s (apps/cms/pageCopy.mjs); if a weekly `--measure` shows them
+ * slow from Pakistan again, that is the trade to revisit.
  */
-export const REGION_TARGETS_MAX = 70
+export const REGION_TARGETS_MAX = 25
 /**
  * At most this many garments' data: the first cards of the products page, the ones a buyer sees
  * and opens first (cardGarments). The rest of the 41 are warmed in the buyer's own browser when a
@@ -67,8 +78,8 @@ export function cardGarments(productsHtml) {
   }
   return garments
 }
-/** Home-network probes asked per country. */
-export const PROBES_PER_COUNTRY = 2
+/** Home-network probes asked per country (2 until 21 Nov 2026, when one country became seven). */
+export const PROBES_PER_COUNTRY = 1
 
 const API = 'https://api.globalping.io/v1/measurements'
 const NEVER_SENT = new Set(['cookie', 'authorization'])
@@ -84,15 +95,22 @@ export const READ_BACK_BUDGET_MS = 90_000
 /**
  * The second pass (review of 27 Oct; spec Part 6, Step 2): the first addresses again, the five
  * judged pages and their taps and hovers, from the probes the warm-up used, to say whether the
- * region then finds them kept. 15 addresses × 2 probes: 30 tests, 170 with the warm-up's 140.
+ * region then finds them kept. 8 addresses × 7 countries × 1 probe: 56 tests, 231 with the
+ * warm-up's 175 (15 addresses × 2 probes in one country until 21 Nov 2026).
  */
-export const READ_BACK_MAX = 15
+export const READ_BACK_MAX = 8
 /**
  * Pakistan's own pass mark (owner, 27 Oct): the store's answers there reach the first byte within
  * 1 s at p75. Set before a store-only baseline existed (that day's pooled p75 was 1,877 ms, with
  * 23 of 60 drawn), on the owner's call; the 23 Nov read of four weekly runs revisits it.
  */
 export const STORE_FIRST_BYTE_P75_MS = 1_000
+/**
+ * The countries that pass mark was set for. The six added on 21 Nov 2026 are warmed and measured,
+ * and a miss there is printed as a warning: the owner has set no mark for them, and one probe per
+ * country is too few to fail a weekly run on.
+ */
+export const JUDGED_COUNTRIES = Object.freeze(['PK'])
 
 /**
  * What to warm, in order, at most `max` (`{ url, headers }`): the five pages the speed targets are
@@ -318,9 +336,11 @@ export function regionReport({ warmed, readBack, measuring }) {
       judged.hits === 0
         ? `the second pass found ${judged.hits} of ${judged.asked} kept`
         : `kept answers took ${judged.firstByteP75} ms to the first byte at p75, over ${STORE_FIRST_BYTE_P75_MS} ms`
-    if (measuring) {
+    if (measuring && JUDGED_COUNTRIES.includes(country)) {
       lines.push(`::error::${country}: ${why}`)
       exitCode = 1
+    } else if (measuring) {
+      lines.push(`::warning::${country}: ${why} (measured; no pass mark is set for this country)`)
     } else {
       lines.push(`::warning::${country}: ${why}; the deploy stands`)
     }

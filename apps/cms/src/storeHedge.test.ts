@@ -230,19 +230,24 @@ describe('hedgeable', () => {
     expect(hedgeable(ask('/guides', { headers: { rsc: '1' } }))).toBe(true)
   })
 
-  it('never hedges a HEAD, a fetch-ahead, our warm-up robot or Globalping', () => {
+  it('never hedges a HEAD, a fetch-ahead or our warm-up robot', () => {
     expect(hedgeable(ask('/guides', { method: 'HEAD' }))).toBe(false)
     expect(hedgeable(ask('/guides', { headers: { 'next-router-prefetch': '1' } }))).toBe(false)
     expect(
       hedgeable(ask('/guides', { headers: { 'user-agent': 'run-apparel-store-warmup/1.0' } })),
     ).toBe(false)
+  })
+
+  it('hedges a Globalping probe like a visitor: the first-visit guard asks through them', () => {
+    // 21 Nov 2026: unhedged, the guard measured a drawing (1.5 to 3.5 s) where a browser got the
+    // door's copy (a median 956 ms).
     expect(
       hedgeable(
         ask('/guides', {
           headers: { 'user-agent': 'globalping probe (https://github.com/jsdelivr/globalping)' },
         }),
       ),
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it('never hedges a path that is not shaped like a page of the site', () => {

@@ -220,6 +220,19 @@ describe('the site’s static files', () => {
     }
   })
 
+  it('Next’s BUILD_ID, the one file with no extension, is handed on too', async () => {
+    // Found 21 Nov 2026 by listing all 342 files of a build against the rule: the only one a
+    // visitor could ask for that the extension rule missed.
+    expect(isStaticFile('/BUILD_ID')).toBe(true)
+    const w = worldWhereTheStoreDrawsA404()
+    const response = await door.fetch(get('https://wear-run.com/BUILD_ID'), w.env, w.ctx)
+    expect(response.status).toBe(200)
+    expect(w.pages.fetch).not.toHaveBeenCalled()
+    // NEGATIVE CONTROL: a page whose name merely looks like it is still a page.
+    expect(isStaticFile('/build_id')).toBe(false)
+    expect(isStaticFile('/guides/BUILD_ID')).toBe(false)
+  })
+
   it('a page is not a file, whatever its name holds', () => {
     for (const path of ['/guides', '/faq/shipping-and-importing', '/ru/guides', '/', '/v1.2/x']) {
       expect(isStaticFile(path), path).toBe(false)

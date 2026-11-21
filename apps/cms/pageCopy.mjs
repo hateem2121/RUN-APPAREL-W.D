@@ -55,6 +55,29 @@ export const COPY_KEY_HEADER = 'x-run-copy-key'
 export const COPY_SERVED_CACHE_CONTROL = `public, max-age=180, stale-while-revalidate=${STALE_SECONDS}`
 
 /** Only whole website pages: never a tap (`rsc: 1`), never the sitemap, llms.txt or robots.txt. */
+/**
+ * The buckets that hold the copies, with the name each is logged under.
+ *
+ * ⚠️ TWO BUCKETS, AND THE FIRST ANSWER WINS (21 Nov 2026, owner's yes for the second). An R2
+ * bucket lives in ONE place, and the first one is in Asia-Pacific. Measured that day (13:49 to
+ * 13:52 UTC): a found copy took a median 805 ms and 1,261 ms at p90 from the door (124 reads,
+ * most from Lahore), 988 ms from London and 451 ms from Miami, against a drawing it is meant to
+ * beat. The buyers are in North America, Europe, the Middle East, Pakistan and Australia, so no
+ * one place is near them all: `run-apparel-page-copies-enam` (Eastern North America) covers the
+ * side of the world the first bucket is far from. Every copy is written to both and read from
+ * both at once; `from` in the log line says which bucket answered, which is the measurement of
+ * whether the second one earns its place.
+ *
+ * @param {{ PAGE_COPIES?: any, PAGE_COPIES_ENAM?: any } | undefined} env
+ * @returns {Array<{ name: string, bucket: any }>}
+ */
+export function copyBuckets(env) {
+  return [
+    { name: 'apac', bucket: env?.PAGE_COPIES },
+    { name: 'enam', bucket: env?.PAGE_COPIES_ENAM },
+  ].filter((entry) => entry.bucket)
+}
+
 function copyable(request, env) {
   if (!copyOn(env) || !request.headers.get(COPY_KEY_HEADER)) return false
   if (request.headers.get('rsc') === '1') return false
@@ -62,15 +85,15 @@ function copyable(request, env) {
 }
 
 /** One Workers Logs line per copy decision: state and milliseconds only (the repo is public). */
-export function copyLog(state, ms) {
-  return { pageCopy: state, ms: Math.round(ms) }
+export function copyLog(state, ms, from) {
+  return { pageCopy: state, ms: Math.round(ms), ...(from ? { from } : {}) }
 }
 
 /**
  * SitePages' answer from the shared copy, or null to draw the page as before.
  *
  * @param {Request} request the clean request SitePages was handed
- * @param {{ PAGE_COPIES?: any, PAGE_COPY?: string }} env
+ * @param {{ PAGE_COPIES?: any, PAGE_COPIES_ENAM?: any, PAGE_COPY?: string }} env
  * @param {number} [timeoutMs] how long to wait for R2: the hedge waits longer (storeHedge.mjs
  *   HEDGE_COPY_WAIT_MS), because there the copy races the drawing instead of holding it up
  * @returns {Promise<Response | null>}
@@ -78,8 +101,9 @@ export function copyLog(state, ms) {
 export async function answerFromCopy(request, env, timeoutMs = COPY_READ_TIMEOUT_MS) {
   if (!copyable(request, env)) return null
   const askedAt = Date.now()
-  const copy = await readCopy(env.PAGE_COPIES, request.headers.get(COPY_KEY_HEADER), timeoutMs)
-  console.log(copyLog(copy ? 'hit' : 'miss', Date.now() - askedAt))
+  const key = request.headers.get(COPY_KEY_HEADER)
+  const copy = await readFirstCopy(copyBuckets(env), key, timeoutMs)
+  console.log(copyLog(copy ? 'hit' : 'miss', Date.now() - askedAt, copy?.from))
   if (!copy) return null
   const headers = keptHeaders(copy.headers, Date.now(), KEPT_TAGS.pages)
   headers.set('cache-control', COPY_SERVED_CACHE_CONTROL)
@@ -125,7 +149,7 @@ export async function raceCopy(copy, drawing, ctx) {
  * the render was not spoiled), write the copy in waitUntil. True when a write was started.
  *
  * @param {Request} request
- * @param {{ PAGE_COPIES?: any, PAGE_COPY?: string }} env
+ * @param {{ PAGE_COPIES?: any, PAGE_COPIES_ENAM?: any, PAGE_COPY?: string }} env
  * @param {{ waitUntil: (p: Promise<unknown>) => void }} ctx
  * @param {HeadersInit} headers the drawn page's own headers
  * @param {string} text
@@ -133,11 +157,13 @@ export async function raceCopy(copy, drawing, ctx) {
 export function keepCopy(request, env, ctx, headers, text) {
   if (!copyable(request, env)) return false
   const key = request.headers.get(COPY_KEY_HEADER)
-  ctx.waitUntil(
-    writeCopy(env.PAGE_COPIES, key, headers, text).then((written) => {
-      console.log(copyLog(written ? 'written' : 'write-failed', 0))
-    }),
-  )
+  for (const { name, bucket } of copyBuckets(env)) {
+    ctx.waitUntil(
+      writeCopy(bucket, key, headers, text).then((written) => {
+        console.log(copyLog(written ? 'written' : 'write-failed', 0, name))
+      }),
+    )
+  }
   return true
 }
 
@@ -198,6 +224,27 @@ export async function readCopy(bucket, key, timeoutMs = COPY_READ_TIMEOUT_MS) {
   } finally {
     clearTimeout(timer)
   }
+}
+
+/**
+ * The first copy any bucket answers with, or null when every bucket says "no copy" or the wait
+ * runs out. A bucket that fails or holds nothing never ends the wait for the others.
+ *
+ * @param {Array<{ name: string, bucket: any }>} buckets copyBuckets(env)
+ * @param {string} key
+ * @param {number} [timeoutMs]
+ * @returns {Promise<{ headers: Headers, text: string, from: string } | null>}
+ */
+export async function readFirstCopy(buckets, key, timeoutMs = COPY_READ_TIMEOUT_MS) {
+  if (buckets.length === 0) return null
+  const reads = buckets.map(({ name, bucket }) =>
+    readCopy(bucket, key, timeoutMs).then((copy) => {
+      if (!copy) throw new Error('no copy')
+      return { ...copy, from: name }
+    }),
+  )
+  // Promise.any: the first bucket that HAS the copy; all of them empty-handed is null.
+  return Promise.any(reads).catch(() => null)
 }
 
 /**

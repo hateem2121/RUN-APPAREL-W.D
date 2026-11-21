@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   cardGarments,
+  JUDGED_COUNTRIES,
+  PROBES_PER_COUNTRY,
   READ_BACK_BUDGET_MS,
   READ_BACK_MAX,
   REGION_GARMENTS_MAX,
@@ -86,7 +88,7 @@ describe('regionTargets', () => {
     expect(targets.map(pathOf)).not.toContain('/llms.txt')
   })
 
-  it('fits every website page of the live sitemap of 4 Nov (43 pages, 10 taps, 10 garments)', async () => {
+  it('at 70 it fits every page of the 4 Nov sitemap; at today’s 25 it keeps the judged pages, their taps and the garments', async () => {
     const live = {
       pages: [
         ...pages.slice(0, 7),
@@ -95,11 +97,24 @@ describe('regionTargets', () => {
       ],
       garments: Array.from({ length: 41 }, (_, i) => `${API}/r-${i}/wine`),
     }
-    const targets = await regionTargets(live, ORIGIN)
+    // The size of 4 Nov to 21 Nov 2026 (one country): every one of the 43 pages.
+    const wide = await regionTargets(live, ORIGIN, 70)
     expect(
-      targets.filter((target) => !target.headers.rsc && !target.url.startsWith(API)),
+      wide.filter((target) => !target.headers.rsc && !target.url.startsWith(API)),
     ).toHaveLength(43)
-    expect(targets.length).toBeLessThanOrEqual(REGION_TARGETS_MAX)
+    // Today's (seven countries, 21 Nov 2026): what a buyer opens first, and no nested page.
+    const targets = await regionTargets(live, ORIGIN)
+    expect(targets).toHaveLength(REGION_TARGETS_MAX)
+    expect(targets.filter((target) => target.url.startsWith(API))).toHaveLength(REGION_GARMENTS_MAX)
+    const pathsAsked = targets.map((target) => new URL(target.url).pathname)
+    // Every judged page this sitemap lists (the fixture holds three of the five).
+    const listed = live.pages.map((url) => new URL(url).pathname)
+    const judgedHere = ['/', '/products', '/about', '/contact', '/faq'].filter((path) =>
+      listed.includes(path),
+    )
+    expect(judgedHere.length).toBeGreaterThanOrEqual(3)
+    for (const judged of judgedHere) expect(pathsAsked, judged).toContain(judged)
+    expect(pathsAsked.some((path) => path.startsWith('/guides/nested-'))).toBe(false)
   })
 
   it(`asks for at most ${REGION_GARMENTS_MAX} garments, and never more than ${REGION_TARGETS_MAX} addresses`, async () => {
@@ -364,9 +379,16 @@ describe('readBackPlan', () => {
     expect(again.every((body) => body.locations === 'warm-id')).toBe(true)
   })
 
-  it('stays inside the free 250 tests an hour with the warm-up: 140 plus 30, one country, 2 probes', () => {
-    expect(REGION_TARGETS_MAX * 2 + READ_BACK_MAX * 2).toBe(170)
-    expect(REGION_TARGETS_MAX * 2 + READ_BACK_MAX * 2).toBeLessThan(250)
+  it('stays inside the free 250 tests an hour with the warm-up, in every country on the list', () => {
+    const file = new URL('../../../scripts/warm-regions.countries.json', import.meta.url)
+    const countries = JSON.parse(readFileSync(file, 'utf8')).length
+    const tests = (REGION_TARGETS_MAX + READ_BACK_MAX) * countries * PROBES_PER_COUNTRY
+    // 25 addresses and 8 read back, seven countries, one probe each (21 Nov 2026).
+    expect(tests).toBe(231)
+    expect(tests).toBeLessThan(250)
+    // NEGATIVE CONTROL: the sizes of 20 Nov (70 addresses, 15 read back, 2 probes) in seven
+    // countries would ask for 1,190 tests, nearly five free hours.
+    expect((70 + 15) * countries * 2).toBeGreaterThan(250)
   })
 })
 
@@ -465,10 +487,50 @@ describe('regionReport: what the log says, and the exit code', () => {
   })
 })
 
+describe('the weekly pass mark belongs to the countries it was set for', () => {
+  const answer = (country: string, state: 'hit' | 'miss', firstByte: number) => ({
+    results: [
+      {
+        probe: { country },
+        result: {
+          statusCode: 200,
+          headers: { 'server-timing': `page-cache;desc="${state}"` },
+          timings: { firstByte, total: firstByte + 50 },
+        },
+      },
+    ],
+  })
+
+  it('a slow country with no mark warns in the weekly run and never fails it', () => {
+    expect(JUDGED_COUNTRIES).toEqual(['PK'])
+    const slowAbroad = [answer('AU', 'hit', 2400), answer('PK', 'hit', 300)]
+    const report = regionReport({ warmed: slowAbroad, readBack: slowAbroad, measuring: true })
+    expect(report.exitCode).toBe(0)
+    expect(report.lines.join('\n')).toMatch(/::warning::AU: .*no pass mark is set/)
+    expect(report.lines.join('\n')).not.toMatch(/::error::/)
+  })
+
+  it('negative control: the same slow answers from Pakistan do fail it', () => {
+    const slowAtHome = [answer('PK', 'hit', 2400), answer('AU', 'hit', 300)]
+    const report = regionReport({ warmed: slowAtHome, readBack: slowAtHome, measuring: true })
+    expect(report.exitCode).toBe(1)
+    expect(report.lines.join('\n')).toMatch(/::error::PK: /)
+  })
+})
+
 describe('warm-regions.countries.json', () => {
-  it('names the buyer regions the owner chose: Pakistan', () => {
+  it('names the buyer regions the owner chose (21 Nov 2026): seven countries', () => {
+    // Pakistan, the United States and Canada, the UK and Europe, the Middle East, Australia.
     const file = new URL('../../../scripts/warm-regions.countries.json', import.meta.url)
-    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual(['PK'])
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual([
+      'PK',
+      'US',
+      'CA',
+      'GB',
+      'DE',
+      'AE',
+      'AU',
+    ])
   })
 })
 
