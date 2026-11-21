@@ -51,11 +51,21 @@ import {
   KEPT_TAGS,
   keptHeaders,
   keptRenders,
-  keptStoreKey,
+  keptStoreKeys,
   servedHeaders,
   storeState,
   unkeptHeaders,
 } from './pageCache.mjs'
+import {
+  COPY_KEY_HEADER,
+  copyBuckets,
+  copyKey,
+  copyOn,
+  keepCopy,
+  raceCopy,
+  readFirstCopy,
+} from './pageCopy.mjs'
+import { HEDGE_COPY_WAIT_MS, HEDGE_HEAD_START_MS, hedgedAnswer, hedgeOn } from './storeHedge.mjs'
 import { PUBLIC_VIEWER_VARY } from './publicViewerHeaders.mjs'
 
 /** The admin and API host: the only one whose answers this keeps. */
@@ -139,9 +149,61 @@ export function keepableApiRequest(request) {
   return url.hostname === API_HOST && url.search === '' && VIEWER_API_PATH.test(url.pathname)
 }
 
-/** The request a copy is drawn from: the address and nothing of the visitor's (no Origin). */
-function apiRenderRequest(request) {
-  return new Request(request.url, { method: 'GET', headers: API_RENDER_HEADERS })
+/**
+ * The request a copy is drawn from: the address and nothing of the visitor's (no Origin), plus
+ * the name of this garment's shared copy when there is one to read or write.
+ */
+function apiRenderRequest(request, copyName) {
+  const headers = copyName
+    ? { ...API_RENDER_HEADERS, [COPY_KEY_HEADER]: copyName }
+    : API_RENDER_HEADERS
+  return new Request(request.url, { method: 'GET', headers })
+}
+
+/**
+ * ⚠️ THE GARMENT DATA HAS A SHARED COPY TOO (21 Nov 2026, owner's yes). Until then only pages had
+ * one (pageCopy.mjs), so a region whose store did not hold a garment's data had nothing to read
+ * and SitePages drew it: 23 minutes after a deploy that changed the data's shape, three of thirty
+ * US first visits took 2,171 to 2,344 ms (r-atw/turquoise and r-xmp/wine, each a drawing of 1.3 to
+ * 1.4 s on a Worker that had just started).
+ *
+ * The copy's name holds the data's SHAPE and the CONTENT VERSION, as a page's holds the build and
+ * the content version. That is what keeps it honest: the store's own key says `live` and relies
+ * on a Cache-Tag purge after a CMS save, and R2 has no purge. A product save bumps the content
+ * version (src/collections/Products.ts keptPagesAfterChange), so the next request asks for a name
+ * no old copy has. A copy is believed only if it is still a whole, real garment
+ * (keepableApiAnswer), exactly the test a drawing must pass to be kept.
+ */
+export function apiCopyName(url, contentVersion) {
+  return copyKey(url, VIEWER_DATA_SHAPE, contentVersion)
+}
+
+/** One Workers Logs line per garment-data copy decision (state, ms, bucket: the repo is public). */
+export function dataCopyLog(state, ms, from) {
+  return { dataCopy: state, ms: Math.round(ms), ...(from ? { from } : {}) }
+}
+
+/**
+ * This garment's data from its shared copy, marked as a kept answer, or null.
+ *
+ * @param {Request} request the render request, carrying the copy's name
+ * @param {{ PAGE_COPIES?: any, PAGE_COPIES_ENAM?: any, PAGE_COPY?: string }} env
+ * @param {number} [timeoutMs]
+ * @returns {Promise<Response | null>}
+ */
+export async function answerFromApiCopy(request, env, timeoutMs = HEDGE_COPY_WAIT_MS) {
+  const name = request.headers.get(COPY_KEY_HEADER)
+  if (!copyOn(env) || !name) return null
+  const askedAt = Date.now()
+  const copy = await readFirstCopy(copyBuckets(env), name, timeoutMs)
+  const whole = copy
+    ? keepableApiAnswer(new Response(null, { status: 200, headers: copy.headers }), copy.text)
+    : false
+  console.log(
+    dataCopyLog(whole ? 'hit' : copy ? 'refused' : 'miss', Date.now() - askedAt, copy?.from),
+  )
+  if (!copy || !whole) return null
+  return new Response(copy.text, { status: 200, headers: keptApiHeaders(copy.headers) })
 }
 
 /** The origins Payload answers with CORS headers: wrangler.jsonc's VIEWER_ALLOWED_ORIGINS. */
@@ -211,15 +273,25 @@ export function servedApiHeaders(headers, requestOrigin, allowed) {
  * this for the API host (worker.mjs). Only a whole, real garment drawn from the database gets the
  * kept lifetime; anything else goes out `no-store`, and Workers Cache stores nothing.
  */
-export async function keepApiAnswer(request, draw) {
+export async function keepApiAnswer(request, draw, copies) {
   const render = { spoiled: false }
-  const response = await keptRenders().run(render, () => draw(request))
+  // The drawing starts at once and races one read of the shared copy, as a page's does
+  // (worker.mjs SitePages, pageCopy.mjs raceCopy): a miss costs nothing, a found copy saves the
+  // drawing. `copies` is { env, ctx }; without it (a test, a preview) the data is drawn as before.
+  const drawing = keptRenders().run(render, () => draw(request))
+  if (copies) {
+    const copied = await raceCopy(answerFromApiCopy(request, copies.env), drawing, copies.ctx)
+    if (copied) return copied
+  }
+  const response = await drawing
   const init = { status: response.status, statusText: response.statusText }
   if (response.status !== 200 || response.body === null) {
     return new Response(response.body, { ...init, headers: unkeptHeaders(response.headers) })
   }
   const text = await response.text()
   const keep = !render.spoiled && keepableApiAnswer(response, text)
+  // Only an answer the store keeps is copied for the other regions (keepCopy needs the name).
+  if (keep && copies) keepCopy(request, copies.env, copies.ctx, response.headers, text)
   const headers = keep ? keptApiHeaders(response.headers) : unkeptHeaders(response.headers)
   return new Response(text, { ...init, headers })
 }
@@ -272,13 +344,36 @@ export async function serveViewerApi(request, env, ctx, store = ctx?.exports?.Si
   let kept
   let keyMs = 0
   let storeMs = 0
+  let state = null
   try {
     const startedAt = performance.now()
     // The deploy id above only says this is the deployed Worker; the key names the data's shape.
-    const cf = { cacheKey: await keptStoreKey(request.url, VIEWER_DATA_SHAPE, env.SITE_CACHE) }
+    const keys = await keptStoreKeys(request.url, VIEWER_DATA_SHAPE, env.SITE_CACHE)
+    const cf = { cacheKey: keys.cacheKey }
     const keyedAt = performance.now()
+    const copies = copyOn(env)
+    const render = apiRenderRequest(
+      request,
+      copies ? apiCopyName(request.url, keys.contentVersion) : undefined,
+    )
     // Never follow a redirect from the store (worker.mjs's call says why: #247, 2026-10-25).
-    kept = await store.fetch(apiRenderRequest(request), { cf, redirect: 'manual' })
+    const askStore = () => store.fetch(render, { cf, redirect: 'manual' })
+    if (copies && hedgeOn(env) && ctx?.waitUntil) {
+      // A region that does not hold this garment's data: after the head start the copy is read
+      // HERE too, so the answer does not wait for SitePages to start (storeHedge.mjs). No direct
+      // drawing: the store's is the only one, and it is read to the end so the region keeps it.
+      const answer = await hedgedAnswer({
+        askStore,
+        askCopy: () => answerFromApiCopy(render, env),
+        headStartMs: HEDGE_HEAD_START_MS,
+        waitUntil: (p) => ctx.waitUntil(p),
+      })
+      if (!answer) return null
+      kept = answer.response
+      if (answer.winner === 'copy') state = 'miss-copy'
+    } else {
+      kept = await askStore()
+    }
     keyMs = keyedAt - startedAt
     storeMs = performance.now() - keyedAt
   } catch (error) {
@@ -286,6 +381,9 @@ export async function serveViewerApi(request, env, ctx, store = ctx?.exports?.Si
     return null
   }
   const headers = servedApiHeaders(kept.headers, requestOrigin, allowed)
-  headers.append('server-timing', apiCacheTiming(storeState(kept.headers), { keyMs, storeMs }))
+  headers.append(
+    'server-timing',
+    apiCacheTiming(state ?? storeState(kept.headers), { keyMs, storeMs }),
+  )
   return new Response(kept.body, { status: kept.status, statusText: kept.statusText, headers })
 }

@@ -395,8 +395,10 @@ and `run-apparel-page-copies-enam`, Eastern North America), read at once, first 
 Workers Logs, `{"pageCopy":"hit","from":"enam"}` says which bucket answered and how long it took;
 `"miss"` at 1,500 ms is a read that ran out of time. Measured before the second bucket and the
 longer wait: copies took a median 805 ms to read, the site's Worker gave up at 400 ms 80 times out
-of 84, and each of those pages was drawn instead (947 ms at the median, 2,826 ms at p90). Garment
-data has no shared copy: after a change to its shape only the warm-up refills it.
+of 84, and each of those pages was drawn instead (947 ms at the median, 2,826 ms at p90). The garment
+data has a shared copy too since 21 Nov 2026 (`viewerApiCache.mjs` `apiCopyName`; log lines say
+`dataCopy`): its name holds the data's shape and the content version, so a product save in the CMS
+makes every older copy unreadable within about 30 seconds.
 
 **If the site's own pictures answer 404 (21 Nov 2026).** Switch the door off first (way 1 above),
 then look. That day, from 09:52 to 11:05 UTC, every file in `apps/cms/public` (factory photos,
