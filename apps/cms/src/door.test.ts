@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join, relative, sep } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { chooseEncoding as viewerChooses } from '../../viewer/worker/compression'
 import door, {
@@ -13,11 +13,18 @@ import door, {
   DOOR_VERSION_PATH,
   doorVersionResponse,
   forgetBuild,
+  isStaticFile,
   liveBuild,
   SITE_BUILD_PATH,
 } from '../door.mjs'
 import { NONCED_PAGE_CACHE_CONTROL } from '../cspNonce.mjs'
-import { forgetKvMemo, keptHeaders, PER_DEPLOY, STORE_BUILD_KEY } from '../pageCache.mjs'
+import {
+  forgetKvMemo,
+  KEPT_FILES,
+  keptHeaders,
+  PER_DEPLOY,
+  STORE_BUILD_KEY,
+} from '../pageCache.mjs'
 import { PUBLIC_PAGE_CSP } from '../publicViewerHeaders.mjs'
 import { REDIRECT_SECURITY_HEADERS } from '../redirectHeaders.mjs'
 import { NO_SITE_BUILD, SITE_BUILD_ASSET } from '../siteBuild.mjs'
@@ -133,6 +140,91 @@ describe('what the door hands straight on', () => {
   it('a website page is not one of them', () => {
     expect(alwaysHandedOn(new URL('https://wear-run.com/guides'))).toBe(false)
     // Only on the site's own address: the admin host's /api is the garment data's home.
+    expect(alwaysHandedOn(new URL('https://cms.wear-run.help/api/public/viewer/rxps/wine'))).toBe(
+      false,
+    )
+  })
+})
+
+/**
+ * The site's own static files (`public/`). WHAT PRODUCTION DID, 21 Nov 2026, 09:52 to 11:05 UTC:
+ * with the door on `wear-run.com/*` every one of them answered 404. In the site's Worker the
+ * shared steps never see a file (Cloudflare serves it first); the door, on a route in front of
+ * them, asked the page store for `/factory/inspection-1536.webp`, SitePages drew it with Next,
+ * and Next's 404 went out in place of the photo. Ahrefs' crawl of that hour counted 128 pages with
+ * a broken image.
+ *
+ * The store here answers a file the way SitePages did that day: a 404 page.
+ */
+describe('the site’s static files', () => {
+  const publicDir = join(import.meta.dirname, '..', 'public')
+  const walk = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+      entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)],
+    )
+  // `_headers` is Cloudflare's own configuration file: it is read at upload and never served.
+  const served = walk(publicDir)
+    .map((file) => `/${relative(publicDir, file).split(sep).join('/')}`)
+    .filter((path) => path !== '/_headers')
+
+  function worldWhereTheStoreDrawsA404() {
+    const w = world()
+    w.pages.fetch.mockImplementation(
+      async () =>
+        new Response('<!DOCTYPE html><title>Page not found</title>', {
+          status: 404,
+          headers: { 'content-type': 'text/html; charset=utf-8' },
+        }),
+    )
+    return w
+  }
+
+  it('every file in public/ is handed on, and the page store is never asked for it', async () => {
+    // The folder holds what the site serves: an empty walk would prove nothing.
+    expect(served.length).toBeGreaterThan(200)
+    expect(served).toContain('/factory/inspection-1536.webp')
+    expect(served).toContain('/favicon.ico')
+    const notHandedOn = served.filter(
+      (path) => !alwaysHandedOn(new URL(`https://wear-run.com${path}`)),
+    )
+    expect(notHandedOn).toEqual([])
+  })
+
+  it.each([
+    'https://wear-run.com/factory/inspection-1536.webp',
+    'https://wear-run.com/favicon.ico',
+    'https://wear-run.com/icon.svg',
+    'https://wear-run.com/standards/sedex.svg',
+  ])('%s is answered by the site, not by a 404 from the store', async (url) => {
+    const w = worldWhereTheStoreDrawsA404()
+    const response = await door.fetch(get(url), w.env, w.ctx)
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('from the site Worker')
+    expect(w.pages.fetch).not.toHaveBeenCalled()
+    expect(w.drawn()).toHaveLength(1)
+  })
+
+  it('negative control: a page in that same world does get the store’s answer', async () => {
+    // Proof the fixture can show the fault: what a file got on 21 Nov is what a page gets here.
+    const w = worldWhereTheStoreDrawsA404()
+    const response = await door.fetch(get('https://wear-run.com/guides'), w.env, w.ctx)
+    expect(response.status).toBe(404)
+    expect(w.pages.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('the three generated text files the store keeps are still asked of the store', async () => {
+    expect(KEPT_FILES).toEqual(['/sitemap.xml', '/llms.txt', '/robots.txt'])
+    for (const path of KEPT_FILES) {
+      expect(isStaticFile(path), path).toBe(false)
+      expect(alwaysHandedOn(new URL(`https://wear-run.com${path}`)), path).toBe(false)
+    }
+  })
+
+  it('a page is not a file, whatever its name holds', () => {
+    for (const path of ['/guides', '/faq/shipping-and-importing', '/ru/guides', '/', '/v1.2/x']) {
+      expect(isStaticFile(path), path).toBe(false)
+    }
+    // Only on the site's own address: the garment data's home is the admin host.
     expect(alwaysHandedOn(new URL('https://cms.wear-run.help/api/public/viewer/rxps/wine'))).toBe(
       false,
     )

@@ -385,6 +385,15 @@ Australia). Through the door, three US bursts on the garment data measured p90 1
 Australia got a garment page in 90 to 406 ms. `scripts/first-visit-burst.mjs` asks the same
 question every Monday (`perf-watch.yml`) and fails when the first byte is not under 800 ms at p90.
 
+**If the site's own pictures answer 404 (21 Nov 2026).** Switch the door off first (way 1 above),
+then look. That day, from 09:52 to 11:05 UTC, every file in `apps/cms/public` (factory photos,
+the favicon, the standards logos) answered 404 on `wear-run.com` and 200 on `www.wear-run.help`,
+which the door is not on. The door is on a route, in front of the static files as well as the
+pages, and it asked the page store for a photo as if it were a page; Next has no such page. It now
+hands on any address that ends in a file extension (`door.mjs` `isStaticFile`).
+`scripts/apex-probe.mjs` asks for two of those files after every deploy and in `uptime.yml`.
+To check by hand: `curl -sI https://wear-run.com/favicon.ico` must say `200` and an image type.
+
 **If the garment data is slow and the pages are not (21 Nov 2026).** In Workers Logs, look for
 `[front-door] the site build read answered` from `run-apparel-site-door`: the door could not read
 the live build's name (`/__site-build.txt`) and is handing every request on. That happened the
