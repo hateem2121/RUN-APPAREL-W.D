@@ -86,7 +86,8 @@ export function ProductFilm({ data }: { data: ViewerApiSuccess }) {
     video.load()
     if (filmMayAutoplay(currentVisit())) {
       // A refused play() (a browser policy) leaves the still and the Play button: nothing to report.
-      video.play().catch(() => undefined)
+      // Promise.resolve: play() returns nothing in some browsers (the class of Sentry VIEWER-N, #432).
+      Promise.resolve(video.play()).catch(() => undefined)
     }
   }, [near])
 
@@ -96,7 +97,7 @@ export function ProductFilm({ data }: { data: ViewerApiSuccess }) {
   const toggle = () => {
     const video = videoRef.current
     if (!video) return
-    if (video.paused) video.play().catch(() => undefined)
+    if (video.paused) Promise.resolve(video.play()).catch(() => undefined)
     else video.pause()
   }
 
