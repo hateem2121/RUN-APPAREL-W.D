@@ -2278,5 +2278,230 @@
     "tool": "grammar",
     "word": "рибаны",
     "reason": "A knitwear trade term (rib knit), the genitive of «рибана», already allowlisted and used in the site's Russian glossary; not in Русский орфографический словарь (gramota.ru search 2026-11-16: no exact match), so a trade term the checker's dictionary lacks, read in its sentence."
+  },
+  {
+    "tool": "grammar",
+    "word": "Влагоотводящий",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "Кант-шнур",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "Мультиспортивная",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "Спандекс-интерлок",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "ветро-",
+    "reason": "The first half of a shared-ending pair («ветро- и влагозащитного»), correct Russian."
+  },
+  {
+    "tool": "grammar",
+    "word": "влагоотводящая",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "влагоотводящего",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "воротником-стойкой",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "грипперы",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "грэвела",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "интерлока",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "йога-студии",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "капюшон-скуба",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "капюшоном-скуба",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "кокетка-шеврон",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "кроссфита",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "кулирная",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "кулиской",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "куртка-шерпа",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "пауэр-меш",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "пауэр-трикотажа",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "подкладка справляются",
+    "reason": "Three subjects joined by «и» («молнии, манжеты и подкладка») take a plural verb: correct Russian; the checker pairs the verb with the last noun only (read 2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "поли-стрейч",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "пури",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "реглан-панелями",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "рибаной",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "рукава-колокол",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "рукава-реглан",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "ската-манты",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "стрейч-ткани",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "стрейч-трикотаж",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "тек-куртка",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "тек-пике",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "тек-спортивный",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "тек-флиса",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "термоподкладка",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "термофлиса",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "термофлисом",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "топа-бра",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "grammar",
+    "word": "худи-пуловер",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "speller",
+    "word": "aero liner",
+    "reason": "A fabric name kept in Latin letters, as the Russian files keep brand and fabric names (owner-approved product descriptions, 2026-11-21)."
+  },
+  {
+    "tool": "speller",
+    "word": "держат",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-21 in the owner-approved product descriptions); the checker flags it out of context."
+  },
+  {
+    "tool": "speller",
+    "word": "пауэр-меш",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "speller",
+    "word": "тек-пике",
+    "reason": "A textile, sportswear or trade term, or a hyphenated compound of one, that the checker’s dictionary lacks; read in its sentence in the owner-approved product descriptions (2026-11-21)."
+  },
+  {
+    "tool": "speller",
+    "word": "холод",
+    "reason": "An ordinary Russian word form, correct in its sentence (read 2026-11-21 in the owner-approved product descriptions); the checker flags it out of context."
   }
 ]

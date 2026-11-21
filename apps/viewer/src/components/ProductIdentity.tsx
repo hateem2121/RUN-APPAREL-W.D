@@ -1,7 +1,7 @@
 import type { ViewerProduct, ViewerColourway } from '@run-apparel/shared'
 import { useId, useLayoutEffect, useRef, useState } from 'react'
 import { longestFittingSentences } from '../lib/sentenceCut'
-import { categoryName } from '../lib/locale'
+import { categoryName, pageLocale } from '../lib/locale'
 import { words } from '../lib/words'
 import { headingWithAccent } from './SerifAccent'
 
@@ -206,7 +206,11 @@ export function ProductIdentityFields({
       {/* Keyed by the garment, so another garment's text is measured afresh and starts closed. */}
       <Statement
         key={product.slug}
-        text={product.shortDescription || standardDescription()}
+        text={
+          (pageLocale() === 'ru' && product.shortDescriptionRu) ||
+          product.shortDescription ||
+          standardDescription()
+        }
         clamp={clampDescription}
       />
       {/*

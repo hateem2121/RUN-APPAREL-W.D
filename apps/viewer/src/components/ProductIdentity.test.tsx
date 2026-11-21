@@ -142,6 +142,33 @@ describe('the product identity has exactly one home', () => {
     act(() => root.render(<ProductIdentity product={bare} selected={SELECTED} selectedIndex={0} />))
     expect(host.textContent).toContain('development reference, not a finished stock product')
   })
+
+  // The approved Russian description (owner, 2026-11-21), chosen by the page's address.
+  it('shows the Russian description on a Russian page and the English everywhere else', () => {
+    const both = {
+      ...PRODUCT,
+      shortDescriptionRu: 'Тренировочная футболка для долгих летних пробежек.',
+    } as unknown as ViewerProduct
+    const english = 'A race-fit training tee built for long summer mileage.'
+    const draw = (p: ViewerProduct) =>
+      act(() => root.render(<ProductIdentity product={p} selected={SELECTED} selectedIndex={0} />))
+    const before = window.location.pathname
+    try {
+      window.history.replaceState(null, '', '/ru/products/n001/wine')
+      draw(both)
+      expect(host.textContent).toContain('Тренировочная футболка')
+      expect(host.textContent).not.toContain(english)
+      // NEGATIVE CONTROL: no approved Russian → the English, never an empty paragraph.
+      draw({ ...both, shortDescriptionRu: '' } as ViewerProduct)
+      expect(host.textContent).toContain(english)
+      window.history.replaceState(null, '', '/products/n001/wine')
+      draw(both)
+      expect(host.textContent).toContain(english)
+      expect(host.textContent).not.toContain('Тренировочная футболка')
+    } finally {
+      window.history.replaceState(null, '', before)
+    }
+  })
 })
 
 /**

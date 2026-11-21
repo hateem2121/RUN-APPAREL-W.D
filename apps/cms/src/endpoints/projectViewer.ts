@@ -7,6 +7,7 @@ import {
   type ViewerMediaAsset,
 } from '@run-apparel/shared'
 import { isAddressableColourway } from '../lib/colourwayAccess'
+import { russianDescription } from '../lib/productDescriptions.ru'
 import { projectFooter } from '../lib/projectPublic'
 import { onSiteMedia } from '../lib/siteMedia'
 
@@ -233,6 +234,11 @@ export function buildViewerResponse(
       // the page, so a corrected note goes live with a CMS deploy and the page stays small.
       specs: specGroups({ ...specFields, category: String(product.category ?? '') }, specNote),
       shortDescription: String(product.shortDescription ?? ''),
+      // Built here, like `specs`, so the garment page carries no Russian table (owner, 2026-11-21).
+      shortDescriptionRu: russianDescription(
+        String(product.slug),
+        String(product.shortDescription ?? ''),
+      ),
       garmentType: String(product.garmentType ?? '').trim(),
       customisationIntroHtml: deps.richTextToHtml(product.customisationIntro),
       customisationSteps: Array.isArray(buildSteps)

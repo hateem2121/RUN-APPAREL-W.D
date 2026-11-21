@@ -398,7 +398,9 @@ function buildCrawlerBody(
     parts.push(`<img src="${esc(image.url)}" alt="${esc(image.alt)}"${size} />`)
   }
 
-  const description = p.shortDescription.trim()
+  // The description is the one CMS text with an approved Russian (owner, 2026-11-21); the CMS
+  // sends it only while it matches the English word for word.
+  const description = ((ru && p.shortDescriptionRu) || p.shortDescription).trim()
   if (description) parts.push(`<p>${esc(description)}</p>`)
 
   const specs: Array<[string, string]> = [

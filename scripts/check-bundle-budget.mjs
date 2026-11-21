@@ -280,6 +280,13 @@ const REPORT_ONLY = process.argv.includes('--report')
  *   CI builds this shell about 2.0 KB heavier than this Mac (704 B over against 1.3 KB under, same
  *   commit), so the trimmed branch is expected about 0.5 KB over in CI; NOT MEASURED until the next run.
  *       script        budget 506,970 -> 507,994 (+1,024; expected CI headroom about 0.5 KB)
+ *   MEASURED in CI afterwards: 501 B left on main 2cbb5300 (run 44781104367), 489 B on f8db7a77
+ *   (run 44897144961), so the estimate held.
+ *   ⚠️ 2026-11-21, stylesheet headroom with no feature attached (the owner chose "Raise the limit by
+ *   1 KB" over trimming unused CSS or waiting). CI read 14 B left on main f8db7a77 (run 44897144961:
+ *   16.4 of 16.4 KB), so any next styling change would fail `verify` before its review. The trim was
+ *   offered first and declined; this raise ships no CSS, so the page weight does not change today.
+ *       stylesheet    budget 16,835 -> 17,859 (+1,024; CI headroom about 1.0 KB)
  * The dialog's SCRIPT is a lazy chunk
  * (HdImageDialog-*.js, 20.5 KB gzip, fetched only on intent) and fits inside `script`'s
  * existing budget: 439.6 of 462.9 KB.
@@ -306,7 +313,7 @@ const BUDGETS = {
     expectEmpty: true,
   },
   font: { bytes: 317_000, note: 'self-hosted Archivo + Instrument Serif subsets' },
-  stylesheet: { bytes: 16_835, note: 'CSS' },
+  stylesheet: { bytes: 17_859, note: 'CSS' },
 }
 
 /**
