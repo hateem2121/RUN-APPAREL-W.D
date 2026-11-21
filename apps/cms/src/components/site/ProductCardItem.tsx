@@ -2,6 +2,7 @@ import { nameSegments } from '../../lib/cardName'
 import type { ProductCard } from '../../lib/content'
 import { FAMILY_NAMES_RU } from '../../lib/families.ru'
 import type { Locale } from '../../lib/locale'
+import { russianDescription } from '../../lib/productDescriptions.ru'
 import { garmentPagesFor } from '../../lib/seo'
 import type { SportPlace } from '../../lib/sports'
 import { CardGallery } from './CardGallery'
@@ -56,6 +57,10 @@ export function ProductCardItem({
     locale === 'ru' && product.category
       ? (FAMILY_NAMES_RU[product.category] ?? product.category)
       : product.category
+  // The approved Russian (2026-11-21), only while it still translates the CMS's English exactly.
+  const description =
+    (locale === 'ru' && russianDescription(product.slug, product.shortDescription)) ||
+    product.shortDescription
   return (
     <li
       className="product-card"
@@ -92,9 +97,7 @@ export function ProductCardItem({
               <span translate="no">{product.productCode}</span>
               {category ? <span>· {category}</span> : null}
             </p>
-            {product.shortDescription ? (
-              <p className="product-card__desc">{product.shortDescription}</p>
-            ) : null}
+            {description ? <p className="product-card__desc">{description}</p> : null}
             <ViewerCue locale={locale} />
           </div>
         </div>

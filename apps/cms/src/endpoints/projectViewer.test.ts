@@ -6,6 +6,7 @@ import {
   weightNote,
 } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
+import { PRODUCT_DESCRIPTIONS_RU } from '../lib/productDescriptions.ru'
 import {
   absolutize,
   buildViewerResponse,
@@ -195,6 +196,24 @@ describe('the product’s short description', () => {
     const without = buildViewerResponse(product(), [colourway()], {}, origin, 'navy', deps)!
     expect(without.product.shortDescription).toBe('')
   })
+
+  // The Russian (owner, 2026-11-21) travels only while the English is the one it translates.
+  it('carries the approved Russian beside the English, and nothing once the English changes', () => {
+    const { en, ru } = PRODUCT_DESCRIPTIONS_RU.rxps as { en: string; ru: string }
+    const build = (shortDescription: string) =>
+      buildViewerResponse(
+        product({ slug: 'rxps', shortDescription }),
+        [colourway()],
+        {},
+        origin,
+        'navy',
+        deps,
+      )!
+    expect(build(en).product.shortDescriptionRu).toBe(ru)
+    // NEGATIVE CONTROL: one edited word in the CMS, and the old Russian must not be sent.
+    expect(build(en.replace('women’s', 'men’s')).product.shortDescriptionRu).toBe('')
+    expect(build('').product.shortDescriptionRu).toBe('')
+  })
 })
 
 /*
@@ -358,6 +377,8 @@ describe('buildViewerResponse', () => {
         'camera',
         'retiredMessage',
         'shortDescription',
+        // The approved Russian of the line above, or '' (owner, 2026-11-21).
+        'shortDescriptionRu',
         'garmentType',
       ].sort(),
     )

@@ -106,7 +106,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/': page(SOLAR_83, '34db3fa0a16e'),
   // 21 Nov 2026: the film's play() call is guarded (ProductsFilm.tsx); the page's words did not
   // change, but its markup's source did, and the fingerprint dates that too (see above).
-  '/products': page('2026-11-21T13:04:38+05:00', '88cc42eb4171'),
+  '/products': page('2026-11-21T17:25:21+05:00', '143f43c6ada7'),
   '/custom-teamwear-manufacturer': page(WAVE_ONE, 'e6cb83348ba8'),
   '/custom-activewear-manufacturer': page(WAVE_ONE, '3bfa101bf197'),
   '/custom-outerwear-manufacturer': page(WAVE_ONE, 'b7a21d97ca68'),

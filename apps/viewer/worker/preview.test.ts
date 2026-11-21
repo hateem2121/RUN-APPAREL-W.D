@@ -1100,4 +1100,18 @@ describe('buildPreview — the Russian garment page', () => {
     expect(preview.bodyHtml).not.toContain(`href="${SITE}/contact"`)
     expect(preview.bodyHtml).toContain('<h2>Расцветки</h2>')
   })
+
+  // The one CMS text with an approved Russian (owner, 2026-11-21); the CMS sends '' on a mismatch.
+  it('gives a robot the Russian description on the Russian page only, else the English', () => {
+    const product = {
+      shortDescription: 'A race-fit skinsuit.',
+      shortDescriptionRu: 'Стартовый комбинезон.',
+    }
+    expect(ru(payload({ product })).bodyHtml).toContain('<p>Стартовый комбинезон.</p>')
+    expect(ru(payload({ product })).bodyHtml).not.toContain('A race-fit skinsuit.')
+    expect(en(payload({ product })).bodyHtml).toContain('<p>A race-fit skinsuit.</p>')
+    // NEGATIVE CONTROL: no Russian (or an answer cached before the field) → the English, not nothing.
+    const english = { shortDescription: 'A race-fit skinsuit.', shortDescriptionRu: '' }
+    expect(ru(payload({ product: english })).bodyHtml).toContain('<p>A race-fit skinsuit.</p>')
+  })
 })
