@@ -6,7 +6,7 @@
   "description": "RUN APPAREL private content administration (Payload CMS on Cloudflare Workers, D1 + R2)",
   "scripts": {
     "dev": "next dev",
-    "build": "NODE_ENV=production next build",
+    "build": "NODE_ENV=production next build && node scripts/one-copy-of-each-chunk.mjs",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
