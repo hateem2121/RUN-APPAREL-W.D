@@ -51,7 +51,7 @@ const REDIRECT_STATUSES = new Set([301, 302, 307, 308])
  * @typedef {{
  *   name: string,
  *   url: string,
- *   kind: 'site' | 'retired' | 'refused' | 'redirect',
+ *   kind: 'site' | 'file' | 'retired' | 'refused' | 'redirect',
  *   to?: string,
  * }} ApexTarget
  */
@@ -63,6 +63,17 @@ export const TARGETS = [
   // HANDED_BACK_TO_HELP): the retired PDF paths and the two email redirects, which live on
   // the .help zone. Both halves are checked, so a loop or a lost rule shows here.
   { name: 'site root', url: 'https://wear-run.com/', kind: 'site' },
+  // ⚠️ TWO OF THE SITE'S OWN STATIC FILES (21 Nov 2026). For 73 minutes that day every file in
+  // apps/cms/public answered 404 on wear-run.com: the front door, newly on `wear-run.com/*`,
+  // asked the page store for them as if they were pages (apps/cms/door.mjs isStaticFile). Every
+  // check in the deploy passed, because none asked for a picture; Ahrefs' crawl found it (128
+  // pages with a broken image). One file at the root and one in a folder.
+  { name: 'site favicon', url: 'https://wear-run.com/favicon.ico', kind: 'file' },
+  {
+    name: 'site photo',
+    url: 'https://wear-run.com/factory/inspection-1536.webp',
+    kind: 'file',
+  },
   { name: 'old site root', url: 'https://wear-run.help/', kind: 'redirect', to: 'wear-run.com' },
   {
     name: 'com catalogue path',
@@ -175,6 +186,16 @@ export function evaluate(observations) {
         )
       } else if (host !== o.to) {
         problems.push(`redirects to "${host || '(no location)'}", expected ${o.to}`)
+      }
+    } else if (o.kind === 'file') {
+      // 206: the probe asks for the first 4 KB only (probeHeaders).
+      if (o.status !== 200 && o.status !== 206) {
+        problems.push(
+          `HTTP ${o.status}, expected the file — the site's static files are not being served; ` +
+            'is the front door answering them? (docs/RUNBOOK.md, "The front door")',
+        )
+      } else if (!String(o.contentType ?? '').startsWith('image/')) {
+        problems.push(`content-type is "${o.contentType ?? '(none)'}", expected an image`)
       }
     } else if (o.kind === 'site') {
       if (o.status !== 200) {

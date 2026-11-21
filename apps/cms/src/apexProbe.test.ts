@@ -184,6 +184,9 @@ describe('TARGETS', () => {
     expect([...new Set(paths)].sort()).toEqual([
       '/',
       '/catalogue',
+      // Two of the site's own static files (21 Nov 2026): public names, in apps/cms/public.
+      '/factory/inspection-1536.webp',
+      '/favicon.ico',
       '/map',
       '/meeting',
       '/not-a-real-link',

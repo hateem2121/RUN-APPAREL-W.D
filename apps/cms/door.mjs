@@ -40,6 +40,7 @@
  * The door has an address of its own for the same proof (DOOR_VERSION_PATH, below).
  */
 import {
+  KEPT_FILES,
   memoKvGet,
   NEVER_KEPT_PATHS,
   PER_DEPLOY,
@@ -141,8 +142,30 @@ export function alwaysHandedOn(url) {
   return (
     url.pathname === WORKER_VERSION_PATH ||
     url.pathname === SITE_BUILD_PATH ||
-    NEVER_KEPT_PATHS.test(url.pathname)
+    NEVER_KEPT_PATHS.test(url.pathname) ||
+    isStaticFile(url.pathname)
   )
+}
+
+/**
+ * ⚠️ A FILE IS NEVER A PAGE (21 Nov 2026, 09:52 to 11:05 UTC, live). In the site's Worker the
+ * shared steps never see a static file: Cloudflare serves `public/` (the factory photos, the
+ * favicon, the standards logos) before that Worker's code runs. The door is on a ROUTE, in front
+ * of those files too, so `/factory/inspection-1536.webp` reached the page store as if it were a
+ * page: SitePages drew it with Next, Next has no such page, and the door sent Next's 404 in place
+ * of the photo. Every file in `public/` answered 404 on wear-run.com for 73 minutes (Ahrefs'
+ * crawl of that hour: 128 pages with a broken image, 31 broken images, 10 of them linked from
+ * /press) while the same files answered 200 on www.wear-run.help, which the door is not on. The
+ * off switch ended it (KV `front-door` = `off`, owner's yes, 11:05:45 UTC).
+ *
+ * So an address that ends in a file extension is handed on untouched, as `/_next` is, and the
+ * site answers it from its static files. The three generated text files the store keeps
+ * (pageCache.mjs KEPT_FILES) are the exception. src/door.test.ts walks `public/` and holds every
+ * file in it to this, so a file this rule does not recognise fails there, not in production.
+ */
+const FILE_EXTENSION = /\.[a-z0-9]{1,8}$/i
+export function isStaticFile(pathname) {
+  return FILE_EXTENSION.test(pathname) && !KEPT_FILES.includes(pathname)
 }
 
 /** What this copy of the Worker last read from the site's static files, and when. */
