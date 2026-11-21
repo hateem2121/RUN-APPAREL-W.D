@@ -77,8 +77,8 @@ on open.
 once per machine, at the pinned version:
 
 ```bash
-npm install -g codebase-memory-mcp@0.11.0
-codebase-memory-mcp --version   # expect: codebase-memory-mcp 0.11.0
+npm install -g codebase-memory-mcp@0.12.1 --allow-scripts=codebase-memory-mcp
+codebase-memory-mcp --version   # expect: codebase-memory-mcp 0.12.1
 codebase-memory-mcp daemon start   # optional, recommended: see "Verified behaviour"
 ```
 
@@ -91,9 +91,12 @@ binary on `PATH`:
 curl -fsSL https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/install.sh | bash
 ```
 
-**This is a ~270 MB download.** The npm package is a thin wrapper whose
-`postinstall` pulls a platform-specific static binary from GitHub Releases, and
-on a cold cache that takes minutes, not seconds.
+**This is a ~335 MB download** (0.12.1, darwin-arm64: 334,786,400 bytes). The npm
+package is a thin wrapper whose `postinstall` pulls a platform-specific static binary
+from GitHub Releases, and on a cold cache that takes minutes, not seconds. npm 12
+blocks install scripts, with only a warning, unless the package is named in
+`--allow-scripts` (npm's `npm-install.md`, read 2026-11-20), and without the
+`postinstall` there is no binary.
 
 That size is exactly why the config does **not** use `npx -y codebase-memory-mcp`,
 which would otherwise be the zero-setup option: `npx` re-materializes the package
@@ -159,7 +162,7 @@ almost every time you would care. `CLAUDE.md` is the durable copy; `pnpm index:a
 re-seeds from it and fails loudly if the read-back comes up empty.
 
 Use the installed binary, **not** `npx` — for the same reason `.mcp.json` doesn't
-(see above): `npx` re-materializes ~270 MB on a cold cache.
+(see above): `npx` re-materializes ~335 MB on a cold cache.
 
 ### Useful calls
 
@@ -261,13 +264,40 @@ impact analysis ("what touches `buildVariantId`?") rather than on context saving
 Keep an eye on whether it actually gets used. To remove it: delete `.mcp.json`,
 `.cbmignore`, `.codebase-memory.json`, `scripts/index-ai.mjs` and the `index:ai`
 script from `package.json`, then `npm uninstall -g codebase-memory-mcp` and
-`rm -rf ~/.cache/codebase-memory-mcp` to reclaim the ~300 MB binary (0.11.0: 302,755,632 bytes) and the index. Run
+`rm -rf ~/.cache/codebase-memory-mcp` to reclaim the ~335 MB binary (0.12.1: 334,786,400 bytes) and the index. Run
 `codebase-memory-mcp daemon stop` first if the helper is running.
 Nothing else in the repo depends on any of it.
 
 ### Verified behaviour
 
-**Re-measured on 0.11.0, 2026-09-26** (owner-approved upgrade from 0.9.0), on the
+**Re-measured on 0.12.1, 2026-11-20** (owner-approved upgrade from 0.11.0), on the
+`cbm-0-12-1` worktree at `eef393e0`, same tree for both builds, Apple-silicon Mac:
+
+| | 0.11.0 | 0.12.1 | 0.12.1 + `daemon start` |
+| --- | --- | --- | --- |
+| tools at startup (stdio handshake) | 17 | **17** (same names) | — |
+| full index (`pnpm index:ai --cold`) | 11.0 s, 16,586 nodes / 61,919 edges | 11.3 s, 16,687 / 65,062 | — |
+| incremental index (`pnpm index:ai`) | — | 6.5 s | 2.5 s |
+| one `cli search_graph` | — | 2.0 s | 0.5 s |
+
+- The tree has roughly doubled since September, which is why the 0.11.0 column no longer
+  matches the table below: compare builds only within one table.
+- The +3,143 edges are 0.12's documentation layer and new edge classes. On this tree:
+  `MENTIONS` 1,272 (doc section → the code it names), `SPAWNS` 66 (program launches,
+  which 0.11 guessed as `CALLS`), `DIAGRAM_ARROW` 41 (Mermaid and other diagrams in
+  Markdown). The 27 edge types, counted with one `query_graph`, add up to 65,062.
+- ⚠️ **The raw-JSON `cli` argument is deprecated in 0.12.** Every `cli` call that
+  `scripts/index-ai.mjs` makes prints "passing raw JSON to 'cli <tool>' is deprecated and
+  will be removed in a future release" to stderr, which the script discards on success.
+  It works on 0.12.1. A later bump has to move `cli()` to flags or `--args-file` first.
+- 0.12 replaces the graph UI on port 9749 with "CBM Lens" (loopback only). The daemon
+  measured ~9 MB of memory and 0.7% CPU just after indexing, listening on
+  `127.0.0.1:9749` only.
+- **One install at a time.** A daemon of another build refuses the new binary outright
+  ("a conflicting CBM process is active"), and `daemon stop` refuses while any open
+  agent session still uses it. Close every session in this repo before upgrading.
+
+**Measured on 0.11.0, 2026-09-26** (owner-approved upgrade from 0.9.0), on the
 `upgrades` worktree, same tree for both builds:
 
 | | 0.9.0 | 0.11.0 | 0.11.0 + `daemon start` |
@@ -380,9 +410,15 @@ this cannot).
 
 ### Upgrading
 
-**Pinned at `0.11.0`** (published 2026-09-15; upgraded 2026-09-26 from 0.9.0, which had
-been the stable release since 2026-07-08). Before bumping again, read every release's
-notes between the two: 0.10.0 added the daemon and a 43-client installer (the npm
+**Pinned at `0.12.1`** (published 2026-10-16; upgraded 2026-11-20 from 0.11.0). Before
+bumping again, read every release's notes between the two. 0.12.0 (2026-10-15) moved
+the index format from 1 to 2 (one full rebuild, ADRs carried over), listed breaking
+changes that are all outside this TypeScript repo (C macro and field names, Java/C#/Rust
+fields, Windows `search_code`, stricter Cypher `SKIP`/`LIMIT`) apart from the edge-set
+changes counted above, and deprecated the raw-JSON `cli` argument. Its npm package
+could not install on any platform; 0.12.1 fixed that and changed image identities (one
+more rebuild). Earlier: 0.11.0 (2026-09-15; upgraded 2026-09-26 from 0.9.0, the stable
+release since 2026-07-08). 0.10.0 added the daemon and a 43-client installer (the npm
 `postinstall` only downloads and checksum-verifies the binary; the installer is the
 separate `codebase-memory-mcp install` command, not run here), and 0.11.0 rebuilt the
 index format once (ADRs preserved) and changed the `cli` output contract.
