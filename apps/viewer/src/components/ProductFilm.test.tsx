@@ -150,6 +150,28 @@ describe('ProductFilm', () => {
     act(() => button.click())
     expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled()
   })
+
+  /*
+   * A browser whose play() returns nothing instead of a promise (old WebKit builds and some
+   * in-app browsers; the class of Sentry VIEWER-N, fixed for decode() and register() in #432).
+   * `.catch` on nothing throws: inside the effect that takes the garment page down with it, and
+   * in the button's handler it is an error on every tap.
+   */
+  it('does not throw when play() returns nothing, by itself or from the button', () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(
+      () => undefined as unknown as Promise<void>,
+    )
+    setWebdriver(false)
+    draw(ball('kura'))
+    expect(() => comeNear()).not.toThrow()
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1)
+
+    const video = host.querySelector('video') as HTMLVideoElement
+    const button = host.querySelector('button') as HTMLButtonElement
+    vi.spyOn(video, 'paused', 'get').mockReturnValue(true)
+    expect(() => act(() => button.click())).not.toThrow()
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('filmMayAutoplay — the products-page film’s own stops', () => {

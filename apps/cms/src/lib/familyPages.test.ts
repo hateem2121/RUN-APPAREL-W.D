@@ -236,8 +236,8 @@ describe('what the ball page must never say', () => {
 
   // FIFA's marks are licensed; the ball holds none, so a buyer has to read that here.
   it('says the ball holds no FIFA licence wherever it names FIFA', () => {
-    expect(words).toMatch(/Is the Kaizen FIFA licensed\?/)
-    expect(words).toMatch(/does not carry a FIFA mark/)
+    expect(words).toMatch(/Are your balls FIFA licensed\?/)
+    expect(words).toMatch(/none carries a FIFA mark/)
     expect(words).not.toMatch(/FIFA[- ](?:approved|certified|inspected)/i)
     // NEGATIVE CONTROL: the pattern sees the claim it forbids.
     expect('A FIFA-approved ball').toMatch(/FIFA[- ](?:approved|certified|inspected)/i)

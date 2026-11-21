@@ -39,7 +39,13 @@ import {
 } from './pageCache.mjs'
 import { answerFromCopy, COPY_KEY_HEADER, copyKey } from './pageCopy.mjs'
 import { withRedirectHeaders } from './redirectHeaders.mjs'
-import { HEDGE_HEAD_START_MS, hedgeable, hedgedAnswer, hedgeOn } from './storeHedge.mjs'
+import {
+  HEDGE_COPY_WAIT_MS,
+  HEDGE_HEAD_START_MS,
+  hedgeable,
+  hedgedAnswer,
+  hedgeOn,
+} from './storeHedge.mjs'
 import {
   keepableTapRequest,
   keptTapStoreKey,
@@ -103,7 +109,7 @@ export async function fromSharedStore(edge, request, env, ctx) {
     if (hedgeable(request) && hedgeOn(env)) {
       const answer = await hedgedAnswer({
         askStore,
-        askCopy: () => answerFromCopy(clean, env),
+        askCopy: () => answerFromCopy(clean, env, HEDGE_COPY_WAIT_MS),
         drawDirect: () => edge.draw(request, env, ctx),
         headStartMs: HEDGE_HEAD_START_MS,
         waitUntil: (p) => ctx.waitUntil(p),
@@ -205,6 +211,11 @@ async function fromTapStore(edge, request, env, ctx) {
   }
 }
 
+/** Does this answer already say what the store did (a `page-cache` entry in Server-Timing)? */
+export function saysStoreState(headers) {
+  return /(?:^|,)\s*page-cache;/.test(headers.get('server-timing') ?? '')
+}
+
 /**
  * A page on its way out: a redirect gets its security headers, a public page gets this request's
  * nonce (and its doctype first), and everything else leaves as it came, saying whether the store
@@ -215,6 +226,13 @@ async function fromTapStore(edge, request, env, ctx) {
  */
 export function sendPage(response, cacheState, env) {
   try {
+    // ⚠️ ONE ANSWER ABOUT THE STORE PER PAGE (21 Nov 2026, the trial route `wear-run.com/guides*`).
+    // A page the front door could not get from the store is drawn by handing the request on, and
+    // the site's Worker answers it with its OWN `page-cache` timing. The door then added a second:
+    // the live 404 under /guides carried `page-cache;desc="miss-direct"` twice, and the two can
+    // disagree (the site's Worker may answer "hit" from its store to the door's "miss-direct").
+    // The Worker that asked the store last is the one that knows, so its answer stands alone.
+    if (cacheState === 'miss-direct' && saysStoreState(response.headers)) cacheState = null
     // The old addresses and www. answer redirects, which OpenNext sends bare
     // (redirectHeaders.mjs). A redirect is never a page, so the nonce guard has no work.
     if (response.status >= 300 && response.status < 400) return withRedirectHeaders(response)

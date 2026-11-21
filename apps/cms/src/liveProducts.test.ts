@@ -27,6 +27,9 @@ describe('live products', () => {
     expect(LIVE_PRODUCTS.map((p) => p.slug).sort()).toEqual(
       [
         'kaizen',
+        'kura',
+        'maxfly',
+        'orbx',
         'r-afp',
         'r-aj',
         'r-ajm',

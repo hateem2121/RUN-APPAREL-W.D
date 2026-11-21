@@ -333,7 +333,7 @@ describe('siteEdge.mjs hedges a page and a tap miss', () => {
   })
 
   it('a page also reads the shared copy; a tap has none', () => {
-    expect(pages).toMatch(/askCopy: \(\) => answerFromCopy\(clean, env\),/)
+    expect(pages).toMatch(/askCopy: \(\) => answerFromCopy\(clean, env, HEDGE_COPY_WAIT_MS\),/)
     expect(taps).not.toMatch(/askCopy/)
   })
 

@@ -7,10 +7,15 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import {
   OVERRIDE_WAITS_MS,
+  ROUTE_ONLY_WORKERS,
+  VERSION_URLS,
   askUntilApplied,
+  configArgs,
+  isTagNotListed,
   isVersionNotFound,
   judgeAnswer,
   judgeControl,
+  judgeRouteOnly,
   liveVersion,
   overridesHeader,
   parsePairs,
@@ -450,4 +455,142 @@ test('stage fails after three tries, and its error never reaches stdout ($GITHUB
   assert.match(errorLines[0], /100146/)
   // biome-ignore lint/suspicious/noControlCharactersInRegex: looking for terminal colour codes is the point
   assert.doesNotMatch(errorLines[0], /\u001b/, 'colour codes in the annotation')
+})
+
+/**
+ * The front door is staged with the other two Workers since 21 Nov 2026. What production did: the
+ * deploy updated the door AFTER its pre-live checks, the checks passed through the live door, and
+ * runs 44767665680 and 44781104367 both failed PF-13 through a door the second of them was the
+ * fix for. These hold the three things that change: the door has a version address, a door on no
+ * route is a warning (its undo is deleting its routes), and its own config file is named.
+ */
+test('the front door has a version address, under the route it has always had', () => {
+  assert.equal(
+    VERSION_URLS['run-apparel-site-door'],
+    'https://wear-run.com/products/__door/version',
+  )
+  assert.deepEqual(ROUTE_ONLY_WORKERS, ['run-apparel-site-door'])
+})
+
+test('a door on no route is "unrouted", not a failed deploy: the viewer’s page or a 404 answered', () => {
+  const door = 'run-apparel-site-door'
+  // The viewer's page shell (200, not JSON) and a 404: no door answered at all.
+  assert.equal(judgeRouteOnly('wrong', null, door), 'unrouted')
+  assert.equal(judgeRouteOnly('wrong', { error: 'not_found' }, door), 'unrouted')
+  // Another Worker's version answer is still no door.
+  assert.equal(
+    judgeRouteOnly('wrong', { worker: 'run-apparel-viewer-site', version: OLD }, door),
+    'unrouted',
+  )
+  assert.equal(judgeRouteOnly('ok', { worker: door, version: NEW }, door), 'ok')
+  assert.equal(judgeRouteOnly('inconclusive', null, door), 'inconclusive')
+})
+
+test('negative control: the OLD door answering is an override not applied, and stays wrong', () => {
+  const door = 'run-apparel-site-door'
+  assert.equal(judgeRouteOnly('wrong', { worker: door, version: OLD }, door), 'wrong')
+})
+
+test('negative control: a Worker with a Custom Domain is never excused as unrouted', () => {
+  for (const worker of ['run-apparel-viewer-cms', 'run-apparel-viewer-site']) {
+    assert.equal(judgeRouteOnly('wrong', null, worker), 'wrong')
+  }
+})
+
+test('a config file is passed to wrangler only when named, and only a config file name', () => {
+  assert.deepEqual(configArgs(undefined), [])
+  assert.deepEqual(configArgs(''), [])
+  assert.deepEqual(configArgs('wrangler.door.jsonc'), ['--config', 'wrangler.door.jsonc'])
+  assert.throws(() => configArgs('../other/wrangler.jsonc'), /not a wrangler config file/)
+  assert.throws(() => configArgs('--name'), /not a wrangler config file/)
+})
+
+test('the "tag not listed" failure is recognised, and other failures are not', () => {
+  assert.equal(isTagNotListed('no uploaded version carries the tag r44733082549a1'), true)
+  assert.equal(isTagNotListed('the live deployment is already split'), false)
+  assert.equal(isTagNotListed('Authentication error [code: 10000]'), false)
+})
+
+/**
+ * `stage` against a stand-in wrangler whose `versions list` does not show the tagged version the
+ * first `misses` times (run 44733082549, attempt 1: the list was asked 1.4 s after the upload).
+ * Every call's arguments are written down, so the config file's passage can be read back.
+ */
+function stageWithLateList(misses, extraArgs = []) {
+  const dir = mkdtempSync(join(tmpdir(), 'version-overrides-'))
+  const counter = join(dir, 'count')
+  const calls = join(dir, 'calls')
+  const fake = join(dir, 'wrangler.mjs')
+  writeFileSync(counter, '0')
+  writeFileSync(calls, '')
+  const untagged = LIST.filter((v) => v.annotations['workers/tag'] === undefined)
+  writeFileSync(
+    fake,
+    `#!/usr/bin/env node
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
+const args = process.argv.slice(2).join(' ')
+appendFileSync(${JSON.stringify(calls)}, args + '\\n')
+if (args.startsWith('versions list')) {
+  const n = Number(readFileSync(${JSON.stringify(counter)}, 'utf8')) + 1
+  writeFileSync(${JSON.stringify(counter)}, String(n))
+  console.log(n <= ${misses} ? ${JSON.stringify(JSON.stringify(untagged))} : ${JSON.stringify(JSON.stringify(LIST))})
+} else if (args.startsWith('deployments status')) console.log(${JSON.stringify(JSON.stringify(STATUS))})
+else if (args.startsWith('versions deploy')) console.log('deployed')
+else process.exit(3)
+`,
+  )
+  chmodSync(fake, 0o755)
+  const run = spawnSync(
+    process.execPath,
+    [
+      join(import.meta.dirname, 'version-overrides.mjs'),
+      'stage',
+      'run-apparel-site-door',
+      dir,
+      'r1a1',
+      ...extraArgs,
+    ],
+    {
+      encoding: 'utf8',
+      env: { ...process.env, WRANGLER_BIN: fake, CF_VERSION_RETRY_WAITS_MS: '1,1' },
+    },
+  )
+  return {
+    ...run,
+    listCalls: Number(readFileSync(counter, 'utf8')),
+    calls: readFileSync(calls, 'utf8').trim().split('\n'),
+  }
+}
+
+test('stage succeeds when the list shows the tagged version on the second ask', () => {
+  const run = stageWithLateList(1)
+  assert.equal(run.status, 0, run.stderr)
+  assert.equal(run.listCalls, 2)
+  assert.equal(run.stdout, `old=${OLD}\nnew=${versionWithTag(LIST, 'r1a1')}\n`)
+  assert.match(run.stderr, /::warning::.*the list did not show the tag r1a1/)
+})
+
+test('negative control: a tag that never appears still fails, after three asks, off stdout', () => {
+  const run = stageWithLateList(99)
+  assert.equal(run.status, 1)
+  assert.equal(run.listCalls, 3)
+  assert.equal(run.stdout, '', 'error text on stdout would be written into $GITHUB_OUTPUT')
+  assert.match(run.stderr, /::error::no uploaded version carries the tag r1a1/)
+  assert.equal(
+    run.calls.some((call) => call.startsWith('versions deploy')),
+    false,
+    'nothing may be deployed when the version was never found',
+  )
+})
+
+test('the door’s own config file reaches every wrangler call; without it none carries --config', () => {
+  const withConfig = stageWithLateList(0, ['wrangler.door.jsonc'])
+  assert.equal(withConfig.status, 0, withConfig.stderr)
+  assert.equal(withConfig.calls.length, 3)
+  for (const call of withConfig.calls) {
+    assert.match(call, /--name run-apparel-site-door --config wrangler\.door\.jsonc/, call)
+  }
+  const without = stageWithLateList(0)
+  assert.equal(without.status, 0, without.stderr)
+  for (const call of without.calls) assert.doesNotMatch(call, /--config/, call)
 })

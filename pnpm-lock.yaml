@@ -410,8 +410,8 @@ importers:
         specifier: 1.64.1
         version: 1.64.1
       '@sentry/vite-plugin':
-        specifier: 11.12.0
-        version: 11.12.0
+        specifier: 11.16.0
+        version: 11.16.0
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
@@ -2678,8 +2678,8 @@ packages:
       webpack:
         optional: true
 
-  '@sentry/bundler-plugins@11.12.0':
-    resolution: {integrity: sha512-7vBXoHMoYKjYu08anYv5I0nplSWOfQyl7BqV0VOrLxEtGoOpk1+DxL2dyBiaWoAtISkaqJEV/ft813OsCGuuMg==}
+  '@sentry/bundler-plugins@11.16.0':
+    resolution: {integrity: sha512-HGP4ppnqHwGKlibB08PCicBcVbjeC1utzwXHTTqDeZVACSpkBqRnhHKH53iHvXnoEaIbePyOcntJS6loEbxd8Q==}
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
     peerDependencies:
       rollup: '>=3.2.0'
@@ -2698,12 +2698,20 @@ packages:
     resolution: {integrity: sha512-WkSQcDhUUsz1SwxR23LpmyPKba+dgxxiH0DWV4VSM9yaAvhhl87ppW2Ts3g4piIKCVflc31aJeWy+biUbYfsMQ==}
     engines: {node: '>=14'}
 
+  '@sentry/conventions@0.34.0':
+    resolution: {integrity: sha512-sGYLaq/zyRTOCoadW3Z66q6WHp16stnwezGK45B50mGO6QUTl/ttzsPpy+oxZlj2pKARyOohZ1pX9grdpMxo2Q==}
+    engines: {node: '>=14'}
+
   '@sentry/core@11.10.0':
     resolution: {integrity: sha512-l/OtTo1v+TQgZtHG2Q5N4IX+gFdAE1tZ27K/P21UCzJglWk54TPEm+d9T2lulPqMK06kZcLwDgRAhE2GO4YS5w==}
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
 
   '@sentry/core@11.12.0':
     resolution: {integrity: sha512-HKER7EcRpPPgC8mLRe5BzP6njfRYFZ53BFLZxVp1whWbY6lp/b2mvTBk4q6+rKsUFhLhRDsd6jL8y/8ddEWv6A==}
+    engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
+
+  '@sentry/core@11.16.0':
+    resolution: {integrity: sha512-hu7gw///rDLwVYKmkAgztXUx0sFkpxG1zDwnuHBYCXqHRaEwzEJ/ntBZfAmLbjOSIsg5dcM07AI09KSicFeXBw==}
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
 
   '@sentry/feedback@11.12.0':
@@ -2736,8 +2744,8 @@ packages:
     resolution: {integrity: sha512-m/MVCvPzQJJZZCTFlVPCrTuoncT7SR80+QKg1K7ul25AsL0byABr5KsHCbXVpOYXLVz04Omk+pOOR5Cv2IAlrA==}
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
 
-  '@sentry/vite-plugin@11.12.0':
-    resolution: {integrity: sha512-0K6+9fT80/3I6VW6V2C6w8GvQWaZiEW+CsaTPBStPzb0YwjOTwdI1mfE+Omw+NLwVOv/ZgsuOl5BPbcrU1qaNA==}
+  '@sentry/vite-plugin@11.16.0':
+    resolution: {integrity: sha512-IalsyOsfkD5oT1TMo55jNvI5pNhFWpv6e5nZqudR+BUL0cmgtay2vmvQyIpeM0L6Gv50fjoz9akeh/DJ3aoUBg==}
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
 
   '@sindresorhus/is@7.2.0':
@@ -5885,8 +5893,8 @@ packages:
     engines: {node: '>=20.0'}
     hasBin: true
 
-  sentry@0.49.0:
-    resolution: {integrity: sha512-9tjS0jTx5FQzhwAGhpcnwvqE0MlQiwJtunsIUNqGkw6E9CBOMbijlamIDUqvZTDtJAveVwa9L5ziP44bOJUzcQ==}
+  sentry@0.50.0:
+    resolution: {integrity: sha512-2BCdoK4xO3mN4c0QTXaMtJBJ9rjL5v1VawaV7Wd605hVWVrpZTipLbjGHEFavS8IliI0W68TGi8CuScbHALPjA==}
     engines: {node: '>=20.0'}
     hasBin: true
 
@@ -8995,18 +9003,20 @@ snapshots:
       sentry: 0.45.0
       supports-color: 8.1.1
 
-  '@sentry/bundler-plugins@11.12.0':
+  '@sentry/bundler-plugins@11.16.0':
     dependencies:
-      '@sentry/core': 11.12.0
+      '@sentry/core': 11.16.0
       dotenv: 17.4.2
       glob: 14.0.3
       magic-string: 1.4.3
       oxc-parser: 0.152.0
-      sentry: 0.49.0
+      sentry: 0.50.0
 
   '@sentry/conventions@0.29.0': {}
 
   '@sentry/conventions@0.32.0': {}
+
+  '@sentry/conventions@0.34.0': {}
 
   '@sentry/core@11.10.0':
     dependencies:
@@ -9015,6 +9025,10 @@ snapshots:
   '@sentry/core@11.12.0':
     dependencies:
       '@sentry/conventions': 0.32.0
+
+  '@sentry/core@11.16.0':
+    dependencies:
+      '@sentry/conventions': 0.34.0
 
   '@sentry/feedback@11.12.0':
     dependencies:
@@ -9060,9 +9074,9 @@ snapshots:
       '@sentry/conventions': 0.29.0
       '@sentry/core': 11.10.0
 
-  '@sentry/vite-plugin@11.12.0':
+  '@sentry/vite-plugin@11.16.0':
     dependencies:
-      '@sentry/bundler-plugins': 11.12.0
+      '@sentry/bundler-plugins': 11.16.0
     transitivePeerDependencies:
       - rollup
       - webpack
@@ -12460,7 +12474,7 @@ snapshots:
 
   sentry@0.45.0: {}
 
-  sentry@0.49.0: {}
+  sentry@0.50.0: {}
 
   serve-static@1.16.3(supports-color@10.2.2):
     dependencies:

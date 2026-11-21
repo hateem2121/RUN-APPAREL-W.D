@@ -37,6 +37,7 @@
  * ⚠️ NEVER ANSWER `/__worker/version` HERE. The deploy reads it to prove its pre-live checks
  * reached the site Worker's NEW version (workerVersion.mjs); this Worker's id would be a lie. It
  * is handed on with everything else that is never kept (`/_next`, `/api`, `/admin`, `/film`).
+ * The door has an address of its own for the same proof (DOOR_VERSION_PATH, below).
  */
 import {
   memoKvGet,
@@ -203,10 +204,47 @@ const site = createSiteFetch({
   store: (env) => env.SITE_PAGES,
 })
 
+/**
+ * Which version of THIS Worker answered: the proof a deploy needs that its pre-live checks pass
+ * through the NEW door (scripts/version-overrides.mjs `verify`).
+ *
+ * WHY (21 Nov 2026). The deploy used to update the door AFTER its pre-live checks, and those
+ * checks pass through the live door. The deploys of #435 and #438 (runs 44767665680 and
+ * 44781104367) both failed PF-13 on all 42 products through the door that was live, and #438 was
+ * the fix for that very door: it could not get past the copy it replaced. The door is now staged
+ * at 0% with the other two Workers and the checks name its new version in the override header;
+ * this address is how `verify` knows the header reached it.
+ *
+ * Under `/products/`, because that route has carried the door since its first day, so the address
+ * is reachable whatever else the door is routed on. Answered before the viewer forward (which
+ * would read it as a garment page) and before the override hand-on (the check sends the header).
+ */
+export const DOOR_VERSION_PATH = '/products/__door/version'
+export const DOOR_NAME = 'run-apparel-site-door'
+
+/**
+ * @param {URL} url
+ * @param {{ id?: string } | undefined} metadata
+ * @returns {Response | null}
+ */
+export function doorVersionResponse(url, metadata) {
+  if (url.hostname !== SITE_HOST || url.pathname !== DOOR_VERSION_PATH) return null
+  return new Response(`${JSON.stringify({ worker: DOOR_NAME, version: metadata?.id ?? null })}\n`, {
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+      'x-robots-tag': 'noindex',
+    },
+  })
+}
+
 export default {
   async fetch(request, env, ctx) {
     try {
       const url = new URL(request.url)
+      const version = doorVersionResponse(url, env.CF_VERSION_METADATA)
+      if (version) return version
       // ⚠️ A DEPLOY'S PRE-LIVE CHECK ASKS FOR A NEW VERSION BY HEADER, and must reach it. The
       // deploy tests each new version at 0% through `Cloudflare-Workers-Version-Overrides`
       // (scripts/version-overrides.mjs, owner decision 7 Nov 2026). A kept answer from the store,

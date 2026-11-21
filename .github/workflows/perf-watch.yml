@@ -44,6 +44,19 @@ jobs:
         with:
           node-version: 26
 
+      # THE FIRST-VISIT GUARD (21 Nov 2026, owner's yes), FIRST ON PURPOSE: a burst fired after any
+      # other step has asked the site is fast for the wrong reason. The site's 40.8 MiB Worker takes
+      # 1.2 to 2.0 s to start, so first requests after a quiet spell measured p90 1,467, 1,389 and
+      # 1,791 ms (three US bursts, 20 Nov) while every warm check here stayed green; through the
+      # front door (apps/cms/door.mjs) the same bursts measured 145, 293 and 181 ms. This asks 30
+      # times each for the garment data, garment pages and website pages from Globalping's US
+      # probes (free, no key) and fails when the first byte is not under 800 ms at p90. A refusal
+      # (403/429/503), a Globalping limit or too few answers is inconclusive: a warning, green.
+      # It prints timings and counts only. scripts/first-visit-burst.test.mjs holds the judge to
+      # the real numbers of both days.
+      - name: First visit after a quiet spell (the front door's guard)
+        run: node scripts/first-visit-burst.mjs
+
       # No install step: the probe uses `fetch` and nothing else. Keeping it
       # dependency-free means this workflow cannot break because of the lockfile.
       #

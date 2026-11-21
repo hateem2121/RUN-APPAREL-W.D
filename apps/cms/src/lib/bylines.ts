@@ -170,6 +170,8 @@ const TRIMS_SOURCE = '2026-11-15T10:47:40+05:00'
  * opening sentence say "regulations". Search Console, 18 Aug–14 Nov, set the words.
  */
 const SEARCH_WORDING = '2026-11-15T11:30:02+05:00'
+/** The ball guide shows all four balls in 3D, not the Kaizen alone (owner, 2026-11-21). */
+const FOUR_BALLS = '2026-11-21T13:57:02+05:00'
 /**
  * The vetting guide's note that SECP's eServices site may not open outside Pakistan (owner,
  * 2026-11-15), after the weekly source check timed out on it from the US (issue #394). It replaces
@@ -247,8 +249,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-soccer-balls-are-made': byline(
     AUTHORS.production,
     WAVE_ONE,
-    SEARCH_WORDING,
-    'add41f648a9c',
+    FOUR_BALLS,
+    '9ffd045c88dc',
   ),
   '/guides/how-we-write-our-guides': byline(
     AUTHORS.contentTeam,

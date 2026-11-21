@@ -1538,7 +1538,7 @@ jobs:
         run: node scripts/warm-regions.mjs --print-build https://wear-run.com >> "$GITHUB_OUTPUT"
 
       # ⚠️ UPLOADED, NOT DEPLOYED (since 2026-11-07, owner decision): the new version takes no
-      # traffic until the pre-live checks below pass against it — see "Stage both new versions".
+      # traffic until the pre-live checks below pass against it — see "Stage the three new versions".
       # DEPLOY_TAG names this run's versions so the staging step can find them; the secrets
       # steps below add theirs with the same tag, and the newest tagged version is the one staged.
       - name: Upload the new CMS version (no traffic yet)
@@ -1665,10 +1665,25 @@ jobs:
           pnpm --filter @run-apparel/viewer exec wrangler versions upload \
             --tag "$DEPLOY_TAG" --message "${GITHUB_SHA:0:7} ${GITHUB_REF_NAME}"
 
+      # THE FRONT DOOR IS UPLOADED HERE AND STAGED WITH THE OTHER TWO (21 Nov 2026). It used to be
+      # deployed after the pre-live checks, and those checks pass THROUGH the live door: the deploys
+      # of #435 and #438 (runs 44767665680 and 44781104367) both failed PF-13 on all 42 products
+      # through the door that was live, and #438 was the fix for that door, so it could not deploy
+      # itself. Now its new version is checked like the others. Its bindings name the site's Worker
+      # and the viewer, which already exist; `versions upload` applies no routes.
+      - name: Upload the new front-door version (no traffic yet)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOY_TAG: r${{ github.run_id }}a${{ github.run_attempt }}
+        run: |
+          pnpm --filter @run-apparel/cms exec wrangler versions upload --config wrangler.door.jsonc \
+            --tag "$DEPLOY_TAG" --message "${GITHUB_SHA:0:7} ${GITHUB_REF_NAME}"
+
       # TEST EACH NEW VERSION BEFORE VISITORS GET IT (owner decision, 2026-11-07). Of 73 runs on
       # `main` from 25 Oct to 7 Nov, 8 deploys needed fixing, and in 3 of the 4 opened the failing
       # step ran AFTER the deploy — visitors already had the broken version. Cloudflare's method
-      # (Gradual deployments; Version overrides; read 2026-11-07): both new versions go live at 0%
+      # (Gradual deployments; Version overrides; read 2026-11-07): the new versions go live at 0%
       # beside the current ones at 100%, the checks reach them through the
       # `Cloudflare-Workers-Version-Overrides` header (scripts/version-overrides-preload.mjs adds it
       # to the check scripts' own requests), and only then do they move to 100%. 0% → 100%, never a
@@ -1676,7 +1691,7 @@ jobs:
       # ALREADY RAN above: the OLD versions keep serving against the migrated database while the new
       # ones are checked, exactly as during a plain deploy's upload. scripts/version-overrides.mjs
       # has the reasoning; docs/RUNBOOK.md "Undoing a bad deploy" still applies after promotion.
-      - name: Stage both new versions at 0% (live versions keep 100%)
+      - name: Stage the three new versions at 0% (live versions keep 100%)
         id: stage
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -1686,13 +1701,14 @@ jobs:
           set -o pipefail
           node scripts/version-overrides.mjs stage run-apparel-viewer-cms apps/cms "$DEPLOY_TAG" | sed 's/^/cms_/' | tee -a "$GITHUB_OUTPUT"
           node scripts/version-overrides.mjs stage run-apparel-viewer-site apps/viewer "$DEPLOY_TAG" | sed 's/^/site_/' | tee -a "$GITHUB_OUTPUT"
+          node scripts/version-overrides.mjs stage run-apparel-site-door apps/cms "$DEPLOY_TAG" wrangler.door.jsonc | sed 's/^/door_/' | tee -a "$GITHUB_OUTPUT"
 
       # The negative control on every deploy: an override that is not applied routes to the OLD
       # version silently, and every check below would then pass against what is already live.
       - name: Prove the checks will reach the new versions
         env:
-          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }}
-          CF_VERSION_OLD_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_old }},run-apparel-viewer-site=${{ steps.stage.outputs.site_old }}
+          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
+          CF_VERSION_OLD_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_old }},run-apparel-viewer-site=${{ steps.stage.outputs.site_old }},run-apparel-site-door=${{ steps.stage.outputs.door_old }}
         run: node scripts/version-overrides.mjs verify
 
       - name: Pre-live health check (new CMS version)
@@ -1713,31 +1729,35 @@ jobs:
         env:
           SMOKE_BROWSER_GET: '1'
           API_BASE: ${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}
-          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }}
+          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
         run: NODE_OPTIONS="--import=./scripts/version-overrides-preload.mjs" node scripts/smoke-live-products.mjs "$API_BASE"
 
       - name: Pre-live link-preview smoke test (new versions)
         env:
-          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }}
+          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
         run: NODE_OPTIONS="--import=./scripts/version-overrides-preload.mjs" node scripts/smoke-live-previews.mjs https://wear-run.com/products
 
       - name: Pre-live security.txt and redirect headers (new versions)
         env:
-          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }}
+          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
         run: NODE_OPTIONS="--import=./scripts/version-overrides-preload.mjs" node scripts/public-security-probe.mjs
 
       # CMS first: the viewer reads the CMS's data, and new CMS + old viewer for a few seconds is the
       # same pairing every plain deploy has had.
-      - name: Move both new versions to 100%
+      - name: Move the three new versions to 100%
         id: promote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CMS_NEW: ${{ steps.stage.outputs.cms_new }}
           SITE_NEW: ${{ steps.stage.outputs.site_new }}
+          DOOR_NEW: ${{ steps.stage.outputs.door_new }}
+        # The door last: its bindings name the two Workers above, so it goes live in front of the
+        # versions it was just checked with.
         run: |
           node scripts/version-overrides.mjs promote run-apparel-viewer-cms apps/cms "$CMS_NEW"
           node scripts/version-overrides.mjs promote run-apparel-viewer-site apps/viewer "$SITE_NEW"
+          node scripts/version-overrides.mjs promote run-apparel-site-door apps/cms "$DOOR_NEW" wrangler.door.jsonc
 
       # `versions upload` does not apply routes, custom domains or cron triggers (Cloudflare,
       # Gradual deployments); a plain `wrangler deploy` did. This applies what the CMS's
@@ -1751,21 +1771,19 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @run-apparel/cms exec wrangler triggers deploy
 
-      # THE FRONT DOOR (apps/cms/door.mjs, 20 Nov 2026): the 38 KiB Worker Cloudflare runs before the
-      # site's own on the routes in apps/cms/wrangler.door.jsonc, so a kept page never waits 1.2 to
-      # 2.0 s for the 40.8 MiB one to start. AFTER the site's Worker is at 100%: its bindings name
-      # that Worker's SitePages entrypoint and the viewer, and a binding to a Worker that does not
-      # exist fails the deploy. A plain `wrangler deploy`, which also applies its routes; it is NOT
-      # staged at 0% like the two above, because it has no address of its own to check it on. What
-      # makes that safe: it hands on every request it is not sure of, it hands a pre-live check on
-      # whole (the version-override header), and the checks below this step all pass through it.
+      # THE FRONT DOOR'S ROUTES (apps/cms/door.mjs, 20 Nov 2026): the small Worker Cloudflare runs
+      # before the site's own on the routes in apps/cms/wrangler.door.jsonc, so a kept page never
+      # waits 1.2 to 2.0 s for the 40.8 MiB one to start. Its new version is already at 100% (the
+      # step above); `versions upload` applies no routes, so this applies what the config says, as
+      # the CMS's step above does for its own. Until 21 Nov 2026 a plain `wrangler deploy` here was
+      # the door's whole deploy, after the checks: the first step of this block says why not.
       # UNDO: delete its routes (the site's Worker then answers every request itself), or set KV
-      # `front-door` = `off`. It prints its bindings and routes: names only, nothing secret.
-      - name: Deploy the front door (the small Worker in front of the site)
+      # `front-door` = `off`. It prints its routes: names only, nothing secret.
+      - name: Apply the front door's routes from wrangler.door.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm --filter @run-apparel/cms exec wrangler deploy --config wrangler.door.jsonc --message "${GITHUB_SHA:0:7}@${GITHUB_REF_NAME}"
+        run: pnpm --filter @run-apparel/cms exec wrangler triggers deploy --config wrangler.door.jsonc
 
       # A pre-live check failed: the new versions sit at 0% and nobody received them. Take them out
       # of the deployment so the next deploy starts from a single live version (stage refuses a split).
@@ -1776,9 +1794,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CMS_OLD: ${{ steps.stage.outputs.cms_old }}
           SITE_OLD: ${{ steps.stage.outputs.site_old }}
+          DOOR_OLD: ${{ steps.stage.outputs.door_old }}
         run: |
           node scripts/version-overrides.mjs unstage run-apparel-viewer-cms apps/cms "$CMS_OLD"
           if [ -n "$SITE_OLD" ]; then node scripts/version-overrides.mjs unstage run-apparel-viewer-site apps/viewer "$SITE_OLD"; fi
+          if [ -n "$DOOR_OLD" ]; then node scripts/version-overrides.mjs unstage run-apparel-site-door apps/cms "$DOOR_OLD" wrangler.door.jsonc; fi
 
       # ⚠️ The assertion is the point, not the step above it. `instrumentation.ts`
       # treats a missing DSN as a no-op — it has to, because every build, test and

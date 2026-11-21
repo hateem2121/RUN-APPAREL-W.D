@@ -260,11 +260,11 @@ about 30 s in all, while the old version is still answering, because Cloudflare 
 change takes time to reach every location. Main run 44296435136 stopped on exactly that, 3.45 s
 after staging, and its re-run passed), runs health, payload, link-preview and security checks
 against it, and only then moves it to 100%. So read a red deploy by WHICH step failed:
-- **Before "Move both new versions to 100%"** — nobody received the new version. The step "Undo the
+- **Before "Move the three new versions to 100%"** — nobody received the new version. The step "Undo the
   staging" takes it back out of the deployment; there is nothing to roll back. Fix and push.
   ⚠️ The D1 migrations DID run (they come first), and the old version is serving against them.
-- **"Move both new versions to 100%" or later** — it is live, and everything below applies.
-- **"Stage both new versions" refuses with "already split"** — a version is still at 0% from an
+- **"Move the three new versions to 100%" or later** — it is live, and everything below applies.
+- **"Stage the three new versions" refuses with "already split"** — a version is still at 0% from an
   earlier run. `wrangler versions deploy <live-id>@100% --name <worker> --yes` (the id from
   `wrangler deployments status`) clears it.
 The apex Worker and the shrink still deploy the old way, straight to 100%.
@@ -335,9 +335,11 @@ revert this section's steps in the repo too.
 ### The front door: switching it off
 
 Since 20 Nov 2026 a small Worker, `run-apparel-site-door` (`apps/cms/door.mjs`), runs in front
-of the site's Worker on the routes listed in `apps/cms/wrangler.door.jsonc`. It answers a page
-the store already holds without the site's 40.8 MiB Worker having to start, sends garment pages
-straight to the viewer Worker, and hands everything else on untouched.
+of the site's Worker on the routes listed in `apps/cms/wrangler.door.jsonc`: every address on
+`wear-run.com` since 21 Nov 2026 (stage 2), and the garment data on `cms.wear-run.help`. It
+answers a page the store already holds without the site's Worker having to start, sends garment
+pages straight to the viewer Worker, and hands everything else on untouched. It is NOT in front
+of `wear-run.help`, `www.wear-run.help` or `www.wear-run.com`.
 
 If a page looks wrong and the door is suspected, switch it off first and look second. Two ways,
 fastest first:
@@ -350,13 +352,38 @@ fastest first:
    `wear-run.help` zone, Workers Routes, delete the routes that name `run-apparel-site-door`. The
    site's Worker keeps its Custom Domains, so it answers every request itself at once, exactly as
    before the door. The next deploy puts the routes back unless the `routes` list in
-   `apps/cms/wrangler.door.jsonc` is emptied in the same change.
+   `apps/cms/wrangler.door.jsonc` is emptied in the same change. A deploy still gets through with
+   the door on no route: its check says "no version of run-apparel-site-door answered" as a
+   warning and carries on.
+
+**How the door is deployed (since 21 Nov 2026).** With the other two Workers: `ci.yml` uploads its
+new version, stages it at 0%, and the pre-live checks name it in the override header, so they
+pass through the NEW door. `https://wear-run.com/products/__door/version` answers which version
+of the door a request reached. Until that day the door was deployed after the checks, and the
+checks passed through the live one: a door with a fault failed every deploy, its own fix
+included (runs 44767665680 and 44781104367 on 20 Nov). If that ever happens again, the way out
+that worked on 21 Nov, with the owner's yes, from `apps/cms` on the fixed commit:
+
+```bash
+npx wrangler versions upload --config wrangler.door.jsonc --tag door-fix
+npx wrangler versions deploy <live-id>@100% <new-id>@0% --config wrangler.door.jsonc -y
+# prove it: the same request through each version, by header
+curl -s -o /dev/null -w '%{size_download}\n' -H 'Accept-Encoding: gzip' \
+  -H 'Cloudflare-Workers-Version-Overrides: run-apparel-site-door="<new-id>"' \
+  https://wear-run.com/products/rxps/wine
+npx wrangler versions deploy <new-id>@100% --config wrangler.door.jsonc -y
+```
+
+Then re-run the failed deploy. That day the old door answered a gzip-only request with 86,661
+uncompressed bytes and the fixed one with 20,664 gzipped, six times out of six each.
 
 To check which Worker answered: a kept website page says `page-cache;desc="hit"` in its
-`Server-Timing` header either way, so compare times instead. The first request after 5 quiet
-minutes takes about 1 to 1.5 s through the site's Worker alone (probes of 20 Nov 2026, US and
-Australia). Through the door it was NOT yet measured when this was written; the host that
-already skips the site's Worker answered the same probes in 38 to 57 ms.
+`Server-Timing` header either way, so compare times instead. The first request after a quiet
+spell took about 1 to 1.5 s through the site's Worker alone (probes of 20 Nov 2026, US and
+Australia). Through the door, three US bursts on the garment data measured p90 145, 293 and
+181 ms on 21 Nov (1,467, 1,389 and 1,791 before), and single visitors in the US, UK, Germany and
+Australia got a garment page in 90 to 406 ms. `scripts/first-visit-burst.mjs` asks the same
+question every Monday (`perf-watch.yml`) and fails when the first byte is not under 800 ms at p90.
 
 ### ⚠️ Rollback does not undo a database migration
 

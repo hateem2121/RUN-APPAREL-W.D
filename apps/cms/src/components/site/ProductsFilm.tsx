@@ -107,7 +107,9 @@ export function ProductsFilmHero({ children }: { children: ReactNode }) {
     }
     // Muted is what lets a browser start a film by itself; set as a property, before play().
     video.muted = true
-    video.play().catch((error: unknown) => {
+    // Promise.resolve: a browser whose play() returns nothing (the class of Sentry VIEWER-N, #432)
+    // would throw on `.catch` here, inside an effect.
+    Promise.resolve(video.play()).catch((error: unknown) => {
       if ((error as { name?: string } | null)?.name !== 'AbortError') setWant('pause')
     })
   }, [want, mounted, tick])
