@@ -8,6 +8,24 @@
   // Pointing this back at OpenNext is the ONE-LINE ROLLBACK (docs/RUNBOOK.md). It is pinned
   // by src/workerConfigs.test.ts.
   "main": "worker.mjs",
+  // MINIFIED (21 Nov 2026, owner's yes to shrinking this Worker). A fresh copy of it takes 1.2 to
+  // 2.0 s to start (siteEdge.mjs has the measurements), and `wrangler check startup` that day
+  // showed its start-up CODE running for only 31 ms, so the wait is the script being loaded: its
+  // size. OpenNext hands wrangler a 28.05 MiB handler on 9,215 lines; wrangler re-printed it on
+  // 486,062 lines, 38.34 MiB, and that spacing was 10.59 MiB of the 40.8 MiB upload. Minified,
+  // the same build uploads 27.75 MiB of script (dry runs, both ways, the same day). The other
+  // 98.6% of the script was minified once already by OpenNext, so this changes how little of it
+  // is printed, not what runs. scripts/check-cms-worker-size.mjs measures what is uploaded.
+  //
+  // ⚠️ IT IS A SMALL GAIN, NOT THE CURE. Measured the same day with two copies of one build staged
+  // at 0% and asked cold by override header from 25 cities each (`/__worker/version`, which this
+  // Worker answers before anything else): the plain copy's first byte took 1,035 ms at the median
+  // (p90 1,552), the minified copy's 985 ms (p90 1,434); in the 16 cities that asked both, the
+  // minified copy was faster in 11, by 103 ms at the median. Its gzip size, which is nearer to
+  // what is loaded, fell only 8,781 to 8,007 KiB. A cold start is still about a second: the cure
+  // is a much smaller Worker (the admin apart from the site), or not starting it at all, which is
+  // what the front door does for a kept page.
+  "minify": true,
   // RETIRED 2026-08-31. This was a TEMPORARY workers.dev URL opened so the viewer
   // could reach the CMS API while Bot Fight Mode was challenging cms.wear-run.help.
   // It was the last step of the API cutover, and BOTH conditions this comment set
