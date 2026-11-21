@@ -292,13 +292,14 @@ const CASUAL_QUESTIONS: readonly FamilyPageQuestion[] = [
  */
 const BALL_QUESTIONS: readonly FamilyPageQuestion[] = [
   {
-    question: 'What size is the Kaizen?',
-    answer: 'Size 5, with a 69 cm circumference. The Laws of the Game allow 68 to 70 cm.',
+    question: 'What size are your balls?',
+    answer:
+      'All four are size 5, with a 69 cm circumference. The Laws of the Game allow 68 to 70 cm.',
   },
   {
-    question: 'Is the Kaizen FIFA licensed?',
+    question: 'Are your balls FIFA licensed?',
     answer:
-      'No. It is lab tested according to FIFA Quality Pro limits, and it does not carry a FIFA mark. Competitions that require a mark need a licensed ball.',
+      'No. They are lab tested according to FIFA Quality Pro limits, and none carries a FIFA mark. Competitions that require a mark need a licensed ball.',
   },
   {
     question: 'What is Trinity Technology?',
@@ -311,7 +312,7 @@ const ACCESSORIES_QUESTIONS: readonly FamilyPageQuestion[] = [
   {
     question: 'Which accessories can we see in 3D?',
     answer:
-      'The Kaizen soccer ball, in five colors. For bags, caps, socks and gloves, tell us what you need and we will talk you through it.',
+      'Four soccer balls, the Kaizen, MaxFly, KURA and ORBX, each in five colors. For bags, caps, socks and gloves, tell us what you need and we will talk you through it.',
   },
 ]
 
@@ -441,7 +442,8 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     makes: [
       {
         group: 'Soccer balls',
-        garments: 'The Kaizen, a 16-panel pro match ball in size 5.',
+        garments:
+          'Four balls in size 5: the Kaizen pro match ball, the MaxFly and KURA match and training balls, and the ORBX training ball.',
         href: '/custom-soccer-ball-manufacturer',
       },
       { group: 'Bags and backpacks', garments: 'Team and training bags.', plain: true },
@@ -462,12 +464,12 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     eyebrow: `[ Soccer Balls · From ${MINIMUM} pieces per style ]`,
     heading: 'Custom soccer balls,',
     headingAccent: 'made to your spec.',
-    lede: `RUN APPAREL makes pro match soccer balls under your label in Sialkot, Pakistan, with orders from ${MINIMUM} pieces. Turn the Kaizen in 3D, check every panel, then tell us what to change: the logo, the colors, the full artwork, the materials or the size.`,
+    lede: `RUN APPAREL makes match and training soccer balls under your label in Sialkot, Pakistan, with orders from ${MINIMUM} pieces. Turn any of our four balls in 3D, check every panel, then tell us what to change: the logo, the colors, the full artwork, the materials or the size.`,
     makesHeading: 'What you can change',
     makes: [
       { group: 'Your logo', garments: 'Your team, club or brand logo on the panels.', plain: true },
       { group: 'Colors', garments: 'Colors beyond the five shown in 3D.', plain: true },
-      { group: 'Full artwork', garments: 'A new design across all 16 panels.', plain: true },
+      { group: 'Full artwork', garments: 'A new design across every panel.', plain: true },
       {
         group: 'Materials and size',
         garments: 'Other covers, foam, bladders or sizes.',
@@ -479,7 +481,7 @@ export const FAMILY_PAGES: readonly FamilyPage[] = [
     closingHeading: 'Have a ball to make?',
     productLine: { words: /\bball\b/i },
     garmentsLede:
-      'Turn the Kaizen, zoom in and check the print on every panel. Its page lists the full specification. Share the link with your team before anyone pays for a sample.',
+      'Turn each ball, zoom in and check the print on every panel. Each page lists the full specification. Share the link with your team before anyone pays for a sample.',
   },
 ]
 

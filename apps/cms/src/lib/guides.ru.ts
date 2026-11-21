@@ -2742,9 +2742,9 @@ export const GUIDES_RU: readonly Guide[] = [
       },
     ],
     garments: {
-      heading: 'Поверните Kaizen в 3D',
+      heading: 'Поверните наши мячи в 3D',
       after: 'На нашем производстве',
-      picks: [{ slug: 'kaizen' }],
+      picks: [{ slug: 'kaizen' }, { slug: 'maxfly' }, { slug: 'kura' }, { slug: 'orbx' }],
     },
     sources: [
       {
