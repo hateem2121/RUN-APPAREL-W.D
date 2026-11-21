@@ -3116,11 +3116,11 @@ export const GUIDES: readonly Guide[] = [
         ],
       },
     ],
-    // The one ball with its own 3D page (2026-10-31): the only accessory there is to link.
+    // All four balls with a 3D page (owner, 2026-11-21: "Turn our balls in 3D", shows all four).
     garments: {
-      heading: 'Turn the Kaizen in 3D',
+      heading: 'Turn our balls in 3D',
       after: 'On our floor',
-      picks: [{ slug: 'kaizen' }],
+      picks: [{ slug: 'kaizen' }, { slug: 'maxfly' }, { slug: 'kura' }, { slug: 'orbx' }],
     },
     sources: [
       {

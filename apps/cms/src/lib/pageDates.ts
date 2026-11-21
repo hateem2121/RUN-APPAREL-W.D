@@ -53,12 +53,12 @@ const LEGAL_FRAMING = '2026-11-04T21:34:36+05:00'
  */
 
 /**
- * The order block's photo (owner, 2026-11-05): on the four main buyer pages the factory photo is the
- * whole background of "How an order works", shown whole; the accessories and soccer ball pages draw
- * the same component without a photo, and their fingerprints move with its source, as the rule at
- * the top of this file says (a date a little early to move is the lesser fault).
+ * The accessories and soccer ball pages name all four balls, not the Kaizen alone (owner,
+ * 2026-11-21: MaxFly, KURA and ORBX published that day). It replaced their date of 2026-11-05 (the
+ * order block's photo, which those two pages draw without a photo): its last uses, so that
+ * constant went with it.
  */
-const ORDER_PHOTO = '2026-11-05T09:21:13+05:00'
+const FOUR_BALLS = '2026-11-21T13:57:02+05:00'
 
 /**
  * Wave 1 of the buyer library (owner approved the words, 2026-11-05): a sample "usually" takes its
@@ -110,8 +110,8 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   '/custom-teamwear-manufacturer': page(WAVE_ONE, 'e6cb83348ba8'),
   '/custom-activewear-manufacturer': page(WAVE_ONE, '3bfa101bf197'),
   '/custom-outerwear-manufacturer': page(WAVE_ONE, 'b7a21d97ca68'),
-  '/custom-sports-accessories-manufacturer': page(ORDER_PHOTO, 'e398bebde97d'),
-  '/custom-soccer-ball-manufacturer': page(ORDER_PHOTO, 'bc87be186e59'),
+  '/custom-sports-accessories-manufacturer': page(FOUR_BALLS, '7b23f9dd0e6e'),
+  '/custom-soccer-ball-manufacturer': page(FOUR_BALLS, '6c18d45facd1'),
   '/private-label-casual-wear-manufacturer': page(WAVE_ONE, '4bbc455a4420'),
   '/guides': page(SEARCH_WORDING, '0b0fc05abcb9'),
   '/policies': page(SOLAR_83, '588f4d10159e'),

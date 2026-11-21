@@ -537,9 +537,9 @@ describe('the shipping guide (owner, 2026-09-30)', () => {
  * section, and 2–3 guides to read next after every guide.
  */
 describe('garments and read-next links (2026-10-08)', () => {
-  // The soccer-ball guide links the one ball with a 3D page (wave 1, owner's approval 2026-11-05):
-  // a catalogue with one ball cannot give three picks, so it links that one.
-  const ONE_PICK = new Set(['/guides/how-soccer-balls-are-made'])
+  // The soccer-ball guide links every ball with a 3D page: one from 2026-11-05 (wave 1), all four
+  // since MaxFly, KURA and ORBX were published (owner, 2026-11-21: "shows all four").
+  const PICKS: Readonly<Record<string, number>> = { '/guides/how-soccer-balls-are-made': 4 }
 
   it('links garments from the 3D, printing, fabrics, ball and outerwear guides only, each after a real section', () => {
     const withGarments = GUIDES.filter((guide) => guide.garments).map((guide) => guide.path)
@@ -556,7 +556,7 @@ describe('garments and read-next links (2026-10-08)', () => {
       const headings = guide.sections.map((section) => section.heading)
       expect(headings, guide.path).toContain(guide.garments.after)
       const slugs = guide.garments.picks.map((pick) => pick.slug)
-      expect(slugs.length, guide.path).toBe(ONE_PICK.has(guide.path) ? 1 : 3)
+      expect(slugs.length, guide.path).toBe(PICKS[guide.path] ?? 3)
       expect(new Set(slugs).size, guide.path).toBe(slugs.length)
       for (const slug of slugs) expect(slug, guide.path).toMatch(/^[a-z0-9-]+$/)
     }
