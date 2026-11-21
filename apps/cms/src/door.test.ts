@@ -32,10 +32,16 @@ import { NO_SITE_BUILD, SITE_BUILD_ASSET } from '../siteBuild.mjs'
  * garment page goes straight to the viewer Worker, and everything the door is not sure of is
  * handed on untouched.
  *
- * `ORIGIN` stands in for the site behind the route (door.mjs handOn). It answers two things: the
- * build's name from the static files (`/__site-build.txt`, served without starting the site's
- * Worker), and everything else, which IS the site's Worker starting. `drawn()` counts only the
- * second kind, which is what each test is about.
+ * `ORIGIN` stands in for the site behind the route (door.mjs handOn): whatever reaches it IS the
+ * site's Worker starting, and `drawn()` counts it. `SITE_FILES` stands in for the site's static
+ * files over a service binding, where the build's name is read (`/__site-build.txt`, served
+ * without starting the site's Worker).
+ *
+ * ⚠️ THE PUBLIC READ OF THAT FILE FAILS HERE, AS IT DID IN PRODUCTION (21 Nov 2026). Until that
+ * day `ORIGIN` answered the build file too, always, so this suite could not show the fault that
+ * shipped: once the door's route was `wear-run.com/*`, a door started on cms.wear-run.help could
+ * not fetch the file, and every garment-data request was handed to the site's Worker (US bursts
+ * p90 1,163 and 933 ms). `world({ files: false })` is that production: no binding, a refused read.
  */
 const BUILD = 'site-0123456789abcdef0123.0123456789ab'
 
@@ -50,24 +56,38 @@ const answering = (body: string, headers: HeadersInit = {}) =>
 const kept = (type: string) =>
   keptHeaders(new Headers({ 'content-type': type }), Date.now() - 60_000)
 
-type World = { build?: string | null; keying?: string | null; door?: string | null }
+type World = {
+  build?: string | null
+  keying?: string | null
+  door?: string | null
+  /** false = no `SITE_FILES` binding: the door as deployed on 21 Nov 2026. */
+  files?: boolean
+}
+
+/** What Cloudflare answered the door's public read is not known (nothing logged it): not a 200. */
+const REFUSED = 530
 
 function world(options: World = {}) {
   const buildFile = options.build === undefined ? BUILD : options.build
   const origin = {
-    fetch: vi.fn(async (request: Request) => {
-      if (new URL(request.url).pathname !== SITE_BUILD_PATH) {
-        return new Response('from the site Worker')
-      }
-      return buildFile === null
+    fetch: vi.fn(async (request: Request) =>
+      new URL(request.url).pathname === SITE_BUILD_PATH
+        ? new Response('refused', { status: REFUSED })
+        : new Response('from the site Worker'),
+    ),
+  }
+  const files = {
+    fetch: vi.fn(async (_request: Request) =>
+      buildFile === null
         ? new Response('not found', { status: 404 })
-        : new Response(`${buildFile}\n`)
-    }),
+        : new Response(`${buildFile}\n`),
+    ),
   }
   const viewer = { fetch: answering('from the viewer Worker') }
   const pages = { fetch: answering('from the store', kept('text/plain; charset=utf-8')) }
   const env = {
     ORIGIN: origin,
+    ...(options.files === false ? {} : { SITE_FILES: files }),
     VIEWER: viewer,
     SITE_PAGES: pages,
     SITE_CACHE: kvOf({
@@ -82,7 +102,7 @@ function world(options: World = {}) {
   const ctx = { waitUntil: vi.fn() }
   const drawn = () =>
     origin.fetch.mock.calls.filter(([asked]) => new URL(asked.url).pathname !== SITE_BUILD_PATH)
-  return { env, ctx, origin, viewer, pages, drawn }
+  return { env, ctx, origin, files, viewer, pages, drawn }
 }
 
 const get = (url: string, headers: HeadersInit = {}) => new Request(url, { headers })
@@ -186,14 +206,53 @@ describe('a kept answer', () => {
  * baked in: the file changes at the moment the script files do.
  */
 describe('the live website build’s name', () => {
-  it('is read from the site’s static files, once per memo window', async () => {
+  it('is read from the site’s static files over the binding, once per memo window', async () => {
     const w = world()
     const t0 = 1_000_000
     expect(await buildFromSite(w.env, t0)).toBe(BUILD)
     expect(await buildFromSite(w.env, t0 + BUILD_MEMO_MS - 1)).toBe(BUILD)
-    expect(w.origin.fetch).toHaveBeenCalledTimes(1)
-    const asked = w.origin.fetch.mock.calls[0]?.[0] as Request
+    expect(w.files.fetch).toHaveBeenCalledTimes(1)
+    const asked = w.files.fetch.mock.calls[0]?.[0] as Request
     expect(asked.url).toBe(`https://wear-run.com${SITE_BUILD_PATH}`)
+    // Never by a public fetch: that is the read that failed on 21 Nov 2026.
+    expect(w.origin.fetch).not.toHaveBeenCalled()
+  })
+
+  it('the garment data is answered from the store although the public read is refused', async () => {
+    const w = world()
+    const response = await door.fetch(
+      get('https://cms.wear-run.help/api/public/viewer/rxps/wine', {
+        origin: 'https://wear-run.com',
+      }),
+      w.env,
+      w.ctx,
+    )
+    expect(await response.text()).toBe('from the store')
+    expect(w.pages.fetch).toHaveBeenCalledTimes(1)
+    expect(w.origin.fetch).not.toHaveBeenCalled()
+  })
+
+  it('negative control: without the binding the same request is handed on, and says why', async () => {
+    const said = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const w = world({ files: false })
+      const response = await door.fetch(
+        get('https://cms.wear-run.help/api/public/viewer/rxps/wine', {
+          origin: 'https://wear-run.com',
+        }),
+        w.env,
+        w.ctx,
+      )
+      // Production on 21 Nov 2026: the site's Worker answered, and nothing was logged.
+      expect(await response.text()).toBe('from the site Worker')
+      expect(w.pages.fetch).not.toHaveBeenCalled()
+      expect(w.drawn()).toHaveLength(1)
+      expect(said).toHaveBeenCalledWith(
+        `[front-door] the site build read answered ${REFUSED}; handing on`,
+      )
+    } finally {
+      said.mockRestore()
+    }
   })
 
   it('follows a deploy: after the window, a new name replaces the old one', async () => {
@@ -209,7 +268,7 @@ describe('the live website build’s name', () => {
     const w = world()
     const all = await Promise.all([1, 2, 3].map(() => buildFromSite(w.env, 5)))
     expect(all).toEqual([BUILD, BUILD, BUILD])
-    expect(w.origin.fetch).toHaveBeenCalledTimes(1)
+    expect(w.files.fetch).toHaveBeenCalledTimes(1)
   })
 
   it.each([
@@ -227,7 +286,7 @@ describe('the live website build’s name', () => {
 
   it('a read that fails is not remembered: the next request asks again', async () => {
     const w = world()
-    w.origin.fetch.mockRejectedValueOnce(new Error('network'))
+    w.files.fetch.mockRejectedValueOnce(new Error('network'))
     expect(await buildFromSite(w.env, 5)).toBeNull()
     expect(await buildFromSite(w.env, 6)).toBe(BUILD)
   })
@@ -352,6 +411,12 @@ describe('the door’s configuration', () => {
     expect(doorConfig.services).toContainEqual({
       binding: 'VIEWER',
       service: 'run-apparel-viewer-site',
+    })
+    // The site's static files, for the build's name: the DEFAULT entrypoint (no `entrypoint`),
+    // because a static file is served ahead of it. Bound to SitePages it would start the Worker.
+    expect(doorConfig.services).toContainEqual({
+      binding: 'SITE_FILES',
+      service: 'run-apparel-viewer-cms',
     })
     const site = readFileSync(join(cms, 'wrangler.jsonc'), 'utf8')
     expect(site).toContain(doorConfig.kv_namespaces[0].id)

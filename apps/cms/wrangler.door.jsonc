@@ -45,7 +45,12 @@
     { "binding": "VIEWER", "service": "run-apparel-viewer-site" },
     // The shared store: Workers Cache in front of the site Worker's SitePages entrypoint. A kept
     // copy is answered without running that Worker; a miss runs SitePages, which draws.
-    { "binding": "SITE_PAGES", "service": "run-apparel-viewer-cms", "entrypoint": "SitePages" }
+    { "binding": "SITE_PAGES", "service": "run-apparel-viewer-cms", "entrypoint": "SitePages" },
+    // The site's static files, for ONE of them: the build's name (door.mjs readBuildFile). A
+    // binding, never a public fetch: on 21 Nov 2026 the route above put that file's address on
+    // this Worker's own route, and a door started on cms.wear-run.help could no longer read it.
+    // A static file asked over a binding is served without the site's Worker starting.
+    { "binding": "SITE_FILES", "service": "run-apparel-viewer-cms" }
   ],
   // The same namespace as the site's Worker: the store's switches, the content version, and the
   // door's own off switch (`front-door` = `off`, door.mjs). Read only.
