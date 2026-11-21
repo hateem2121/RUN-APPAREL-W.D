@@ -436,6 +436,12 @@ describe('copies in two buckets', () => {
       'enam',
     ])
     expect(copyBuckets({ PAGE_COPIES: a }).map((x) => x.name)).toEqual(['apac'])
+    // The third (Eastern Europe, 21 Nov 2026): the test for Pakistan and the Middle East.
+    expect(
+      copyBuckets({ PAGE_COPIES: a, PAGE_COPIES_ENAM: b, PAGE_COPIES_EEUR: holding(0) }).map(
+        (x) => x.name,
+      ),
+    ).toEqual(['apac', 'enam', 'eeur'])
     expect(copyBuckets(undefined)).toEqual([])
   })
 
@@ -451,6 +457,31 @@ describe('copies in two buckets', () => {
     expect(copy?.from).toBe('enam')
     expect(copy?.text).toBe('<p>kept</p>')
     expect(Date.now() - startedAt).toBeLessThan(250)
+  })
+
+  it('with three buckets the nearest of the three answers, and a drawn page goes to all three', async () => {
+    const env = {
+      PAGE_COPIES: holding(300),
+      PAGE_COPIES_ENAM: holding(300),
+      PAGE_COPIES_EEUR: holding(5),
+    }
+    const copy = await readFirstCopy(copyBuckets(env), 'pages/k', 1_000)
+    expect(copy?.from).toBe('eeur')
+    const waits: Promise<unknown>[] = []
+    keepCopy(
+      new Request('https://wear-run.com/guides', { headers: { [COPY_KEY_HEADER]: 'pages/k' } }),
+      env,
+      { waitUntil: (p: Promise<unknown>) => void waits.push(p) },
+      { 'content-type': 'text/html' },
+      '<p>page</p>',
+    )
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      await Promise.all(waits)
+      for (const bucket of Object.values(env)) expect(bucket.put).toHaveBeenCalledTimes(1)
+    } finally {
+      log.mockRestore()
+    }
   })
 
   it('a bucket that is empty or down never keeps the other’s copy back', async () => {
@@ -518,6 +549,9 @@ describe('copies in two buckets', () => {
       )
       expect(config, file).toMatch(
         /"binding": "PAGE_COPIES_ENAM",\s+"bucket_name": "run-apparel-page-copies-enam"/,
+      )
+      expect(config, file).toMatch(
+        /"binding": "PAGE_COPIES_EEUR",\s+"bucket_name": "run-apparel-page-copies-eeur"/,
       )
     }
   })

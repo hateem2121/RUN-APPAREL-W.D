@@ -176,7 +176,7 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   the read failed from `cms.wear-run.help`, and all garment data was handed on (p90 1,163 ms).
   🟡 `pnpm build` ends with `apps/cms/scripts/one-copy-of-each-chunk.mjs`: Turbopack wrote one 2.3 MB
   chunk 5 times (21 Nov), so identical chunks become stubs (30,436 → 22,033 KiB).
-  🟡 Page copies live in TWO R2 buckets (APAC + ENAM), read at once; SitePages waits 1.5 s, not
+  🟡 Page copies live in THREE R2 buckets (APAC, ENAM, EEUR), read at once; SitePages waits 1.5 s, not
   400 ms (it gave up 80 of 84 times, 21 Nov). 🟡 The door is IN FRONT OF `public/` too: a file is handed on (`isStaticFile`), or the page
   store draws it as a page and its 404 replaces the photo (live 73 minutes, 21 Nov).
   🟡 A request carrying

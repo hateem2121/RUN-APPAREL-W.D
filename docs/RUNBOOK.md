@@ -390,8 +390,9 @@ empties every region's page store, by design: a kept page names script files onl
 has. What refills it: `warm-shared-store.mjs` from the CI runner's US region, then
 `warm-regions.mjs` from seven countries (`scripts/warm-regions.countries.json`: 25 addresses each,
 one probe each, 231 of Globalping's 250 free tests an hour). Every other first visit is covered by
-the shared copy of the page in R2, kept in TWO buckets (`run-apparel-page-copies`, Asia-Pacific,
-and `run-apparel-page-copies-enam`, Eastern North America), read at once, first answer wins. In
+the shared copy of the page in R2, kept in THREE buckets (`run-apparel-page-copies`, Asia-Pacific;
+`run-apparel-page-copies-enam`, Eastern North America; `run-apparel-page-copies-eeur`, Eastern
+Europe, added the same day as the test for Pakistan and the Middle East), read at once, first answer wins. In
 Workers Logs, `{"pageCopy":"hit","from":"enam"}` says which bucket answered and how long it took;
 `"miss"` at 1,500 ms is a read that ran out of time. Measured before the second bucket and the
 longer wait: copies took a median 805 ms to read, the site's Worker gave up at 400 ms 80 times out

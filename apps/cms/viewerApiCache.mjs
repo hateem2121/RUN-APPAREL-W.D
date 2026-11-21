@@ -187,7 +187,7 @@ export function dataCopyLog(state, ms, from) {
  * This garment's data from its shared copy, marked as a kept answer, or null.
  *
  * @param {Request} request the render request, carrying the copy's name
- * @param {{ PAGE_COPIES?: any, PAGE_COPIES_ENAM?: any, PAGE_COPY?: string }} env
+ * @param {{ PAGE_COPIES?: any, PAGE_COPIES_ENAM?: any, PAGE_COPIES_EEUR?: any, PAGE_COPY?: string }} env
  * @param {number} [timeoutMs]
  * @returns {Promise<Response | null>}
  */
