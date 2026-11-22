@@ -3,6 +3,7 @@ import { answerCardPictures } from './cardPictures'
 import { nameSegments } from '../src/lib/cardName'
 import { FAMILIES } from '../src/lib/families'
 import { expect, type Page, test } from './offlineMedia'
+import { scriptsHaveRun } from './pageReady'
 import { hintedWidth } from './sizesHint'
 
 /**
@@ -44,6 +45,9 @@ async function fill(page: Page, count: number): Promise<boolean> {
 async function open(page: Page, width: number, height = 844) {
   await page.setViewportSize({ width, height })
   await page.goto('/products')
+  // Cards are copied into this page (`fill`): only once its scripts have run, or React wipes the
+  // copies (productsDrawing.spec.ts lost its 40 that way in CI's WebKit; pageReady.ts).
+  await scriptsHaveRun(page)
   // The control that the gallery exists. CI seeds a garment, so a missing grid there is the
   // regression, not an empty catalogue; a local database with none may skip.
   if ((await page.locator('.product-grid .product-card').count()) === 0) {

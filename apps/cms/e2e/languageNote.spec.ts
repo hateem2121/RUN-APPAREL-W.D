@@ -1,5 +1,6 @@
 import { afterCurtain } from './curtain'
 import { expect, type Page, test } from './offlineMedia'
+import { holdThePageBusy, scriptsHaveNotRun, scriptsHaveRun } from './pageReady'
 
 /**
  * THE LANGUAGE NOTE ON THE WEBSITE (owner's design, 2026-11-16): "this page is also in your
@@ -48,8 +49,22 @@ async function open(
   await expect(page.locator('header.notch-shell')).toBeVisible()
 }
 
-/** What only a person does: a real key press (trusted, unlike `dispatchEvent`). */
-const touchThePage = (page: Page) => page.keyboard.press('Shift')
+/** A real key press (trusted, unlike `dispatchEvent`), sent whether or not the page listens yet. */
+const pressAKey = (page: Page) => page.keyboard.press('Shift')
+
+/**
+ * What only a person does, once the page can hear it.
+ *
+ * ⚠️ WAIT FIRST, OR THE ONE KEY PRESS IS LOST. The note starts listening in an effect, so after
+ * the page's scripts have run, and `page.goto` returns before that on a busy machine. This suite
+ * pressed the key straight away: 213 flaky or failed results in 55 CI runs were a note that never
+ * came, and a test that expects NO note passed for the wrong reason the same way (pageReady.ts
+ * has the counts). The last two tests in this file keep both halves.
+ */
+const touchThePage = async (page: Page) => {
+  await scriptsHaveRun(page)
+  await pressAKey(page)
+}
 
 const note = (page: Page) => page.locator('.language-note')
 const stored = (page: Page) => page.evaluate((key) => window.localStorage.getItem(key), KEY)
@@ -483,6 +498,29 @@ test.describe('who is NOT offered', () => {
   }) => {
     await languages(page, ['ru-RU', 'en-US'])
     await open(page, EN)
+    await touchThePage(page)
+    await expect(note(page)).toBeVisible()
+  })
+})
+
+test.describe('a key pressed before the page listens (the control for touchThePage)', () => {
+  test.use({ locale: 'ru-RU' })
+
+  async function openBusy(page: Page) {
+    await holdThePageBusy(page)
+    await open(page, EN)
+    await scriptsHaveNotRun(page)
+  }
+
+  test('is lost: the note never comes', async ({ page }) => {
+    await openBusy(page)
+    await pressAKey(page)
+    await scriptsHaveRun(page)
+    await expect(note(page), 'a key press nobody was listening for drew the note').toHaveCount(0)
+  })
+
+  test('touchThePage waits for the page, so its key is heard', async ({ page }) => {
+    await openBusy(page)
     await touchThePage(page)
     await expect(note(page)).toBeVisible()
   })

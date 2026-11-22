@@ -1,4 +1,5 @@
 import { expect, type Page, test } from './offlineMedia'
+import { scriptsHaveRun } from './pageReady'
 import { SITE_MENU_ID, SITE_MENU_NAME, SITE_NAV_LABEL } from '../../../packages/shared/src/siteBar'
 import { contrastOf, parseCssColour, relativeLuminance } from '../../../scripts/contrast-rules.mjs'
 
@@ -368,6 +369,9 @@ test.describe('the open phone menu', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     for (const path of ['/', '/products', '/contact']) {
       await page.goto(path)
+      // The menu's script first: a page whose scripts ran mid-measure re-drew the bar and cancelled
+      // the transition waited on below ("AbortError", CI's WebKit, 2 times in 55 runs; pageReady.ts).
+      await scriptsHaveRun(page)
       await page.getByRole('button', { name: SITE_MENU_NAME, exact: true }).click()
       await expect(page.locator(OPEN)).toHaveCount(1)
       // ⚠️ The click itself shrinks the button (`:active` → `scale: 0.97`, notch.css) and it
@@ -376,7 +380,8 @@ test.describe('the open phone menu', () => {
       // TRANSITION land before measuring; the 44px floor itself stays exact. Transitions
       // only: the bar's scroll-driven animation never "finishes", so waiting on it hangs.
       await page.evaluate(() =>
-        Promise.all(
+        // allSettled: a transition that is cancelled has landed too, and its promise rejects.
+        Promise.allSettled(
           document
             .getAnimations()
             .filter((animation) => animation instanceof CSSTransition)
@@ -1204,6 +1209,9 @@ test.describe('the menu opens as one motion and closes faster; instant for reduc
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await page.setViewportSize({ width: 390, height: 800 })
     await page.goto('/')
+    // The menu opens without its script (a popover), but only the script marks it closing: clicked
+    // before the script ran, "the menu was not marked as closing" (CI's WebKit, 4 times in 55 runs).
+    await scriptsHaveRun(page)
     expect(
       await page.evaluate(() => matchMedia('(prefers-reduced-motion: no-preference)').matches),
     ).toBe(true)
