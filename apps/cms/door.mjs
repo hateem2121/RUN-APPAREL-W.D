@@ -19,6 +19,12 @@
  * keeps its Custom Domains and all of its own code, so DELETING THE ROUTES IS THE WHOLE UNDO: the
  * site then answers exactly as it did before this file existed.
  *
+ * AND BY ONE BINDING (22 Nov 2026): the viewer Worker's `CMS` (apps/viewer/wrangler.jsonc), for a
+ * garment's data. A binding ignores routes, so until then the viewer's request for the address
+ * this door is routed on went to the site's Worker itself and waited for it to start: 57 garment
+ * pages over 500 ms in that day's crawl, with every colour's data already in the store. Nothing
+ * here tells the two apart, and nothing needs to: the address is the same and so are the steps.
+ *
  * ⚠️ THE WEBSITE BUILD'S NAME IS READ FROM THE SITE'S OWN STATIC FILES, NEVER BAKED IN HERE. The
  * store's key names the website build (pageCache.mjs keptBuild), because a kept page names script
  * files only that build has. This Worker is a separate deploy from the site's, so a name baked

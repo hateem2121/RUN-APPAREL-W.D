@@ -329,7 +329,8 @@ export function createSiteFetch(edge) {
 
     // The garment data on cms.wear-run.help, kept like the pages (viewerApiCache.mjs, 2026-10-07:
     // 4.0–4.5 s uncached from Pakistan, ~10 database trips from local-ISB to ENAM). The viewer
-    // Worker's `CMS` binding asks for the same address, so a robot's garment page gains too.
+    // Worker's `CMS` binding asks for the same address, so a robot's garment page gains too
+    // (since 22 Nov 2026 it asks the DOOR, so this line runs there and this Worker need not start).
     // Its CORS headers are worked out per request there; null = not one to keep, serve as before.
     // The garment data's store is the CMS Worker's, whichever Worker runs this (`dataStore`,
     // 22 Nov 2026: the site-only Worker cannot draw it). An edge that names none uses its `store`.

@@ -160,10 +160,26 @@
   // service binding rather than a public fetch: no DNS, no TLS, no zone in the
   // path — so this cannot be challenged by a bot rule the way cms.wear-run.help
   // has been, and it costs nothing at the edge.
+  //
+  // ⚠️ THE FRONT DOOR, NOT THE CMS WORKER ITSELF (22 Nov 2026). Until that day this named
+  // `run-apparel-viewer-cms`, whose default entrypoint must START before it can ask its store,
+  // and a search robot's garment page waits for this answer in full (worker/index.ts). Ahrefs'
+  // crawl that day, 3 h 35 min after a deploy whose warm-up had filled every colour's data:
+  // 519 pages under 200 ms and 57 over 500 ms (6 over 1,000 ms), all 57 garment pages. From
+  // Virginia in the same hour, 25 colours' data through the door took 33 to 138 ms, every one a
+  // store hit, and 10 of the same 25 as pages took 352 to 383 ms. A binding ignores routes, so
+  // the door's route on this address never saw the viewer's own request for it.
+  //
+  // The door (apps/cms/door.mjs, 38 KiB) runs the very same steps as the CMS Worker for this
+  // address (siteEdge.mjs serveViewerApi): a kept answer comes from the store without the CMS
+  // Worker starting, and anything else is handed on to it. The two Workers now bind to each
+  // other (the door's `VIEWER`); the door never sends this address back here
+  // (viewerForward.mjs: only wear-run.com's garment pages), and apps/cms/src/door.test.ts
+  // holds both halves. THE UNDO IS THIS ONE LINE.
   "services": [
     {
       "binding": "CMS",
-      "service": "run-apparel-viewer-cms"
+      "service": "run-apparel-site-door"
     }
   ]
 }
