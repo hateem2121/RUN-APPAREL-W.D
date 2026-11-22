@@ -54,6 +54,37 @@ export const VERSION_URLS = {
   // The front door (apps/cms/door.mjs DOOR_VERSION_PATH), staged with the other two since
   // 21 Nov 2026 so the pre-live checks pass through the NEW door, not the live one.
   'run-apparel-site-door': 'https://wear-run.com/products/__door/version',
+  // The site-only Worker (apps/cms/wrangler.site.jsonc, the admin split of 22 Nov 2026). It has no
+  // address of its own: the door hands this one to it over a binding, and a request carrying the
+  // override header is handed to it whatever the door's switch says (apps/cms/door.mjs).
+  'run-apparel-site-only': 'https://wear-run.com/__worker/version',
+}
+
+/**
+ * Workers that are reached only THROUGH the front door, over a service binding. The override
+ * header carries through a forwarded binding call (Cloudflare, "Version overrides", "Service
+ * bindings", updated 12 Nov 2026), so the check works as for any Worker, with two differences
+ * that both follow from the address being shared with the CMS Worker behind the door:
+ *
+ *   - WITHOUT the header, the CMS Worker may be the one that answers: the switch is off (KV
+ *     `front-door` = `full` or `off`), or the door live at that moment predates the split. That
+ *     is the control passing: whatever answered, it was not the new version.
+ *   - WITH the header, an answer from the CMS Worker is "no door in front", but ONLY when the door
+ *     itself was found on no route in this same run. With a door that answered, it is the fault
+ *     this check exists for: a door that did not pass the check on, so every pre-live check would
+ *     test the Worker that is already live.
+ */
+export const BEHIND_DOOR_WORKERS = ['run-apparel-site-only']
+
+/**
+ * The WITH-header verdict for a Worker behind the door, once the waits have run out.
+ * @param {'ok' | 'wrong' | 'inconclusive' | 'unrouted'} verdict
+ * @param {boolean} doorUnrouted the door was judged 'unrouted' in this run
+ * @returns {'ok' | 'wrong' | 'inconclusive' | 'unrouted'}
+ */
+export function judgeBehindDoor(verdict, body, worker, doorUnrouted) {
+  if (verdict !== 'wrong' || !BEHIND_DOOR_WORKERS.includes(worker)) return verdict
+  return doorUnrouted && body?.worker !== worker ? 'unrouted' : 'wrong'
 }
 
 /**
@@ -164,6 +195,14 @@ export function judgeControl(status, body, worker, newId, oldId) {
   if ([403, 429, 503].includes(status)) return 'inconclusive'
   if (body?.version === newId) return 'wrong'
   if (status === 200 && body?.worker === worker && body?.version === oldId) return 'ok'
+  // Another Worker answered at an address the two share behind the door (BEHIND_DOOR_WORKERS).
+  if (
+    status === 200 &&
+    BEHIND_DOOR_WORKERS.includes(worker) &&
+    typeof body?.worker === 'string' &&
+    body.worker !== worker
+  )
+    return 'ok'
   // The live version does not know the address: a 404, or the viewer's page shell (not JSON).
   if ((status === 404 || status === 200) && (body === null || body?.version === undefined))
     return 'ok'
@@ -292,7 +331,7 @@ function deployVersions(dir, args) {
     isVersionNotFound,
     retryWaits(),
     (ms) => new Promise((done) => setTimeout(done, ms)),
-    // To stderr: this step's stdout is piped into $GITHUB_OUTPUT (ci.yml, "Stage the three new versions").
+    // To stderr: this step's stdout is piped into $GITHUB_OUTPUT (ci.yml, "Stage the four new versions").
     (line) => console.error(`::warning::${line}`),
   )
 }
@@ -396,7 +435,12 @@ async function main([command, ...args]) {
     const waits = parseWaits(process.env.CF_VERSION_VERIFY_WAITS_MS, OVERRIDE_WAITS_MS)
     const sleep = (ms) => new Promise((done) => setTimeout(done, ms))
     let failed = 0
-    for (const worker of Object.keys(fresh)) {
+    let doorUnrouted = false
+    // The door first: a Worker behind it is judged by whether the door answered (judgeBehindDoor).
+    const order = Object.keys(fresh).sort(
+      (a, b) => Number(BEHIND_DOOR_WORKERS.includes(a)) - Number(BEHIND_DOOR_WORKERS.includes(b)),
+    )
+    for (const worker of order) {
       const url = VERSION_URLS[worker]
       if (!url) throw new Error(`no version address known for ${worker}`)
       for (const [label, headers, want] of [
@@ -424,7 +468,15 @@ async function main([command, ...args]) {
         }
         const { status, body, asks } = answer
         const verdict =
-          want === fresh[worker] ? judgeRouteOnly(answer.verdict, body, worker) : answer.verdict
+          want === fresh[worker]
+            ? judgeBehindDoor(
+                judgeRouteOnly(answer.verdict, body, worker),
+                body,
+                worker,
+                doorUnrouted,
+              )
+            : answer.verdict
+        if (verdict === 'unrouted' && ROUTE_ONLY_WORKERS.includes(worker)) doorUnrouted = true
         const tries =
           asks > 1
             ? `, after ${asks} asks over ${((Date.now() - started) / 1000).toFixed(1)} s`
@@ -435,7 +487,7 @@ async function main([command, ...args]) {
           console.log(`::warning::${line} — inconclusive (Bot Fight Mode), not a wrong version`)
         else if (verdict === 'unrouted')
           console.log(
-            `::warning::${line} — no version of ${worker} answered, so it is on no route and the checks do not pass through it`,
+            `::warning::${line} — no version of ${worker} answered, so nothing routes to it and the checks do not pass through it`,
           )
         else {
           console.log(`::error::${line}`)

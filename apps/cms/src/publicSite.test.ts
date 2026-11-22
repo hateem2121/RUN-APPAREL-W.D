@@ -150,7 +150,8 @@ describe('the public site is indexable and the admin is not exposed by it', () =
       '(payload)',
       'admin',
       '[[...segments]]',
-      'page.tsx',
+      // `.cms.tsx`: read by the whole build only (next.config.mjs pageExtensions, 22 Nov 2026).
+      'page.cms.tsx',
     )
     expect(() => readFileSync(adminPage, 'utf8')).not.toThrow()
     // Structural, not textual: nothing that serves the admin or the REST API may live

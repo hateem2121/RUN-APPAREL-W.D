@@ -61,6 +61,12 @@ export const BUILD_MEMO_MS = 10_000
 /** The KV key (SITE_CACHE) that switches the door off without a deploy: `off`. */
 export const DOOR_SWITCH_KEY = 'front-door'
 export const DOOR_OFF = 'off'
+/**
+ * The same key's second value (the admin split, 22 Nov 2026): the door stays on, but sends every
+ * visitor to the CMS Worker and never to the site-only Worker. THE SITE-ONLY WORKER'S OFF SWITCH.
+ * A value of the key the door already reads, not a key of its own, so it costs no extra KV read.
+ */
+export const DOOR_FULL = 'full'
 
 /** Cloudflare's header that sends a request to one named version of a Worker (Version overrides). */
 export const VERSION_OVERRIDES_HEADER = 'cloudflare-workers-version-overrides'
@@ -70,6 +76,82 @@ async function handOn(request, env) {
   // A local preview has no origin behind it: there the site's Worker is a binding (`ORIGIN`).
   const response = await (env.ORIGIN ? env.ORIGIN.fetch(request) : fetch(request))
   return inVisitorsEncoding(request, response)
+}
+
+/**
+ * THE SITE-ONLY WORKER (the admin split, 22 Nov 2026, owner's yes). The pages of wear-run.com are
+ * drawn and kept by a second, smaller Worker built from the same code without the admin and the
+ * CMS API (wrangler.site.jsonc: 16,182 KiB against the CMS Worker's 22,035, measured that day).
+ * It has no address. The door reaches it over two bindings: `SITE_ONLY` (its pages and its static
+ * files) and `SITE_ONLY_PAGES` (its page store). wear-run.com is still the CMS Worker's Custom
+ * Domain, so `handOn` above still reaches the CMS Worker, which still holds the whole website.
+ *
+ * WHAT GOES WHERE, when both bindings are there and the switch does not say otherwise:
+ *   - a GET or HEAD on wear-run.com (a page, a kept page, a script, a photo, the film): the
+ *     site-only Worker;
+ *   - everything else: the CMS Worker, as before. That is every form post (the three forms need
+ *     the mail and Turnstile secrets only the CMS Worker holds), and the garment data, which only
+ *     the CMS Worker can draw (`SITE_PAGES`, its store, stays the garment data's store).
+ *
+ * ⚠️ A PAGE'S SCRIPT FILES MUST COME FROM THE WORKER THAT DREW THE PAGE. The two builds do not
+ * share all their files (measured 22 Nov 2026 on one commit: 264 the same, 7 script files only in
+ * the site-only build). So `/_next/static` is asked of the site-only Worker first, and of the CMS
+ * Worker only when that answers 404: a page the CMS Worker drew a moment before the switch was
+ * thrown still finds its scripts.
+ *
+ * ⚠️ IT MUST NEVER BE THE REASON A PAGE FAILS. A call that throws, or an answer of 500 or more,
+ * is asked again of the CMS Worker, and said out loud in the logs. Only GET and HEAD ever go to
+ * the site-only Worker, so asking twice repeats nothing.
+ *
+ * Without the bindings (a test, a preview, the door as it was before 22 Nov 2026) none of this
+ * runs and the door is exactly what it was.
+ */
+export function hasSiteOnly(env) {
+  return Boolean(env.SITE_ONLY && env.SITE_ONLY_PAGES)
+}
+
+/** Is this a request the site-only Worker may answer? A read of the website's own host. */
+export function forSiteOnly(request, url = new URL(request.url)) {
+  return url.hostname === SITE_HOST && (request.method === 'GET' || request.method === 'HEAD')
+}
+
+/** The folder whose files differ between the two builds (the note above). */
+const BUILT_FILES = '/_next/static/'
+
+/** The site-only Worker's answer, or the CMS Worker's when it fails or lacks a built file. */
+async function handToSiteOnly(request, env) {
+  let response
+  try {
+    response = await env.SITE_ONLY.fetch(request)
+  } catch (error) {
+    console.error(
+      '[front-door] the site-only Worker could not be asked; asking the CMS Worker',
+      error,
+    )
+    return handOn(request, env)
+  }
+  if (response.status >= 500) {
+    console.error(
+      `[front-door] the site-only Worker answered ${response.status}; asking the CMS Worker`,
+    )
+    await response.body?.cancel()
+    return handOn(request, env)
+  }
+  if (response.status === 404 && new URL(request.url).pathname.startsWith(BUILT_FILES)) {
+    await response.body?.cancel()
+    return handOn(request, env)
+  }
+  return inVisitorsEncoding(request, response)
+}
+
+/**
+ * Does the switch let the site-only Worker be used? Not when KV `front-door` says `full` (its own
+ * off switch) or `off` (the whole door's). A read that fails means yes, as it does for the door.
+ */
+export async function siteOnlyOn(env) {
+  if (!hasSiteOnly(env) || !env.SITE_CACHE) return false
+  const mode = await memoKvGet(env.SITE_CACHE, DOOR_SWITCH_KEY).catch(() => null)
+  return mode !== DOOR_OFF && mode !== DOOR_FULL
 }
 
 /**
@@ -176,11 +258,11 @@ export function isStaticFile(pathname) {
 }
 
 /** What this copy of the Worker last read from the site's static files, and when. */
-let remembered = { at: 0, build: /** @type {string | null} */ (null), reading: null }
+let remembered = { at: 0, build: /** @type {string | null} */ (null), reading: null, split: false }
 
 /** Forget the remembered name: for tests, which each need a fresh copy of the Worker. */
 export function forgetBuild() {
-  remembered = { at: 0, build: null, reading: null }
+  remembered = { at: 0, build: null, reading: null, split: false }
 }
 
 /**
@@ -204,8 +286,11 @@ export function forgetBuild() {
  * wrangler.jsonc's `run_worker_first`). Without the binding (a local preview, a test) the file
  * is asked as before.
  */
-function readBuildFile(env) {
+function readBuildFile(env, split = false) {
   const ask = new Request(`https://${SITE_HOST}${SITE_BUILD_PATH}`)
+  // The build that will draw the page: the site-only Worker's when it is in use (22 Nov 2026),
+  // read from ITS static files, which names ITS store's keys. Never the other Worker's name.
+  if (split) return env.SITE_ONLY.fetch(ask)
   return env.SITE_FILES ? env.SITE_FILES.fetch(ask) : handOn(ask, env)
 }
 
@@ -216,16 +301,18 @@ function readBuildFile(env) {
  *
  * @returns {Promise<string | null>}
  */
-export async function buildFromSite(env, now = Date.now()) {
+export async function buildFromSite(env, now = Date.now(), split = false) {
+  // A name read from one Worker is never used for the other: the switch forgets it.
+  if (remembered.split !== split) remembered = { at: 0, build: null, reading: null, split }
   if (remembered.at > 0 && now - remembered.at < BUILD_MEMO_MS) return remembered.build
   if (remembered.reading) return remembered.reading
   const reading = (async () => {
     try {
-      const answer = await readBuildFile(env)
+      const answer = await readBuildFile(env, split)
       const text = answer.ok ? (await answer.text()).trim() : ''
       const build = SITE_BUILD_PATTERN.test(text) ? text : null
       // A read that answered is remembered even when it names no build: the site said so.
-      if (answer.ok || answer.status === 404) remembered = { at: now, build, reading: null }
+      if (answer.ok || answer.status === 404) remembered = { at: now, build, reading: null, split }
       else {
         // Said out loud: on 21 Nov 2026 this failed without a word for every garment-data request.
         console.error(`[front-door] the site build read answered ${answer.status}; handing on`)
@@ -248,7 +335,7 @@ export async function buildFromSite(env, now = Date.now()) {
  *
  * @returns {Promise<string | null>}
  */
-export async function liveBuild(env, now = Date.now()) {
+export async function liveBuild(env, now = Date.now(), split = false) {
   if (!env.SITE_PAGES || !env.SITE_CACHE) return null
   // Remembered reads (pageCache.mjs memoKvGet): 30 seconds per copy of this Worker.
   const [door, keying] = await Promise.all([
@@ -256,12 +343,21 @@ export async function liveBuild(env, now = Date.now()) {
     memoKvGet(env.SITE_CACHE, STORE_BUILD_KEY).catch(() => null),
   ])
   if (door === DOOR_OFF || keying === PER_DEPLOY) return null
-  return buildFromSite(env, now)
+  return buildFromSite(env, now, split)
 }
 
 const site = createSiteFetch({
   draw: (request, env) => handOn(request, env),
   store: (env) => env.SITE_PAGES,
+})
+
+/** The same steps with the site-only Worker drawing and keeping the pages (the note on hasSiteOnly). */
+const splitSite = createSiteFetch({
+  draw: (request, env) =>
+    forSiteOnly(request) ? handToSiteOnly(request, env) : handOn(request, env),
+  store: (env) => env.SITE_ONLY_PAGES,
+  // The garment data is drawn and kept by the CMS Worker alone.
+  dataStore: (env) => env.SITE_PAGES,
 })
 
 /**
@@ -311,14 +407,33 @@ export default {
       // or the viewer's live version over the binding, would pass that check without the new
       // version ever running. So such a request is handed on whole, header and all, and the
       // site's Worker answers it exactly as it did before the door.
-      if (request.headers.has(VERSION_OVERRIDES_HEADER)) return handOn(request, env)
+      //
+      // ⚠️ WITH THE SITE-ONLY WORKER (22 Nov 2026) THE CHECK GOES WHERE A VISITOR'S PAGE WOULD, AND
+      // WHATEVER THE SWITCH SAYS. The header carries through a forwarded binding call (Cloudflare,
+      // "Version overrides", "Service bindings", updated 12 Nov 2026), so the deploy's checks run
+      // the site-only Worker's NEW version before it serves anyone. The switch is not asked: a
+      // Worker that is switched off must still be checked, or a faulty one could be switched on,
+      // and a switch that is off must not fail the deploy (the door's own lesson of 20 Nov 2026).
+      // No second try here: a check must see the site-only Worker's own answer.
+      if (request.headers.has(VERSION_OVERRIDES_HEADER)) {
+        if (hasSiteOnly(env) && forSiteOnly(request, url)) {
+          return inVisitorsEncoding(request, await env.SITE_ONLY.fetch(request))
+        }
+        return handOn(request, env)
+      }
       // Garment pages and the viewer's files: straight to the small viewer Worker.
       if (env.VIEWER && forwardsToViewer(url)) return env.VIEWER.fetch(request)
-      if (alwaysHandedOn(url)) return handOn(request, env)
-      const build = await liveBuild(env)
+      // Asked only when the site-only Worker is bound: without it a file still costs no KV read.
+      const split = hasSiteOnly(env) && (await siteOnlyOn(env))
+      if (alwaysHandedOn(url)) {
+        return split && forSiteOnly(request, url)
+          ? handToSiteOnly(request, env)
+          : handOn(request, env)
+      }
+      const build = await liveBuild(env, Date.now(), split)
       if (!build) return handOn(request, env)
       // The steps read the build's name off `env`, as they do in the site's Worker.
-      return await site(request, { ...env, SITE_BUILD: build }, ctx)
+      return await (split ? splitSite : site)(request, { ...env, SITE_BUILD: build }, ctx)
     } catch (error) {
       // The door may make a page faster; it must never be the reason one fails.
       console.error('[front-door] failed; handing the request on', error)

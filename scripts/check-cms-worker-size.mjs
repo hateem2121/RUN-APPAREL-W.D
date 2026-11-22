@@ -21,6 +21,13 @@
  * Usage:
  *   node scripts/check-cms-worker-size.mjs            # dry-run, then judge
  *   node scripts/check-cms-worker-size.mjs <outdir>   # judge a dry run already written
+ *   node scripts/check-cms-worker-size.mjs --site     # the SITE-ONLY Worker, after its own build
+ *
+ * `--site` measures the site-only Worker (apps/cms/wrangler.site.jsonc, the admin split of
+ * 22 Nov 2026) against its own, lower budget. It needs `SITE_ONLY=1 opennextjs-cloudflare build`
+ * to have run LAST: both Workers are bundled from the same `.open-next` folder, one after the
+ * other, so this measures whichever build is there. scripts/check-site-only-build.mjs reads the
+ * built route list first and fails if the folder holds the whole app.
  */
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, statSync } from 'node:fs'
@@ -39,6 +46,17 @@ export const CLOUDFLARE_LIMIT_KIB = 64 * 1024
  */
 export const CMS_WORKER_BUDGET_KIB = Math.floor(CLOUDFLARE_LIMIT_KIB * 0.8)
 
+/**
+ * The site-only Worker's budget: 18,000 KiB. The split exists because a smaller Worker starts
+ * sooner, so its ceiling is a measured size, not a share of Cloudflare's limit. Measured: this
+ * build uploaded 16,182 KiB on 22 Nov 2026 (main at 1d2ae39d; the whole app 22,035 KiB the same
+ * minute), and the only site-only size whose cold start has been timed is 18,262 KiB (21 Nov, a
+ * throwaway copy: median 487 ms against 640 ms for 22,035 KiB). Past this figure the Worker is
+ * bigger than the one that was timed, and the gain is no longer a measured one. Raise it only
+ * with a new cold-start measurement at the new size, never to make a red run green.
+ */
+export const SITE_ONLY_WORKER_BUDGET_KIB = 18_000
+
 const NOT_UPLOADED = /(\.map|README\.md)$/
 
 /** Every byte wrangler would upload from a dry-run folder. */
@@ -55,12 +73,23 @@ export function uploadedBytes(dir) {
 const kib = (bytes) => Math.round(bytes / 1024).toLocaleString('en-GB')
 
 /** The verdict, with a message that names the likely cause. */
-export function judgeWorkerSize(bytes, budgetKiB = CMS_WORKER_BUDGET_KIB) {
+export function judgeWorkerSize(bytes, budgetKiB = CMS_WORKER_BUDGET_KIB, name = 'CMS Worker') {
   const share = Math.round((bytes / 1024 / CLOUDFLARE_LIMIT_KIB) * 100)
   if (bytes <= budgetKiB * 1024) {
     return {
       ok: true,
-      message: `CMS Worker ${kib(bytes)} KiB, ${share}% of Cloudflare's 64 MiB limit (budget ${kib(budgetKiB * 1024)} KiB).`,
+      message: `${name} ${kib(bytes)} KiB, ${share}% of Cloudflare's 64 MiB limit (budget ${kib(budgetKiB * 1024)} KiB).`,
+    }
+  }
+  if (name !== 'CMS Worker') {
+    return {
+      ok: false,
+      message:
+        `${name} ${kib(bytes)} KiB is over its ${kib(budgetKiB * 1024)} KiB budget. It is the ` +
+        'smaller copy of the site, built without the admin and the CMS API so that it starts ' +
+        'sooner. Check first that the build was made with SITE_ONLY=1 ' +
+        '(node scripts/check-site-only-build.mjs); otherwise find what grew with the esbuild ' +
+        'metafile (wrangler deploy --dry-run --metafile --config wrangler.site.jsonc).',
     }
   }
   return {
@@ -77,23 +106,32 @@ export function judgeWorkerSize(bytes, budgetKiB = CMS_WORKER_BUDGET_KIB) {
 
 function main() {
   const cms = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'apps', 'cms')
-  let outdir = process.argv[2]
+  const args = process.argv.slice(2)
+  const site = args.includes('--site')
+  let outdir = args.find((arg) => !arg.startsWith('--'))
+  const config = site ? ['--config', 'wrangler.site.jsonc'] : []
   if (!outdir) {
     outdir = mkdtempSync(join(tmpdir(), 'cms-worker-'))
     // wrangler's own entry, run by this Node: no pnpm on PATH needed (the root CLAUDE.md's
     // pnpm note: a script that shells out to a bare `pnpm` has failed far from the cause).
     const wrangler = join(cms, 'node_modules', 'wrangler', 'bin', 'wrangler.js')
-    const run = spawnSync(process.execPath, [wrangler, 'deploy', '--dry-run', '--outdir', outdir], {
-      cwd: cms,
-      encoding: 'utf8',
-    })
+    const run = spawnSync(
+      process.execPath,
+      [wrangler, 'deploy', '--dry-run', '--outdir', outdir, ...config],
+      {
+        cwd: cms,
+        encoding: 'utf8',
+      },
+    )
     if (run.status !== 0) {
       console.error(run.stdout, run.stderr)
-      console.error('::error::wrangler dry run failed, so the CMS Worker was not measured.')
+      console.error('::error::wrangler dry run failed, so the Worker was not measured.')
       process.exit(1)
     }
   }
-  const verdict = judgeWorkerSize(uploadedBytes(outdir))
+  const verdict = site
+    ? judgeWorkerSize(uploadedBytes(outdir), SITE_ONLY_WORKER_BUDGET_KIB, 'Site-only Worker')
+    : judgeWorkerSize(uploadedBytes(outdir))
   if (!verdict.ok) {
     console.error(`::error::${verdict.message}`)
     process.exit(1)

@@ -189,6 +189,24 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   not Custom Domains. Undo: delete the door's routes, or KV `front-door` = `off`
   (`docs/RUNBOOK.md`, "The front door").
 
+- **🟡 THIS APP IS BUILT TWICE AND RUNS AS TWO WORKERS (the admin split, 22 Nov 2026).** The whole
+  app is the CMS Worker (`wrangler.jsonc`: admin, API, garment data, forms, and the whole website
+  as a fallback). `SITE_ONLY=1` builds the same code without the admin and the CMS API for
+  `run-apparel-site-only` (`wrangler.site.jsonc`, 16,182 KiB against 22,035), which draws and keeps
+  the pages of wear-run.com and has NO address: only the door reaches it, over bindings.
+  🟡 The five route files under `src/app/(payload)` end `.cms.tsx` / `.cms.ts`, and only the whole
+  build reads those endings (`pageExtensions` in `next.config.mjs`). A new route file there named
+  plain `page.tsx` or `route.ts` lands in BOTH builds; `scripts/check-site-only-build.mjs` fails.
+  🟡 Both builds write the same `.next` and `.open-next`, one after the other: whatever reads them
+  reads the LAST build. After `build:site-only`, rebuild before `test:routes` or a preview of the
+  CMS. 🟡 A save must tell BOTH page stores (`src/lib/contentVersion.ts`, `SITE_ONLY_PAGES`):
+  Workers Cache lets a store be marked stale only from inside its own Worker. 🟡 The two builds
+  do not share all their script files, so the door asks the site-only Worker for `/_next/static`
+  first and the CMS Worker on a 404. 🟡 `worker.mjs` is shared: branch on `workerName(env)`, never
+  on a file of its own. Off switch, no deploy: KV `front-door` = `full` (`docs/RUNBOOK.md`,
+  "The site-only Worker"). To preview it: `pnpm --filter @run-apparel/cms build:site-only`, then
+  `opennextjs-cloudflare preview --config wrangler.site.jsonc --local-upstream wear-run.com`.
+
 - **`apps/viewer/src/styles/tokens.test.ts` scans JSX as well as CSS**, so a literal
   `style={{ padding: '20px' }}` in a `.tsx` fails the build — three had walked past a
   CSS-only scan. A `var()` or computed value is fine.

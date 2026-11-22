@@ -239,6 +239,18 @@
     {
       "binding": "VIEWER",
       "service": "run-apparel-viewer-site"
+    },
+    // THE SITE-ONLY WORKER'S PAGE STORE (wrangler.site.jsonc, 22 Nov 2026). A save here must mark
+    // the pages THAT Worker keeps stale, and Workers Cache lets only the Worker and entrypoint that
+    // own the copies do it (Cloudflare, Workers Cache "Purge", read 22 Nov 2026: "A Worker cannot
+    // reach into another Worker's cache"). So src/lib/contentVersion.ts calls that entrypoint's
+    // own `invalidateKept` over this binding; a custom method is never answered from the cache
+    // ("Limitations", same day). ⚠️ The Worker must exist before a deploy of this file, or the
+    // upload fails: it was created by hand before the pull request that added this line merged.
+    {
+      "binding": "SITE_ONLY_PAGES",
+      "service": "run-apparel-site-only",
+      "entrypoint": "SitePages"
     }
   ],
   // The stored page cache (pageCache.mjs; polish X15, created 2026-10-04): ONE key, the content

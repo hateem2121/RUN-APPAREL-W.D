@@ -380,10 +380,32 @@ jobs:
       # .next/standalone/…/pages-manifest.json). It is the LAST step here, so rebuilding
       # `.next` cannot change what the guards above read. The script then runs wrangler's
       # own dry run (no token, nothing uploaded) and fails over 80% of the limit.
+      #
+      # Since 22 Nov 2026 the same step reads the route list Next wrote and fails if the admin or
+      # the CMS API is gone from it: the five route files under src/app/(payload) are read only
+      # while next.config.mjs lists their `.cms.` endings (the admin split), and a build that
+      # lost them would deploy a CMS Worker with no sign-in page while every website test passed.
       - name: CMS Worker size budget (its own build, last)
         run: |
           pnpm --filter @run-apparel/cms exec opennextjs-cloudflare build
+          node scripts/check-site-only-build.mjs --whole
           node scripts/check-cms-worker-size.mjs
+
+      # THE SITE-ONLY WORKER, BUILT AND MEASURED BEFORE IT CAN SHIP (the admin split, 22 Nov 2026).
+      # The same code built with SITE_ONLY=1, without the admin and the CMS API, for the Worker
+      # that serves wear-run.com behind the front door (apps/cms/wrangler.site.jsonc). Three
+      # checks, each of which can only be made on the built thing: the route list has the website
+      # and neither CMS route (the whole app uploaded as the "smaller" Worker works perfectly and
+      # gains nothing); OpenNext can bundle it; and it is under its own budget of 18,000 KiB
+      # (measured 16,182 KiB that day, against 22,035 for the whole app).
+      # ⚠️ AFTER the step above, and the last step of the job: both builds write the same
+      # `.next` and `.open-next` folders, so every guard that reads the whole build ran before it.
+      # It adds one more build to this job: about 22 s (the step above, run 44933207116).
+      - name: Site-only Worker routes and size budget (its own build, the very last)
+        run: |
+          pnpm --filter @run-apparel/cms build:site-only
+          node scripts/check-site-only-build.mjs --site
+          node scripts/check-cms-worker-size.mjs --site
 
   # E2E IN A REAL BROWSER. Split out of `verify` on 2026-08-20 and containerised for
   # the same measured reason `artwork` was: `playwright install-deps` is an apt-get,
@@ -1537,8 +1559,44 @@ jobs:
         continue-on-error: true
         run: node scripts/warm-regions.mjs --print-build https://wear-run.com >> "$GITHUB_OUTPUT"
 
+      # THE SITE-ONLY WORKER (the admin split, 22 Nov 2026): the same code built with SITE_ONLY=1,
+      # without the admin and the CMS API, uploaded as a version of `run-apparel-site-only`
+      # (apps/cms/wrangler.site.jsonc). It has no address: only the front door reaches it.
+      # ⚠️ BEFORE the CMS upload below, on purpose: both builds write the same `.next` and
+      # `.open-next` folders, and the whole app must be the one left there for every later step.
+      # The script refuses to upload unless the built route list has neither CMS route
+      # (scripts/check-site-only-build.mjs), so the whole app can never go up under this name.
+      # ⚠️ The Worker must already exist: `versions upload` cannot create one (Cloudflare,
+      # "Deployment management", Limits). It was created by hand before this step first ran.
+      - name: Upload the new site-only version (no traffic yet)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOY_MESSAGE: ${{ github.sha }}@${{ github.ref_name }}
+          DEPLOY_TAG: r${{ github.run_id }}a${{ github.run_attempt }}
+        run: pnpm --filter @run-apparel/cms run upload:site-only
+
+      # The two secrets a page needs: Payload will not start without the first, and without the
+      # second this Worker's errors reach nobody. NOT the mail and Turnstile secrets: every form
+      # post goes to the CMS Worker (apps/cms/door.mjs).
+      - name: Apply the site-only Worker's secret (PAYLOAD_SECRET)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
+          DEPLOY_TAG: r${{ github.run_id }}a${{ github.run_attempt }}
+        run: printf '%s' "$PAYLOAD_SECRET" | pnpm --filter @run-apparel/cms exec wrangler versions secret put PAYLOAD_SECRET --config wrangler.site.jsonc --tag "$DEPLOY_TAG" --message "secret-for-$DEPLOY_TAG"
+
+      - name: Apply the site-only Worker's secret (SENTRY_DSN, CMS project)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CMS_SENTRY_DSN: ${{ secrets.CMS_SENTRY_DSN }}
+          DEPLOY_TAG: r${{ github.run_id }}a${{ github.run_attempt }}
+        run: printf '%s' "$CMS_SENTRY_DSN" | pnpm --filter @run-apparel/cms exec wrangler versions secret put SENTRY_DSN --config wrangler.site.jsonc --tag "$DEPLOY_TAG" --message "secret-for-$DEPLOY_TAG"
+
       # ⚠️ UPLOADED, NOT DEPLOYED (since 2026-11-07, owner decision): the new version takes no
-      # traffic until the pre-live checks below pass against it — see "Stage the three new versions".
+      # traffic until the pre-live checks below pass against it — see "Stage the four new versions".
       # DEPLOY_TAG names this run's versions so the staging step can find them; the secrets
       # steps below add theirs with the same tag, and the newest tagged version is the one staged.
       - name: Upload the new CMS version (no traffic yet)
@@ -1691,7 +1749,7 @@ jobs:
       # ALREADY RAN above: the OLD versions keep serving against the migrated database while the new
       # ones are checked, exactly as during a plain deploy's upload. scripts/version-overrides.mjs
       # has the reasoning; docs/RUNBOOK.md "Undoing a bad deploy" still applies after promotion.
-      - name: Stage the three new versions at 0% (live versions keep 100%)
+      - name: Stage the four new versions at 0% (live versions keep 100%)
         id: stage
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -1701,14 +1759,15 @@ jobs:
           set -o pipefail
           node scripts/version-overrides.mjs stage run-apparel-viewer-cms apps/cms "$DEPLOY_TAG" | sed 's/^/cms_/' | tee -a "$GITHUB_OUTPUT"
           node scripts/version-overrides.mjs stage run-apparel-viewer-site apps/viewer "$DEPLOY_TAG" | sed 's/^/site_/' | tee -a "$GITHUB_OUTPUT"
+          node scripts/version-overrides.mjs stage run-apparel-site-only apps/cms "$DEPLOY_TAG" wrangler.site.jsonc | sed 's/^/siteonly_/' | tee -a "$GITHUB_OUTPUT"
           node scripts/version-overrides.mjs stage run-apparel-site-door apps/cms "$DEPLOY_TAG" wrangler.door.jsonc | sed 's/^/door_/' | tee -a "$GITHUB_OUTPUT"
 
       # The negative control on every deploy: an override that is not applied routes to the OLD
       # version silently, and every check below would then pass against what is already live.
       - name: Prove the checks will reach the new versions
         env:
-          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
-          CF_VERSION_OLD_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_old }},run-apparel-viewer-site=${{ steps.stage.outputs.site_old }},run-apparel-site-door=${{ steps.stage.outputs.door_old }}
+          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-only=${{ steps.stage.outputs.siteonly_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
+          CF_VERSION_OLD_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_old }},run-apparel-viewer-site=${{ steps.stage.outputs.site_old }},run-apparel-site-only=${{ steps.stage.outputs.siteonly_old }},run-apparel-site-door=${{ steps.stage.outputs.door_old }}
         run: node scripts/version-overrides.mjs verify
 
       - name: Pre-live health check (new CMS version)
@@ -1729,39 +1788,43 @@ jobs:
         env:
           SMOKE_BROWSER_GET: '1'
           API_BASE: ${{ vars.VITE_API_BASE_URL || 'https://cms.wear-run.help' }}
-          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
+          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-only=${{ steps.stage.outputs.siteonly_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
         run: NODE_OPTIONS="--import=./scripts/version-overrides-preload.mjs" node scripts/smoke-live-products.mjs "$API_BASE"
 
       - name: Pre-live link-preview smoke test (new versions)
         env:
-          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
+          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-only=${{ steps.stage.outputs.siteonly_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
         run: NODE_OPTIONS="--import=./scripts/version-overrides-preload.mjs" node scripts/smoke-live-previews.mjs https://wear-run.com/products
 
       - name: Pre-live security.txt and redirect headers (new versions)
         env:
-          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
+          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-only=${{ steps.stage.outputs.siteonly_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
         run: NODE_OPTIONS="--import=./scripts/version-overrides-preload.mjs" node scripts/public-security-probe.mjs
 
       # CMS first: the viewer reads the CMS's data, and new CMS + old viewer for a few seconds is the
       # same pairing every plain deploy has had.
-      - name: Move the three new versions to 100%
+      - name: Move the four new versions to 100%
         id: promote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CMS_NEW: ${{ steps.stage.outputs.cms_new }}
           SITE_NEW: ${{ steps.stage.outputs.site_new }}
+          SITEONLY_NEW: ${{ steps.stage.outputs.siteonly_new }}
           DOOR_NEW: ${{ steps.stage.outputs.door_new }}
-        # The door last: its bindings name the two Workers above, so it goes live in front of the
+        # The door last: its bindings name the three Workers above, so it goes live in front of the
         # versions it was just checked with.
         run: |
           node scripts/version-overrides.mjs promote run-apparel-viewer-cms apps/cms "$CMS_NEW"
           node scripts/version-overrides.mjs promote run-apparel-viewer-site apps/viewer "$SITE_NEW"
+          node scripts/version-overrides.mjs promote run-apparel-site-only apps/cms "$SITEONLY_NEW" wrangler.site.jsonc
           node scripts/version-overrides.mjs promote run-apparel-site-door apps/cms "$DOOR_NEW" wrangler.door.jsonc
 
       # `versions upload` does not apply routes, custom domains or cron triggers (Cloudflare,
       # Gradual deployments); a plain `wrangler deploy` did. This applies what the CMS's
       # wrangler.jsonc says (its routes and the daily cron), as its deploy used to.
+      # 🔴 NEVER for the site-only Worker either (apps/cms/wrangler.site.jsonc): it has no route
+      # and no cron on purpose, and `triggers deploy` on a file with neither has nothing to apply.
       # 🔴 NEVER for the viewer: its custom domain is bound in the dashboard and deliberately NOT
       # declared in apps/viewer/wrangler.jsonc, whose comment explains how reconciling routes from
       # config makes "every printed tag goes dark". The viewer declares no triggers to apply.
@@ -1794,10 +1857,12 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CMS_OLD: ${{ steps.stage.outputs.cms_old }}
           SITE_OLD: ${{ steps.stage.outputs.site_old }}
+          SITEONLY_OLD: ${{ steps.stage.outputs.siteonly_old }}
           DOOR_OLD: ${{ steps.stage.outputs.door_old }}
         run: |
           node scripts/version-overrides.mjs unstage run-apparel-viewer-cms apps/cms "$CMS_OLD"
           if [ -n "$SITE_OLD" ]; then node scripts/version-overrides.mjs unstage run-apparel-viewer-site apps/viewer "$SITE_OLD"; fi
+          if [ -n "$SITEONLY_OLD" ]; then node scripts/version-overrides.mjs unstage run-apparel-site-only apps/cms "$SITEONLY_OLD" wrangler.site.jsonc; fi
           if [ -n "$DOOR_OLD" ]; then node scripts/version-overrides.mjs unstage run-apparel-site-door apps/cms "$DOOR_OLD" wrangler.door.jsonc; fi
 
       # ⚠️ The assertion is the point, not the step above it. `instrumentation.ts`
@@ -1960,7 +2025,7 @@ jobs:
             echo "npx wrangler@4.160.0 rollback --name run-apparel-viewer-site -m 'why'"
             echo '```'
             echo
-            echo "Workers: \`run-apparel-viewer-site\` (public viewer) · \`run-apparel-viewer-cms\` (admin + API) · \`run-apparel-viewer-shrink\` (processing only) · \`run-apparel-apex-404\` (apex catalogue + profile PDFs)"
+            echo "Workers: \`run-apparel-viewer-site\` (public viewer) · \`run-apparel-viewer-cms\` (admin + API) · \`run-apparel-site-only\` (the website's pages; off switch: KV front-door = full) · \`run-apparel-site-door\` (front door) · \`run-apparel-viewer-shrink\` (processing only) · \`run-apparel-apex-404\` (apex catalogue + profile PDFs)"
             echo
             echo "⚠️ **D1 migrations already ran**, before the Workers deployed. A Worker"
             echo "rollback leaves today's schema underneath yesterday's code. That is safe"

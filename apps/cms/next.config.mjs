@@ -2,11 +2,14 @@ import { withPayload } from '@payloadcms/next/withPayload'
 import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare'
 import { HTML_LIMITED_BOTS } from './htmlLimitedBots.mjs'
 import { withPublicViewerVary } from './publicViewerHeaders.mjs'
-import { siteSourceBuildId } from './siteBuild.mjs'
+import { buildFlavour, siteSourceBuildId } from './siteBuild.mjs'
 import { siteRedirects, siteRewrites } from './siteHostRules.mjs'
 
 // Makes wrangler.jsonc bindings (local D1/R2 emulation) available during `next dev`.
 initOpenNextCloudflareForDev()
+
+/** Is this the build for the site-only Worker (`SITE_ONLY=1`)? The note on `pageExtensions` says why. */
+const siteOnlyBuild = () => buildFlavour() !== ''
 
 /**
  * Security headers.
@@ -85,6 +88,27 @@ const nextConfig = {
   // and it narrows an attacker's search space for version-specific advisories
   // against the side of this system that holds the password.
   poweredByHeader: false,
+  /*
+   * ONE CODEBASE, TWO BUILDS (the admin split, 22 Nov 2026, owner's yes). The whole app is the CMS
+   * Worker (admin, API, and the website as its fallback). `SITE_ONLY=1` builds the same code
+   * WITHOUT the admin and the CMS API, for the site-only Worker that serves wear-run.com
+   * (wrangler.site.jsonc). Why: a fresh copy of the Worker waits about a second to be loaded, and
+   * the wait follows its size (wrangler.jsonc `minify` has the measurements).
+   *
+   * HOW. Next reads a route file only when what follows the FIRST dot of its name is one of
+   * `pageExtensions` (Turbopack, crates/next-core/src/app_structure.rs: `basename.split_once('.')`;
+   * read 22 Nov 2026). The five route files under `src/app/(payload)` end `.cms.tsx` or `.cms.ts`,
+   * and only the whole build lists those endings. Measured that day on main at 1d2ae39d: the whole
+   * build has 144 routes and uploads 22,035 KiB; the site-only build has 142 (exactly
+   * `/admin/[[...segments]]` and `/api/[...slug]` gone) and uploads 16,182 KiB.
+   * src/siteOnlyBuild.test.ts holds both halves, and reads the built route list after a build.
+   *
+   * ⚠️ A NEW FILE UNDER `(payload)` NAMED `page.tsx` OR `route.ts` WOULD BE IN BOTH BUILDS. Name
+   * it `.cms.tsx` / `.cms.ts`; that test fails otherwise.
+   */
+  pageExtensions: siteOnlyBuild()
+    ? ['tsx', 'ts', 'jsx', 'js']
+    : ['cms.tsx', 'cms.ts', 'tsx', 'ts', 'jsx', 'js'],
   /*
    * THE BUILD ID IS THE WEBSITE SOURCE'S FINGERPRINT (siteBuild.mjs, 4 Nov 2026). Every page and
    * every tap answer names it, and the page store keeps pages across deploys that did not change
