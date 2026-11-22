@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { CMS_API_ORIGIN as VIEWER_ASKS } from '../../viewer/worker/apiPreload'
 import { chooseEncoding as viewerChooses } from '../../viewer/worker/compression'
 import door, {
   alwaysHandedOn,
@@ -505,6 +506,62 @@ describe('the door’s configuration', () => {
       .map((route: { pattern: string }) => route.pattern)
       .filter((pattern: string) => pattern.startsWith('cms.wear-run.help'))
     expect(adminHost).toEqual(['cms.wear-run.help/api/public/viewer/*'])
+  })
+
+  /**
+   * THE VIEWER ASKS THE DOOR FOR A GARMENT'S DATA, NEVER THE SITE'S WORKER ITSELF (22 Nov 2026).
+   *
+   * A binding ignores routes: the door's route on `cms.wear-run.help/api/public/viewer/*` never
+   * saw the viewer's own request for that address, which went to the site Worker's default
+   * entrypoint and waited for it to start. Ahrefs' crawl that day, 3 h 35 min after a deploy
+   * whose warm-up had filled all 225 colours: 519 pages under 200 ms, and 57 over 500 ms (6 over
+   * 1,000 ms), every one a garment page. From Virginia in the same hour, 25 colours' data
+   * through the door: 33 to 138 ms, all store hits; the same 25 as pages: 10 took 352 to 383 ms.
+   */
+  it('the viewer’s garment-data binding is the door, on its default entrypoint', () => {
+    // The viewer's config also carries block comments (workerConfigs.test.ts reads it this way).
+    const viewer = JSON.parse(
+      strip(readFileSync(join(cms, '..', 'viewer', 'wrangler.jsonc'), 'utf8')).replace(
+        /\/\*[\s\S]*?\*\//g,
+        '',
+      ),
+    )
+    expect(viewer.services).toEqual([{ binding: 'CMS', service: DOOR_NAME }])
+    // The door reads the store and the shared copies itself; without these it could only hand on.
+    expect(doorConfig.services.map((s: { binding: string }) => s.binding)).toContain('SITE_PAGES')
+    expect(doorConfig.kv_namespaces.map((k: { binding: string }) => k.binding)).toContain(
+      'SITE_CACHE',
+    )
+  })
+
+  it('answers the viewer’s own request from the store, and the site Worker is never asked', async () => {
+    const w = world()
+    w.pages.fetch.mockImplementation(
+      async () =>
+        new Response('{"product":{"slug":"rxps"}}', { headers: kept('application/json') }),
+    )
+    // Exactly what apps/viewer/worker/index.ts loadPayload sends: the address and one header.
+    const asked = get(`${VIEWER_ASKS}/api/public/viewer/rxps/wine`, {
+      accept: 'application/json',
+    })
+    const response = await door.fetch(asked, w.env, w.ctx)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ product: { slug: 'rxps' } })
+    expect(w.pages.fetch).toHaveBeenCalledTimes(1)
+    expect(w.drawn()).toHaveLength(0)
+    // Never back to the viewer: the two Workers bind to each other, and this must not loop.
+    expect(w.viewer.fetch).not.toHaveBeenCalled()
+  })
+
+  it('negative control: with the door switched off the viewer still gets its data, from the site Worker', async () => {
+    const w = world({ door: DOOR_OFF })
+    const asked = get(`${VIEWER_ASKS}/api/public/viewer/rxps/wine`, {
+      accept: 'application/json',
+    })
+    const response = await door.fetch(asked, w.env, w.ctx)
+    expect(await response.text()).toBe('from the site Worker')
+    expect(w.pages.fetch).not.toHaveBeenCalled()
+    expect(w.viewer.fetch).not.toHaveBeenCalled()
   })
 
   it('binds the store’s cached entrypoint and the viewer, and reads the site’s own KV', () => {

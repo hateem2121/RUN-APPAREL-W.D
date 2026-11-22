@@ -170,6 +170,8 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   `wrangler.jsonc` sets `minify`. The door asks the store over a service binding (a kept copy
   comes back without this Worker running) and hands everything else on. Both Workers apply ONE
   set of steps, `siteEdge.mjs`: change a step there, never in `worker.mjs` or `door.mjs` alone.
+  🟡 A binding ignores routes: the viewer Worker's `CMS` binding names the DOOR (22 Nov; until
+  then it named this Worker, and 57 garment pages took over 500 ms in a crawl with a full store).
   🟡 The door reads the live build's name from the static file `/__site-build.txt`, which
   `node siteBuild.mjs` writes at upload; never bake a build name into it. It asks over the
   `SITE_FILES` binding, NEVER a public fetch: on 21 Nov that address sat on the door's own route,

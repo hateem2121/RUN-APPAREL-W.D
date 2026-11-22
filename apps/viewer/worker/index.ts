@@ -65,7 +65,11 @@ import { workerVersionResponse } from './workerVersion'
 
 interface Env {
   ASSETS: Fetcher
-  /** Service binding to run-apparel-viewer-cms — same account, no public hop. */
+  /**
+   * The garment data, over a service binding: same account, no public hop. Since 22 Nov 2026 it
+   * names the front door (run-apparel-site-door), which answers a kept copy without the CMS
+   * Worker starting and hands everything else on to it (wrangler.jsonc has the measurements).
+   */
   CMS: Fetcher
   /** Which version answered (wrangler.jsonc `version_metadata`; workerVersion.ts says why). */
   CF_VERSION_METADATA?: { id?: string }
