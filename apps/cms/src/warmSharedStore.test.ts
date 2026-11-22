@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import type { StoreVerdict } from '../../../scripts/warm-shared-store.mjs'
 import {
+  colourTargets,
+  productTargets,
   storeVerdict,
   summarize,
   warmTapTargets,
@@ -44,6 +47,33 @@ describe('what the warm-up asks for', () => {
       'https://cms.wear-run.help/api/public/viewer/r-avn/navy',
     ])
     expect(targets.pages.some((url) => /\/products\/[^/]+/.test(url))).toBe(false)
+  })
+
+  // 22 Nov 2026: the sitemap names one colour per product, and a crawler follows links to all of
+  // them. Ahrefs found 57 slow garment pages one minute after a deploy; each was a colour the
+  // warm-up had never asked for.
+  it('every colour of each product, read from the product’s own answer', () => {
+    const products = productTargets([...targets.garments, ...targets.garments])
+    expect(products).toEqual([
+      'https://cms.wear-run.help/api/public/viewer/rxps',
+      'https://cms.wear-run.help/api/public/viewer/r-avn',
+    ])
+    const answer = { colourways: [{ slug: 'wine' }, { slug: 'powder-blue' }, { slug: 'navy' }] }
+    expect(colourTargets(products[0] ?? '', answer)).toEqual([
+      'https://cms.wear-run.help/api/public/viewer/rxps/wine',
+      'https://cms.wear-run.help/api/public/viewer/rxps/powder-blue',
+      'https://cms.wear-run.help/api/public/viewer/rxps/navy',
+    ])
+  })
+
+  // The negative control: a slug is printed on QR tags, so nothing is built or repaired here.
+  it('adds nothing for a slug that is not a plain slug, or an answer that is not a product', () => {
+    const product = 'https://cms.wear-run.help/api/public/viewer/rxps'
+    const odd = { colourways: [{ slug: '../admin' }, { slug: 'Wine' }, { slug: '' }, {}, null] }
+    expect(colourTargets(product, odd)).toEqual([])
+    expect(colourTargets(product, null)).toEqual([])
+    expect(colourTargets(product, { colourways: 'wine' })).toEqual([])
+    expect(productTargets(['https://cms.wear-run.help/api/public/viewer/'])).toEqual([])
   })
 
   it('ignores addresses on any other host', () => {
@@ -140,5 +170,16 @@ describe('the summary', () => {
     expect(report.counts).toEqual({ hit: 1, miss: 1, skip: 0, ok: 0, inconclusive: 1, error: 1 })
     expect(report.warnings.join(' ')).toContain('c')
     expect(report.exitCode).toBe(0)
+  })
+
+  // 22 Nov 2026: 60 hedged misses were in no column, so the report's numbers did not add up.
+  it('counts a hedged miss as a miss, so every answer is in the report', () => {
+    const report = summarize([
+      { url: 'a', verdict: 'miss-copy' as StoreVerdict },
+      { url: 'b', verdict: 'miss-direct' as StoreVerdict },
+      { url: 'c', verdict: 'miss' },
+    ])
+    expect(report.counts.miss).toBe(3)
+    expect(Object.values(report.counts).reduce((sum, n) => sum + n, 0)).toBe(3)
   })
 })
