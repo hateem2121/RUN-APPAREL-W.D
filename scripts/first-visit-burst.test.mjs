@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import {
   BURST,
+  burstGarments,
   FIRST_BYTE_P90_MS,
   judgeBurst,
   KINDS,
@@ -11,6 +12,7 @@ import {
   quantile,
   runVerdict,
 } from './first-visit-burst.mjs'
+import { LIVE_PRODUCTS } from './live-products.mjs'
 
 /**
  * The first-visit guard's judge, held to the numbers production gave. The two fixtures are real:
@@ -98,6 +100,36 @@ test('quantile is the nearest rank the baseline’s summary used', () => {
   assert.equal(quantile([5], 0.9), 5)
   assert.equal(quantile([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 0.9), 10)
   assert.equal(quantile([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 0.5), 6)
+})
+
+// 22 Nov 2026: the guard asked only each product's first colourway, the addresses the warm-up had
+// just filled, and passed three times before a crawl found 57 slow pages on the other colours.
+test('the garments asked include colours that are not a product’s first, and the pair moves with the day', () => {
+  const products = [
+    { slug: 'a', colourway: 'red', colourways: ['red', 'blue', 'green'] },
+    { slug: 'b', colourway: 'ash', colourways: ['ash', 'bone'] },
+    { slug: 'c', colourway: 'navy', colourways: ['navy', 'wine', 'lilac'] },
+    { slug: 'd', colourway: 'rust', colourways: ['rust', 'sage'] },
+  ]
+  const firsts = new Set(products.map((p) => `${p.slug}/${p.colourway}`))
+  const seen = new Set()
+  for (let day = 0; day < 12; day += 1) {
+    const asked = burstGarments(products, day)
+    assert.equal(asked.length, 5)
+    assert.deepEqual(asked.slice(0, 3), ['a/red', 'b/ash', 'c/navy'])
+    for (const other of asked.slice(3)) {
+      assert.ok(!firsts.has(other), `${other} is a first colourway`)
+      seen.add(other)
+    }
+    assert.notEqual(asked[3], asked[4])
+  }
+  // Every other colour is asked on some day: a/blue a/green b/bone c/wine c/lilac d/sage.
+  assert.equal(seen.size, 6)
+  // Every slug is read from the list, never built.
+  for (const garment of burstGarments(LIVE_PRODUCTS, 20_000)) {
+    const [slug, colour] = garment.split('/')
+    assert.ok(LIVE_PRODUCTS.find((p) => p.slug === slug)?.colourways.includes(colour), garment)
+  }
 })
 
 test('what is asked: the garment data, garment pages and website pages, on the hosts visitors use', () => {

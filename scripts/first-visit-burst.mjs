@@ -47,8 +47,37 @@ const API = 'https://api.globalping.io/v1/measurements'
 const SITE = 'wear-run.com'
 const DATA = 'cms.wear-run.help'
 
-/** The first five live garments, each at its first colourway: the addresses a QR tag opens. */
-const garments = LIVE_PRODUCTS.slice(0, 5).map((p) => `${p.slug}/${p.colourway}`)
+/** How many of the garments asked are a product's first colourway; the rest are other colours. */
+const FIRST_COLOURS = 3
+const OTHER_COLOURS = 2
+
+/**
+ * The garments one run asks for: the first three live garments at their first colourway (the
+ * addresses a QR tag opens), and two colours that are NOT a product's first, a different pair
+ * each day.
+ *
+ * WHY THE OTHER COLOURS (22 Nov 2026). Until then this asked the first colourway of the first
+ * five products, which are the very addresses the post-deploy warm-up filled, so the guard and the
+ * warm-up shared one blind spot. On 21 Nov it passed three times (garment page p90 371 to 394 ms)
+ * in the hours before Ahrefs' crawl reported 57 slow garment pages, every one a colour neither had
+ * asked for. A fixed pair would be kept warm by this guard's own visits, so the pair moves with
+ * the day: over a quarter every colour is asked on some day.
+ *
+ * @param {ReadonlyArray<{ slug: string, colourway: string, colourways: string[] }>} products
+ * @param {number} day whole days since 1 Jan 1970 (UTC)
+ */
+export function burstGarments(products, day) {
+  const first = products.slice(0, FIRST_COLOURS).map((p) => `${p.slug}/${p.colourway}`)
+  const others = products.flatMap((p) => p.colourways.slice(1).map((c) => `${p.slug}/${c}`))
+  const picked = []
+  for (let i = 0; i < OTHER_COLOURS && i < others.length; i += 1) {
+    // Half the list apart, so the two are never the same product's neighbouring colours.
+    picked.push(others[(day + i * Math.floor(others.length / 2)) % others.length])
+  }
+  return [...first, ...picked]
+}
+
+const garments = burstGarments(LIVE_PRODUCTS, Math.floor(Date.now() / 86_400_000))
 
 /**
  * What is asked. `judged: false` is measured and printed but cannot fail the run.

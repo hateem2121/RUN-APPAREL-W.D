@@ -11,7 +11,8 @@
  *
  * WHAT IT ASKS FOR. Website pages only: garment pages (/products/<p>/<c>) are drawn by the viewer
  * Worker and kept by the zone's cache, not by SitePages; what SitePages keeps for them is their
- * DATA (cms.wear-run.help/api/public/viewer/<p>/<c>), which this asks for instead.
+ * DATA (cms.wear-run.help/api/public/viewer/<p>/<c>), which this asks for instead: for EVERY
+ * colour of each product (colourTargets below), not only the one colour the sitemap names.
  *
  * AND EACH PAGE'S TAP DATA (faster-taps plan, Task 3): what a tap from another website page asks
  * for, kept by apps/cms/tapStore.mjs with one copy per destination. A settled tap's tree depends
@@ -56,6 +57,41 @@ export function warmTargets(sitemapXml, origin = SITE_ORIGIN) {
   return { pages, garments }
 }
 
+const SLUG = /^[a-z0-9][a-z0-9-]*$/
+
+/** Each product named by the sitemap's garment data addresses, once: its own data address. */
+export function productTargets(garments) {
+  const products = new Set()
+  for (const address of garments) {
+    const slug = new URL(address).pathname.split('/')[4]
+    if (slug && SLUG.test(slug)) products.add(`${API_ORIGIN}/api/public/viewer/${slug}`)
+  }
+  return [...products]
+}
+
+/**
+ * The data address of EVERY colour of one product, read from that product's own live answer.
+ *
+ * WHY (22 Nov 2026). The sitemap names one colour per product (45 garment pages), and that was all
+ * this warmed, while 225 colour pages are live and a crawler follows the colour links to every
+ * one. Ahrefs' crawl of 21 Nov began one minute after a deploy and reported 57 slow pages, each a
+ * garment colour page whose data the store did not hold: the viewer Worker waits for that data
+ * before it sends the page. Measured the next morning from Lahore: the first colour of 8 products
+ * answered from the store in 13 to 244 ms, the last colour of the same 8 was not in it.
+ *
+ * The slugs are READ, never built: a colour's slug is printed on QR tags, and one that merely
+ * looks right is an address that answers "not found". Anything that is not a plain slug is
+ * dropped, so an odd answer can add nothing off the site.
+ */
+export function colourTargets(productAddress, answer) {
+  const product = new URL(productAddress).pathname.split('/')[4]
+  const colourways = Array.isArray(answer?.colourways) ? answer.colourways : []
+  return colourways
+    .map((colourway) => colourway?.slug)
+    .filter((slug) => typeof slug === 'string' && SLUG.test(slug))
+    .map((slug) => `${API_ORIGIN}/api/public/viewer/${product}/${slug}`)
+}
+
 /**
  * The settled taps that fill each static page's tap data, each followed by the hover that fetches
  * the same page ahead: `{ url, headers }`, the code computed for exactly the headers sent. A hover
@@ -96,7 +132,10 @@ export function storeVerdict(status, serverTiming) {
 /** Counts per verdict, a warning per error; the exit code is always 0. */
 export function summarize(results) {
   const counts = { hit: 0, miss: 0, skip: 0, ok: 0, inconclusive: 0, error: 0 }
-  for (const { verdict } of results) counts[verdict] += 1
+  // A hedged miss (`miss-copy`, `miss-direct`) is a miss. Until 22 Nov 2026 it was counted under
+  // its own name, which the report does not print: that day's first pass listed 1,031 of the
+  // 1,091 answers it had asked for.
+  for (const { verdict } of results) counts[verdict.startsWith('miss') ? 'miss' : verdict] += 1
   const warnings = results
     .filter(({ verdict }) => verdict === 'error')
     .map(({ url, status }) => `${url} answered ${status ?? 'an error'} while warming the store`)
@@ -129,6 +168,30 @@ async function askAll(urls) {
   return results
 }
 
+/** Every colour's data address, from each product's live answer. A product that does not answer adds none. */
+async function everyColour(products) {
+  const colours = []
+  const queue = [...products]
+  await Promise.all(
+    Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+      while (queue.length > 0) {
+        const address = queue.shift()
+        try {
+          const response = await fetch(address, {
+            headers: { 'user-agent': 'run-apparel-store-warmup/1.0' },
+            signal: AbortSignal.timeout(TIMEOUT_MS),
+          })
+          if (response.ok) colours.push(...colourTargets(address, await response.json()))
+          else await response.arrayBuffer()
+        } catch {
+          // Inconclusive, as in ask(): the sitemap's own colour of this product is still asked.
+        }
+      }
+    }),
+  )
+  return colours
+}
+
 function report(label, results) {
   const { counts, warnings } = summarize(results)
   const parts = Object.entries(counts)
@@ -155,7 +218,13 @@ async function main() {
     pages.map((url) => new URL(url).pathname),
     origin,
   )
-  const targets = [...pages, ...garments, ...taps]
+  const products = productTargets(garments)
+  const colours = await everyColour(products)
+  const data = [...new Set([...garments, ...products, ...colours])]
+  console.log(
+    `[warm-shared-store] garment data: ${products.length} products, ${data.length - products.length} colours (the sitemap names ${garments.length})`,
+  )
+  const targets = [...pages, ...data, ...taps]
   report('first pass (fills the store)', await askAll(targets))
   report('second pass (from the store)', await askAll(targets))
 }

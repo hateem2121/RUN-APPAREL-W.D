@@ -7,6 +7,8 @@ export declare function warmTargets(
   sitemapXml: string,
   origin?: string,
 ): { pages: string[]; garments: string[] }
+export declare function productTargets(garments: string[]): string[]
+export declare function colourTargets(productAddress: string, answer: unknown): string[]
 export declare function warmTapTargets(
   paths: string[],
   origin?: string,
