@@ -47,6 +47,13 @@ It is still gated through the one `e2e` check: that job passes only when every s
 so neither `deploy.needs` nor the required-checks list changed — `.github/CLAUDE.md`
 records that splitting those silently stops a red gate blocking.
 
+🟡 **A TEST ACTS ONLY ONCE THE PAGE'S SCRIPTS HAVE RUN: `await scriptsHaveRun(page)`
+(`e2e/pageReady.ts`, 2026-11-22).** `page.goto` returns at `load`, and on a busy machine that is
+before React has run. Until then a key press or a menu's script is not heard, and when it runs
+React wipes whatever the test added to the page (copied cards, an injected link). That one cause
+was 245 of the 259 flaky WebKit results in 55 CI runs and held back a deploy (#451). Prove a new
+wait with `holdThePageBusy`, as `languageNote.spec.ts` and `productsDrawing.spec.ts` do.
+
 🟡 **`e2e/prepare.mjs` SKIPS THE REBUILD LOCALLY**, so a source edit does not reach
 `next start` and a negative control passes without testing anything. Use `CI=1` when
 breaking something on purpose.

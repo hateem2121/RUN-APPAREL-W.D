@@ -134,11 +134,15 @@ test.describe('the /about hero', () => {
       const early = await heroAt(page, 0.1)
       expect(early.partsOnScreen, 'the words left at a tenth of the way').toBe(true)
       // The end: the card is at least 90% of the screen wide and the words are gone.
-      await heroAt(page, 1)
-      await page.waitForTimeout(150)
-      const end = await heroAt(page, 1)
-      expect(end.cardWidth).toBeGreaterThanOrEqual(Math.floor(width * 0.9) - 2)
-      expect(end.partsOnScreen).toBe(false)
+      // Asked until it is so, not once after a fixed 150 ms: the card follows the scroll a frame
+      // later, and on CI's WebKit a frame took longer than that (389px of the 1,294 due, on both
+      // tries, 22 Nov 2026: 5 times in 55 runs). A card that never opens still fails, after 5 s.
+      await expect
+        .poll(async () => (await heroAt(page, 1)).cardWidth, {
+          message: 'the card did not open to 90% of the screen at the end of the scroll',
+        })
+        .toBeGreaterThanOrEqual(Math.floor(width * 0.9) - 2)
+      await expect.poll(async () => (await heroAt(page, 1)).partsOnScreen).toBe(false)
     })
   }
 
@@ -697,13 +701,18 @@ test.describe('the factory photo viewer', () => {
   test('a slide the browser cancels is finished, on the photo the counter names', async ({
     page,
   }) => {
+    test.setTimeout(60_000)
     const { count, counter, strip } = await openThird(page)
     await cancelSlides(page, 1)
     await page.keyboard.press('ArrowRight')
     await expect(counter).toHaveText(`4 / ${count}`)
     await expect
+      // 25 s, not the usual 5: the viewer counts FRAMES before it tries again (12 at rest, then a
+      // second slide), and on CI's WebKit frames were slow enough that 5 s passed first (8 of 55
+      // runs, 22 Nov 2026). A viewer that never finishes the slide still fails.
       .poll(() => strip.evaluate((s) => Math.abs(s.scrollLeft - 3 * s.clientWidth)), {
         message: 'the cancelled slide was never finished: the counter names a photo not shown',
+        timeout: 25_000,
       })
       .toBeLessThan(2)
     await expect(counter).toHaveText(`4 / ${count}`)
@@ -732,12 +741,24 @@ test.describe('the factory photo viewer', () => {
   test('when the browser cancels every slide, the counter names the photo shown', async ({
     page,
   }) => {
+    test.setTimeout(60_000)
     const { count, counter, strip } = await openThird(page)
     await cancelSlides(page, Number.POSITIVE_INFINITY)
     await page.keyboard.press('ArrowRight')
     // One more try, then the viewer stops asking and follows the strip: it never loops.
-    await expect(counter, 'the counter names a photo not shown').toHaveText(`3 / ${count}`)
+    // 25 s, as in the test above: both tries wait on frames.
+    await expect(counter, 'the counter names a photo not shown').toHaveText(`3 / ${count}`, {
+      timeout: 25_000,
+    })
     expect(await strip.evaluate((s) => Math.abs(s.scrollLeft - 2 * s.clientWidth))).toBeLessThan(2)
+    // Both tries have been made (asked until so: the second waits on frames, and a fixed second
+    // was too short on CI's WebKit once in 55 runs), and a second later there is still no third.
+    await expect
+      .poll(() => slidesCancelled(page), {
+        message: 'the viewer never tried again',
+        timeout: 25_000,
+      })
+      .toBe(2)
     await page.waitForTimeout(1000)
     expect(await slidesCancelled(page), 'the viewer kept asking for the slide').toBe(2)
     await expect(counter).toHaveText(`3 / ${count}`)

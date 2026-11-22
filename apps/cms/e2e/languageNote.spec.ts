@@ -1,5 +1,6 @@
 import { afterCurtain } from './curtain'
 import { expect, type Page, test } from './offlineMedia'
+import { holdThePageBusy, scriptsHaveNotRun, scriptsHaveRun } from './pageReady'
 
 /**
  * THE LANGUAGE NOTE ON THE WEBSITE (owner's design, 2026-11-16): "this page is also in your
@@ -48,16 +49,6 @@ async function open(
   await expect(page.locator('header.notch-shell')).toBeVisible()
 }
 
-/**
- * The page's scripts have run: the footer clock reads `--:--` in the server's HTML and a time once
- * the browser has drawn it (FooterClock.tsx), on every page this suite opens, the 404 included.
- * footer.spec.ts reads the same sign.
- */
-const listening = (page: Page) =>
-  expect(page.locator('.footer-clock__time span').first()).not.toHaveText('--:--', {
-    timeout: 15_000,
-  })
-
 /** A real key press (trusted, unlike `dispatchEvent`), sent whether or not the page listens yet. */
 const pressAKey = (page: Page) => page.keyboard.press('Shift')
 
@@ -65,17 +56,13 @@ const pressAKey = (page: Page) => page.keyboard.press('Shift')
  * What only a person does, once the page can hear it.
  *
  * ⚠️ WAIT FIRST, OR THE ONE KEY PRESS IS LOST. The note starts listening in an effect, so after
- * the page's scripts have run; `page.goto` returns at `load`, which is earlier on a busy machine.
- * This suite pressed the key straight away, and in CI's WebKit the press often landed before
- * anyone listened: the note never came. Counted 22 Nov 2026 over the WebKit job of the last 55 CI
- * runs (64 attempts): 216 of the 259 flaky or failed results were this file, 213 of those waiting
- * for a note that was never drawn, every attempt had at least one flaky test, and 5 went red.
- * Two of the reds held back a deploy that day (#451). A test that expects NO note passed for the
- * wrong reason the same way. Reproduced here with a held-back scheduler: the bare press failed 8
- * of 8, the press after this wait passed 8 of 8. The last test in this file keeps both halves.
+ * the page's scripts have run, and `page.goto` returns before that on a busy machine. This suite
+ * pressed the key straight away: 213 flaky or failed results in 55 CI runs were a note that never
+ * came, and a test that expects NO note passed for the wrong reason the same way (pageReady.ts
+ * has the counts). The last two tests in this file keep both halves.
  */
 const touchThePage = async (page: Page) => {
-  await listening(page)
+  await scriptsHaveRun(page)
   await pressAKey(page)
 }
 
@@ -519,29 +506,16 @@ test.describe('who is NOT offered', () => {
 test.describe('a key pressed before the page listens (the control for touchThePage)', () => {
   test.use({ locale: 'ru-RU' })
 
-  /*
-   * A busy machine, made on purpose: React hands its work to the browser through a
-   * MessageChannel, and each hand-over is held back here, so the page is on screen and loaded
-   * well before its scripts have run. That is the state CI's WebKit was in when the key press
-   * went missing (the note on touchThePage has the counts).
-   */
   async function openBusy(page: Page) {
-    await page.addInitScript((delay) => {
-      const post = MessagePort.prototype.postMessage
-      MessagePort.prototype.postMessage = function (this: MessagePort, ...args: unknown[]) {
-        setTimeout(() => (post as (...all: unknown[]) => void).apply(this, args), delay)
-      } as typeof post
-    }, 400)
+    await holdThePageBusy(page)
     await open(page, EN)
-    // The hold-back landed: the clock still reads as the server sent it. Without this line the
-    // tests below could pass on a page that was never busy.
-    await expect(page.locator('.footer-clock__time span').first()).toHaveText('--:--')
+    await scriptsHaveNotRun(page)
   }
 
   test('is lost: the note never comes', async ({ page }) => {
     await openBusy(page)
     await pressAKey(page)
-    await listening(page)
+    await scriptsHaveRun(page)
     await expect(note(page), 'a key press nobody was listening for drew the note').toHaveCount(0)
   })
 

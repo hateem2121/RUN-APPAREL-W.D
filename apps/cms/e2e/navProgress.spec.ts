@@ -1,4 +1,5 @@
 import { expect, type Page, test } from './offlineMedia'
+import { scriptsHaveRun } from './pageReady'
 
 /**
  * The loading line (site check-up #3, 2026-10-22): a tap on a link inside the site waited 2.3–2.8 s
@@ -65,6 +66,9 @@ test.describe('the loading line', () => {
   }) => {
     await page.goto('/faq')
     await expect(page.locator('h1')).toBeVisible()
+    // The link is added only once the page's scripts have run: added before, React wiped it and the
+    // click waited 30 s for a link that was gone (CI's WebKit, 2 times in 55 runs; pageReady.ts).
+    await scriptsHaveRun(page)
     // A plain link (no <Link>): the document sees the click unprevented, as a real one would be,
     // and only afterwards, at the window, is the full load cancelled so the test stays here.
     await page.evaluate(() => {

@@ -1,5 +1,6 @@
 import { answerCardPictures } from './cardPictures'
 import { expect, type Page, test } from './offlineMedia'
+import { holdThePageBusy, scriptsHaveNotRun, scriptsHaveRun } from './pageReady'
 
 /**
  * /products skips drawing a card's OTHER colours until the card comes within two screens (site.css, at
@@ -19,6 +20,12 @@ import { expect, type Page, test } from './offlineMedia'
  * mark but no script, so the observer that clears it (`CardGallery.tsx`) is NOT held here: the seed's
  * one card is the first, never marked. Its markup is held by `CardGallery.test.ts`, and the observer
  * on the live page, in WebKit, after the deploy (2026-10-21).
+ *
+ * ⚠️ COPIED ONLY ONCE THE PAGE'S SCRIPTS HAVE RUN. Copies made before are wiped when React puts the
+ * server's one card back: 41 cards became 1 again, no picture far down was fetched, and the tests
+ * failed with "0 copies fetched" or read the first card as the last (21 flaky or failed results in
+ * CI's WebKit over 55 runs, one of them a red run on main; pageReady.ts has the counts). The last
+ * test in this file holds it.
  */
 
 const COPIES = 41
@@ -27,11 +34,17 @@ const ALL_DRAWN = '.card-gallery__slide { content-visibility: visible !important
 /** The widened rule that measured as a regression. */
 const BOX_SKIPPED = '.product-card__figure { content-visibility: auto; }'
 
-async function openWithCopies(page: Page, extraCss = '') {
+async function openWithCopies(
+  page: Page,
+  extraCss = '',
+  arrive: (page: Page) => Promise<void> = async () => {},
+) {
   await answerCardPictures(page)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/products')
+  await arrive(page)
+  await scriptsHaveRun(page)
   if ((await page.locator('.product-grid .product-card').count()) === 0) {
     if (process.env.CI) throw new Error('no card on /products, and CI seeds one')
     test.skip(true, 'no garment in this local database')
@@ -208,5 +221,17 @@ test.describe('far down /products a card waits to draw its other colours, and no
     await other.close()
     expect(without.length).toBeGreaterThanOrEqual(10)
     expect(Math.min(...boxSkipped)).toBeLessThan(Math.min(...without) - 100)
+  })
+
+  test('the copies are still there once the page’s scripts have run (the control for the wait)', async ({
+    page,
+  }) => {
+    // A busy page: on screen and loaded, its scripts not yet run. Copies made now would be wiped.
+    await holdThePageBusy(page)
+    await openWithCopies(page, '', scriptsHaveNotRun)
+    // Counted only after the scripts have run: that is when copies made too early are wiped.
+    await scriptsHaveRun(page)
+    await page.waitForTimeout(500)
+    expect(await page.locator('.product-grid > .product-card').count()).toBe(COPIES)
   })
 })
