@@ -187,6 +187,36 @@ describe('starting the trackers', () => {
     expect(seen).toEqual([APOLLO_APP_ID])
   })
 
+  /*
+   * Sentry VIEWER-K (1 Nov and 21 Nov 2026): Apollo's script reads `localStorage` as it starts,
+   * and a browser that blocks site storage refuses the read with "SecurityError: The operation is
+   * insecure." Its `onLoad` is asynchronous, so the refusal arrived as a promise nobody held.
+   */
+  it('holds the promise Apollo returns, so a browser that blocks storage reports nothing', () => {
+    const { win, scripts } = fakeWindow()
+    const refused = Promise.reject(new Error('The operation is insecure.'))
+    // The test's own hold, so the old code fails on the assertion below and not as a stray
+    // rejection in the runner. A promise is "unhandled" only while nobody has given it a
+    // rejection handler, so what is checked is that the page's code gave it one.
+    refused.catch(() => {})
+    const then = vi.spyOn(refused, 'then')
+    startTrackers(win)
+    win.trackingFunctions = { onLoad: () => refused }
+    scripts[1]?.onload?.()
+    expect(then.mock.calls.some(([, onRejected]) => typeof onRejected === 'function')).toBe(true)
+  })
+
+  it('does not let Apollo throw out of its own script load', () => {
+    const { win, scripts } = fakeWindow()
+    startTrackers(win)
+    win.trackingFunctions = {
+      onLoad: () => {
+        throw new Error('The operation is insecure.')
+      },
+    }
+    expect(() => scripts[1]?.onload?.()).not.toThrow()
+  })
+
   // A second Accept click, or two banners on one page, must not double-count every visit.
   it('does nothing the second time', () => {
     const { win, scripts } = fakeWindow()
