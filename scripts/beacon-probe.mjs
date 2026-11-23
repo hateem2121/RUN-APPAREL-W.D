@@ -24,6 +24,16 @@ export const PAGES = ['https://wear-run.com/', 'https://wear-run.com/products/rx
 export const BEACON_SRC = 'static.cloudflareinsights.com/beacon.min.js'
 
 /**
+ * Where to look first when a page has no tag. 22 Nov 2026 (issue #455): the site-only Worker
+ * went live without CF_ANALYTICS_TOKEN, a website page draws nothing without it, and this probe
+ * said only that the tag was missing. It ran in Uptime alone, hours after the deploy; since
+ * 23 Nov the deploy runs it against the NEW versions before any visitor gets them (ci.yml).
+ */
+export const MISSING_TAG_HINT =
+  'A website page draws the tag only when the Worker that drew it holds CF_ANALYTICS_TOKEN: ' +
+  'compare `wrangler secret list` for both Workers with apps/cms/workerSecrets.mjs.'
+
+/**
  * Pure: does this (whole-body) HTML carry the beacon, as a `<script src>` tag or, since
  * 2026-10-08, as the inline loader that adds it for a browser that is not automated
  * (`packages/shared/src/analyticsBeacon.ts`)?
@@ -49,7 +59,7 @@ async function main() {
     }
     const html = await res.text()
     if (!hasBeaconTag(html)) {
-      failures.push(`${page} carries no Cloudflare beacon script tag.`)
+      failures.push(`${page} carries no Cloudflare beacon script tag. ${MISSING_TAG_HINT}`)
     } else {
       console.log(`   ${page} carries the beacon tag`)
     }

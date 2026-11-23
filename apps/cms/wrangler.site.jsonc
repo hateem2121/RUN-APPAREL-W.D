@@ -91,7 +91,13 @@
     "PUBLIC_MEDIA_BASE_URL": "https://media.wear-run.help",
     "VIEWER_ALLOWED_ORIGINS": "https://viewer.wear-run.help,https://wear-run.help,https://wear-run.com"
   }
-  // Secrets: PAYLOAD_SECRET and SENTRY_DSN, applied by the deploy as on the CMS Worker. NOT here:
+  // Secrets (workerSecrets.mjs is the list, and src/workerSecrets.test.ts holds this note to it):
+  // PAYLOAD_SECRET and SENTRY_DSN, applied by the deploy as on the CMS Worker, and
+  // CF_ANALYTICS_TOKEN, set once by hand as on the CMS Worker; each new version inherits it.
+  // ⚠️ A SECOND WORKER GETS NONE OF THE FIRST ONE'S SECRETS. This one went live on 22 Nov 2026
+  // without CF_ANALYTICS_TOKEN, and every website page went out with no analytics tag until
+  // 03:23 UTC on 23 Nov (issue #455). The deploy now checks the tag on the NEW version before
+  // any visitor gets it (ci.yml, "Pre-live analytics tag"). NOT here:
   // RESEND_API_KEY, TURNSTILE_SECRET and TEMPLATE_NOTICE_OWNER. The three forms post to the CMS
   // Worker (door.mjs sends every request that is not a GET or a HEAD there), so this Worker never
   // sends mail and never checks a Turnstile answer.

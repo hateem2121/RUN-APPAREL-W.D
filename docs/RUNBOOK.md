@@ -445,6 +445,30 @@ If a website page looks wrong and this Worker is suspected, switch it off first 
    Worker again. (`off` in the same key still switches the whole door off, as below.)
 2. **Check it worked:** `curl -s https://wear-run.com/__worker/version` names the Worker that
    answered: `run-apparel-site-only` when it is in use, `run-apparel-viewer-cms` when it is not.
+3. **Fill the other Worker's page store.** Each Worker keeps its own store, and Cloudflare keeps
+   a kept page per region, so the Worker just switched TO starts with whatever it held before.
+   On 23 Nov 2026 the switch to `full` was followed by a warm-up from one machine in Lahore;
+   Ahrefs' crawl from the US eight minutes later found 137 of 190 website pages not in the store
+   there, and 249 pages took 200 to 500 ms that had taken under 200 ms the day before (the shared
+   copies answered, so none took a second). `node scripts/warm-shared-store.mjs` fills only the
+   region it runs from; the store fills itself elsewhere as pages are asked for. A deploy does
+   not have this gap: its warm-up runs after the new versions are live.
+
+**Its secrets.** The site-only Worker is a second Worker, and a second Worker gets none of the
+first one's secrets. `apps/cms/workerSecrets.mjs` lists what it must hold (`PAYLOAD_SECRET` and
+`SENTRY_DSN` from the deploy, `CF_ANALYTICS_TOKEN` set once by hand) and what it must not need.
+It went live on 22 Nov 2026 without `CF_ANALYTICS_TOKEN`: every website page went out with no
+Cloudflare analytics tag until the switch above was set at 03:23 UTC on 23 Nov (issue #455).
+Compare `wrangler secret list` with `wrangler secret list --config wrangler.site.jsonc` (both
+print names only) before using this Worker again. The deploy now checks the tag on the new
+versions before they serve anyone (`ci.yml`, "Pre-live analytics tag").
+
+A secret added later does not reach a page the store already keeps. Measured 23 Nov 2026, after
+the token was set on the site-only Worker: `/`, `/products`, `/contact` and `/ru` still came from
+its store without the tag (`page-cache;desc="hit"`), while the same four drawn fresh (any query
+string, which the store never keeps) carried it. The store's key names the website build and the
+content version, never the Worker's version, so the kept copies last until the next deploy that
+changes the website's source, or the next CMS save. Add a secret, then deploy, then switch.
 
 A deploy still gets through while it is switched off: the deploy's checks carry the override
 header, and the door hands a request with that header to the site-only Worker whatever the switch

@@ -20,6 +20,13 @@
  * addresses. It runs FIRST in perf-watch.yml's job, before any step that asks the site for
  * anything, because a burst fired after other traffic is fast for the wrong reason.
  *
+ * ⚠️ ONE RUN USES 90 OF THE 250 TESTS AN HOUR, SO THREE RUNS DO NOT FIT IN ONE HOUR FROM ONE
+ * ADDRESS. The limit is per IP address (`GET https://api.globalping.io/v1/limits`, read 23 Nov
+ * 2026: type "ip", limit 250). On 22 Nov three runs started together from one machine: the first
+ * got 19 of 30 garment-data answers before the limit, the next two got none, and all three were
+ * rightly called inconclusive. Space three runs over a little more than an hour, or check
+ * `remaining` at that address first; any other probe from the same machine spends the same 250.
+ *
  * THE PASS MARK is the task's own: the first byte within FIRST_BYTE_P90_MS at p90, for each kind.
  *
  * Exit codes: 0 every judged kind passed, or the run was inconclusive (a warning, never a pass
