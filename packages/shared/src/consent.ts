@@ -202,7 +202,8 @@ export const TRACKERS_DELAY_MS = 3000
 /** The part of `window` the trackers touch. */
 export interface TrackerWindow {
   dataLayer?: unknown[]
-  trackingFunctions?: { onLoad(options: { appId: string }): void }
+  /** Apollo's own; what `onLoad` returns is its business (a promise today), so it is not typed. */
+  trackingFunctions?: { onLoad(options: { appId: string }): unknown }
   /** PostHog's queue until its script arrives; its script replaces it with the real thing. */
   posthog?: unknown
   runTrackersStarted?: boolean
@@ -378,7 +379,15 @@ function startApollo(win: TrackerWindow): void {
   // Apollo's own snippet adds a random `nocache` value; kept, so its script is never stale.
   const nocache = Math.random().toString(36).substring(7)
   loadScript(win, `${APOLLO_SCRIPT}?nocache=${nocache}`, () => {
-    win.trackingFunctions?.onLoad({ appId: APOLLO_APP_ID })
+    // ⚠️ APOLLO'S START-UP CAN FAIL, AND NOBODY ELSE HOLDS ITS PROMISE. Its script reads
+    // `localStorage` first, and a browser that blocks site storage refuses: "SecurityError: The
+    // operation is insecure." (Sentry VIEWER-K, 2 events: 1 Nov and 21 Nov 2026, both touch
+    // devices, both after Accept). `onLoad` is asynchronous, so the refusal is a rejected promise;
+    // the try is for a version that throws at once. The tracker cannot count that visitor either
+    // way, so there is nothing to do but not report it as our error.
+    try {
+      Promise.resolve(win.trackingFunctions?.onLoad({ appId: APOLLO_APP_ID })).catch(() => {})
+    } catch {}
   })
 }
 
