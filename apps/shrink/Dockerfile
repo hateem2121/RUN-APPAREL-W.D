@@ -58,7 +58,7 @@
 # and until 2026-08-29 nothing anywhere measured the age. Update the date in the SAME
 # pull request as the digest (Dependabot moves only the digest), or the gate is measuring
 # a lie.
-FROM node:26-trixie-slim@sha256:36793bcbb160a6a16cede1e62b93f84e26b78a972a8a4c0b879c1c12f22761ec
+FROM node:26-trixie-slim@sha256:e6bedef217677b276c591795e169840edd9096dbf13f29df8ef8d1856b8820bc
 
 WORKDIR /app
 
