@@ -1801,6 +1801,18 @@ jobs:
           CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-only=${{ steps.stage.outputs.siteonly_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
         run: NODE_OPTIONS="--import=./scripts/version-overrides-preload.mjs" node scripts/public-security-probe.mjs
 
+      # ⚠️ A SECOND WORKER GETS NONE OF THE FIRST ONE'S SECRETS (22 Nov 2026, issue #455). The
+      # site-only Worker went live without CF_ANALYTICS_TOKEN; a website page draws no analytics
+      # tag without it and says nothing, so every check above passed and the tag was gone from
+      # every website page until the Uptime run of 19:50 UTC found it. With the override header the
+      # door hands the home page to the site-only Worker's NEW version whatever the switch says
+      # (apps/cms/door.mjs), so this fails here, before anything is moved to 100%. The secrets each
+      # Worker must hold: apps/cms/workerSecrets.mjs.
+      - name: Pre-live analytics tag (new versions)
+        env:
+          CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-only=${{ steps.stage.outputs.siteonly_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
+        run: NODE_OPTIONS="--import=./scripts/version-overrides-preload.mjs" node scripts/beacon-probe.mjs
+
       # CMS first: the viewer reads the CMS's data, and new CMS + old viewer for a few seconds is the
       # same pairing every plain deploy has had.
       - name: Move the four new versions to 100%

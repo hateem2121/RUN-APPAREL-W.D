@@ -49,6 +49,13 @@ import { beaconLoader } from '@run-apparel/shared'
  * and its address has been wear-run.com since 2026-09-28), so wherever the Worker holds that
  * token this renders the loader (below) on every public page; without it, still nothing.
  * (Not re-checked against the live Worker when this comment was updated.)
+ *
+ * ⚠️ "WHEREVER THE WORKER HOLDS THAT TOKEN" MEANS EVERY WORKER THAT DRAWS A PAGE. This code is
+ * built into two (`run-apparel-viewer-cms` and, since 22 Nov 2026, `run-apparel-site-only`), and
+ * a second Worker gets none of the first one's secrets. The site-only Worker went live without
+ * the token, this returned null on every website page, and nothing said so until the Uptime run
+ * of 19:50 UTC that day (issue #455). `workerSecrets.mjs` lists what each Worker must hold, and
+ * the deploy checks the tag on the new versions before any visitor gets them.
  */
 export function Analytics() {
   const token = process.env.CF_ANALYTICS_TOKEN?.trim()
