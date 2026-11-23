@@ -2400,6 +2400,39 @@ The `VIEWER_DEPLOY_TARGET` repository variable did nothing after that and was de
 2026-10-24 (owner's decision; its value was `worker`). Nothing reads it: only this note, the
 history in `docs/HARDENING-LOG.md` and a comment in `ci.yml` still name it.
 
+## Earlier releases' files (a page opened before a deploy)
+
+A page a visitor opened before a deploy keeps asking for the script and style files its own
+release named. Since the change that added `scripts/keep-earlier-files.mjs` (23 Nov 2026), each
+release also carries the hashed files of the releases before it:
+
+| Build | Files | Its list |
+|---|---|---|
+| Viewer (`run-apparel-viewer-site`) | `/assets/…` | `/assets/release-files.json` |
+| Website, site-only build | `/_next/static/…` | `/_next/static/release-files.site-only.json` |
+| Website, whole build | `/_next/static/…` | `/_next/static/release-files.whole.json` |
+
+A file stays for 7 days after the last release that used it, up to 20 MiB of kept files per build.
+In each list, `lastLive: null` marks the release's own files and a date marks a kept one.
+
+**Reading a deploy.** The keep steps print one line each, for example `… 31 files of this release,
+12 earlier files kept …`. A `::warning::not kept:` line names a file the live site did not answer
+with its own type and size; it is left out and the release goes on. The step "Post-deploy check
+that earlier releases' files still answer" asks the live site for every kept file afterwards.
+
+**What it does not cover.**
+- For the few seconds a deploy takes to reach every Cloudflare location, a NEW page's file
+  request can reach a location still on the old version (Cloudflare, "Version skew and static
+  assets", last updated 12 Nov 2026).
+- A rollback restores an older version with its own file set: files of releases newer than it
+  are not in it.
+- With KV `front-door` = `full` or `off` the site-only build's list is not reachable from outside,
+  so that build keeps nothing until the switch is back.
+
+**To stop it:** remove the keep step from `.github/workflows/ci.yml` and the
+`keep-earlier-files.mjs` call from the two `upload` scripts in `apps/cms/package.json`. The next
+release then carries only its own files.
+
 ## Link previews — what a shared link looks like
 
 Paste `https://wear-run.com/products/rxps/wine` into WhatsApp, email or LinkedIn

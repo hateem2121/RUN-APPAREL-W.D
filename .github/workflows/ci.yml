@@ -1699,6 +1699,23 @@ jobs:
           fi
           echo "No source maps in dist. Safe to deploy."
 
+      # A PAGE OPENED BEFORE THIS DEPLOY KEEPS ASKING FOR ITS OWN RELEASE'S FILES. On 23 Nov 2026
+      # the viewer's entry file of 20 Nov, /assets/index-CNj-M4ah.js, answered 200 text/html on the
+      # live site: the page shell under a script's name. So the release about to go up also carries
+      # the hashed files of the releases before it, for 7 days (Cloudflare, "Version skew and static
+      # assets", last updated 12 Nov 2026: "Include assets needed by older pages"). The website's two
+      # builds do the same inside their own upload scripts (apps/cms/package.json), because each
+      # builds and uploads in one script. scripts/keep-earlier-files.mjs has the rules and
+      # scripts/keep-earlier-files.test.mjs replays the fault.
+      # ⚠️ It never stops a release: whatever it cannot read or fetch is a warning and is not kept.
+      # ⚠️ AFTER the bundle budget, on purpose: that gate (verify) weighs a clean build, and the
+      # earlier releases' files are not this release's weight.
+      - name: Keep the earlier releases' viewer files in this release
+        timeout-minutes: 3
+        run: |
+          node scripts/keep-earlier-files.mjs --dir apps/viewer/dist --prefix /assets/ \
+            --list release-files.json --save "$RUNNER_TEMP/kept-viewer.json"
+
       # The viewer is a Worker with Static Assets (run-apparel-viewer-site) and nothing
       # else. Until 2026-10-23 two Cloudflare Pages steps sat here as a "rollback path"
       # behind VIEWER_DEPLOY_TARGET=pages; they were removed (owner decision) because the
@@ -1982,6 +1999,20 @@ jobs:
       # and the www./cms. redirects must carry the headers their Cloudflare rule adds.
       - name: Post-deploy security.txt and redirect headers
         run: node scripts/public-security-probe.mjs
+
+      # The outside check of the keep step above: each live list must name THIS release, and every
+      # earlier file this run kept must answer from the live site with its own type and size.
+      # ⚠️ A WARNING, NOT A FAILED DEPLOY, FOR NOW (added 23 Nov 2026): the first run has no earlier
+      # list to keep from, and whether Cloudflare serves a new list at once under the hashed files'
+      # one-year header was not known when this was written. Read its lines after each deploy; make
+      # it fatal once two deploys in a row have kept files and passed.
+      - name: Post-deploy check that earlier releases' files still answer
+        timeout-minutes: 3
+        continue-on-error: true
+        run: |
+          node scripts/keep-earlier-files.mjs --check --saved "$RUNNER_TEMP/kept-viewer.json"
+          node scripts/keep-earlier-files.mjs --check --saved "$RUNNER_TEMP/kept-site-only.json"
+          node scripts/keep-earlier-files.mjs --check --saved "$RUNNER_TEMP/kept-whole.json"
 
       # Tells search engines only about the pages this push changed (2026-10-07, plan E10).
       # `before` is the commit main pointed at before the push; the script fetches it on its own
