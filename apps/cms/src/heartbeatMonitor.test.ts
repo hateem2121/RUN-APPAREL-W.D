@@ -30,7 +30,7 @@ const monitorConfig = (yaml: string) => {
   const payload = yaml.match(/^\s*payload='(\{.*\})'$/m)?.[1]
   return payload
     ? (JSON.parse(payload).monitor_config as {
-        schedule: { value: string }
+        schedule: { type: string; value: string | number; unit?: string }
         checkin_margin: number
       })
     : undefined
@@ -43,7 +43,7 @@ describe('heartbeat Sentry cron monitor', () => {
     expect(monitorConfig(yaml)).toBeDefined()
     // Upsert is what makes this file authoritative: a hand-edit in Sentry's UI is
     // corrected on the next ping instead of silently outliving the repo.
-    expect(yaml).toContain('"schedule":{"type":"crontab"')
+    expect(yaml).toContain('"schedule":{"type":"interval"')
   })
 
   // Hours between firings, for the crontab forms this repo uses. A bare `*` in the
@@ -74,9 +74,21 @@ describe('heartbeat Sentry cron monitor', () => {
    * check was built for: slow the `cron:` down past what Sentry expects and this
    * fails, which is the case that manufactures alarms nobody can act on.
    */
+  // What Sentry is told, in hours: an interval says it outright, a crontab through its hour field.
+  const sentryHours = (schedule?: { type: string; value: string | number; unit?: string }) => {
+    if (!schedule) return undefined
+    if (schedule.type === 'interval')
+      return schedule.unit === 'hour' && typeof schedule.value === 'number'
+        ? schedule.value
+        : undefined
+    return typeof schedule.value === 'string' ? intervalHours(schedule.value) : undefined
+  }
+  const OLD_CRONTAB = '"schedule":{"type":"crontab","value":"43 */12 * * *"}'
+  const INTERVAL = '"schedule":{"type":"interval","value":12,"unit":"hour"}'
+
   it('never expects a check-in sooner than the cron can deliver one', () => {
     const cron = intervalHours(workflowCron(yaml))
-    const sentry = intervalHours(monitorConfig(yaml)?.schedule.value)
+    const sentry = sentryHours(monitorConfig(yaml)?.schedule)
     expect(cron, 'could not parse the workflow cron').toBeDefined()
     expect(sentry, 'could not parse the monitor_config schedule').toBeDefined()
     expect(sentry).toBeGreaterThanOrEqual(cron as number)
@@ -85,53 +97,73 @@ describe('heartbeat Sentry cron monitor', () => {
   it('fails when Sentry is told to expect pings FASTER than the cron (negative control)', () => {
     // The direction that actually hurts: Sentry expecting hourly against a 6-hourly
     // job would mark five of every six windows missed, forever.
-    const drifted = yaml.replace('"value":"43 */12 * * *"', '"value":"43 * * * *"')
+    expect(yaml).toContain(INTERVAL)
+    const drifted = yaml.replace(INTERVAL, '"schedule":{"type":"interval","value":1,"unit":"hour"}')
     const cron = intervalHours(workflowCron(drifted)) as number
-    expect(intervalHours(monitorConfig(drifted)?.schedule.value)).toBeLessThan(cron)
+    expect(sentryHours(monitorConfig(drifted)?.schedule)).toBeLessThan(cron)
   })
 
-  it('the parser is not vacuous (negative control)', () => {
-    // If intervalHours returned undefined for everything, the assertion above would
-    // pass on nonsense. Pin the three forms it must actually decode.
+  it('the parsers are not vacuous (negative control)', () => {
+    // If either returned undefined for everything, the assertions above would
+    // pass on nonsense. Pin the forms they must actually decode.
     expect(intervalHours('43 */6 * * *')).toBe(6)
     expect(intervalHours('43 */12 * * *')).toBe(12)
     expect(intervalHours('43 * * * *')).toBe(1)
     expect(intervalHours('43 7 * * *')).toBe(24)
+    expect(sentryHours({ type: 'interval', value: 12, unit: 'hour' })).toBe(12)
+    expect(sentryHours({ type: 'interval', value: 12, unit: 'minute' })).toBeUndefined()
+    expect(sentryHours({ type: 'crontab', value: '43 */12 * * *' })).toBe(12)
+  })
+
+  /*
+   * ⚠️ AN INTERVAL, NOT A CRONTAB (23 Nov 2026). The window below was sized against the gap
+   * between check-ins, but a crontab counts from CLOCK TIMES: Sentry expected 00:43 and 12:43 UTC
+   * and gave up at 06:43 and 18:43, while GitHub started this job only twice a day, hours after
+   * those ticks. VIEWER-4 fired at exactly 06:43 and 18:43 UTC every day, 27 times in 14 days,
+   * with every run green. An interval counts from the last check-in, which is the quantity the
+   * gap measurement is about.
+   */
+  it('tells Sentry an interval from the last check-in, not clock times', () => {
+    expect(monitorConfig(yaml)?.schedule).toEqual({ type: 'interval', value: 12, unit: 'hour' })
+  })
+
+  it('the schedule-type check can fail (negative control)', () => {
+    const previous = yaml.replace(INTERVAL, OLD_CRONTAB)
+    expect(previous).not.toBe(yaml)
+    expect(monitorConfig(previous)?.schedule.type).toBe('crontab')
   })
 
   it('tolerates the worst GAP between check-ins, not merely the worst delay', () => {
     // ⚠️ THE DELAY IS THE WRONG NUMBER, AND USING IT IS WHY THIS ALARM WAS WRONG.
     //
     // A margin sized against "how late is a run" assumes every run happens. GitHub
-    // also DROPS scheduled runs: measured 2026-08-30 over 39 scheduled runs of this
-    // workflow (2026-08-19 to 08-30), three were skipped outright, and the worst gap
-    // between consecutive check-ins was 818 minutes against a 6-hour cron — far past
-    // the worst single delay of 331. Median gap 364, i.e. usually fine.
+    // also DROPS scheduled runs. Measured 2026-08-30 over 39 scheduled runs: three skipped
+    // outright, worst gap 818 minutes against a 6-hour cron, worst single delay 331.
+    // Re-measured 2026-11-23 over the last 60 scheduled runs (28 Oct to 23 Nov): 60 runs
+    // where 104 were scheduled, median gap 659 minutes, worst gap 931.
     //
     // So the quantity that must exceed the worst gap is the FULL window Sentry
     // allows: its expected interval plus the margin.
     //   6h + 120 (the setting that alarmed from 2026-08-26) =  480 -> too small
     //   6h + 355 (the most a 6h schedule can carry)         =  715 -> still too small
-    //  12h + 360 (shipped)                                  = 1080 -> 262 min headroom
+    //  12h + 360 (shipped)                                  = 1080 -> 149 min headroom
     //
     // Re-measure the GAP before lowering either number:
-    //   gh run list --workflow=heartbeat.yml --limit 40 --json createdAt,event
-    const WORST_OBSERVED_GAP_MINUTES = 818
+    //   gh run list --workflow=heartbeat.yml --limit 60 --json createdAt,event
+    const WORST_OBSERVED_GAP_MINUTES = 931
     const config = monitorConfig(yaml)
-    const window =
-      (intervalHours(config?.schedule.value) as number) * 60 + (config?.checkin_margin ?? 0)
+    const window = (sentryHours(config?.schedule) as number) * 60 + (config?.checkin_margin ?? 0)
     expect(window).toBeGreaterThan(WORST_OBSERVED_GAP_MINUTES)
   })
 
   it('the tolerance check can fail (negative control)', () => {
     // Reproduce the state this repo was actually in on 2026-08-30: 6h + 120.
     const previous = yaml
-      .replace('"value":"43 */12 * * *"', '"value":"43 */6 * * *"')
+      .replace(INTERVAL, '"schedule":{"type":"interval","value":6,"unit":"hour"}')
       .replace('"checkin_margin":360', '"checkin_margin":120')
     const config = monitorConfig(previous)
-    const window =
-      (intervalHours(config?.schedule.value) as number) * 60 + (config?.checkin_margin ?? 0)
-    expect(window).toBeLessThan(818)
+    const window = (sentryHours(config?.schedule) as number) * 60 + (config?.checkin_margin ?? 0)
+    expect(window).toBeLessThan(931)
   })
 })
 

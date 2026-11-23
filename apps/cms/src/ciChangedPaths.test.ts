@@ -96,6 +96,10 @@ describe('which files the deployed Workers are built from', () => {
       'apps/cms/skills-lock.json',
       'skills-lock.jsonc',
       'my-skills-lock.json',
+      // only the two measuring scripts are exempt: the deploy job runs most of scripts/
+      'scripts/warm-regions.mjs',
+      'scripts/perf-probe.mjs.bak',
+      'apps/cms/scripts/perf-probe.mjs',
     ]) {
       expect(touchesSite(file), file).toBe(true)
     }
@@ -130,6 +134,9 @@ describe('which files the deployed Workers are built from', () => {
       // #309 (5 Nov 2026): the robot's weekly skills PR. Its fingerprint file sits at the root,
       // so it counted as shipping and a full deploy ran for skill text no Worker reads
       'skills-lock.json',
+      // #459 (23 Nov 2026): one number in the speed guard's probe, and a full deploy ran for it
+      'scripts/perf-probe.mjs',
+      'scripts/first-visit-burst.mjs',
     ]) {
       expect(touchesSite(file), file).toBe(false)
     }
@@ -215,6 +222,12 @@ describe('whether the deploy has anything to ship', () => {
     ]
     expect(siteChanged(push, 'abc', () => skillsRefresh)).toBe(false)
     expect(siteChanged(push, 'abc', () => [...skillsRefresh, 'apps/cms/worker.mjs'])).toBe(true)
+  })
+
+  it('skips a change to the speed guard alone, as #459 was, and deploys if a deploy script rides along', () => {
+    const speedGuard = ['scripts/perf-probe.mjs', 'apps/cms/src/perfProbe.test.ts']
+    expect(siteChanged(push, 'abc', () => speedGuard)).toBe(false)
+    expect(siteChanged(push, 'abc', () => [...speedGuard, 'scripts/beacon-probe.mjs'])).toBe(true)
   })
 
   it('deploys whenever it cannot be sure (negative control)', () => {
