@@ -91,7 +91,13 @@ export const TARGETS = [
     path: '/api/health',
     host: 'https://cms.wear-run.help',
     method: 'GET',
-    maxSeconds: 3,
+    // 5 s since 23 Nov 2026 (owner's decision); it was 3 s. A copy of the CMS Worker that has
+    // to START answers in 1.4 to 3 s, a running one in 0.35 s, and since the site-only Worker
+    // took the website's pages (#451) the CMS Worker's requests fell from about 20,000 to between
+    // 3,000 and 9,000 per half-day (Cloudflare's own count, read 23 Nov), so a
+    // check meets a fresh copy far more often. Run 45111826804 failed at 3.05 s with nothing
+    // wrong; run 45116043538 passed at 2.42 s. Over 5 s is a stall, not a start.
+    maxSeconds: 5,
   },
 ]
 

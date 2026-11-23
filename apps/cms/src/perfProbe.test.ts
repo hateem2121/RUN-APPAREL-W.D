@@ -144,4 +144,23 @@ describe('targets', () => {
       ).toBeGreaterThan(measuredWorst)
     }
   })
+
+  /**
+   * 23 Nov 2026. The health limit was 3 s, and a CMS Worker that has to start answers in up to
+   * 3.05 s (run 45111826804, which failed with nothing wrong). It is 5 s now. Below the slowest
+   * start measured it alerts on a healthy site; at or above the API's 6 s it would no longer be
+   * the tighter of the two checks on the same Worker.
+   */
+  it('gives health headroom above a fresh start, and keeps it tighter than the API', () => {
+    const health = (TARGETS as { name: string; maxSeconds: number }[]).find(
+      (t) => t.name === 'health',
+    )
+    expect(health?.maxSeconds).toBeGreaterThan(3.05)
+    expect(health?.maxSeconds).toBeLessThan(6)
+    // Negative control on the judge itself: the time that failed the old limit passes, a stall fails.
+    const at = (seconds: number) =>
+      evaluate([observation({ name: 'health', seconds, maxSeconds: health?.maxSeconds ?? 0 })])
+    expect(at(3.05).ok).toBe(true)
+    expect(at(5.5).ok).toBe(false)
+  })
 })
