@@ -83,13 +83,13 @@ the keystroke point 4 is about.
 | `web-design-guidelines` | `vercel-labs/agent-skills` @ `b8caa260a420` | **unstated** — local only since 2026-09-10 |
 | `writing-guidelines` | `vercel-labs/agent-skills` @ `b8caa260a420` | **unstated** — local only since 2026-09-10 |
 | `motion` | `motiondivision/ai-kit` @ `1140efe9ad5e` | **unstated** — local only since 2026-09-10 |
-| `seo-audit` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
-| `ai-seo` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
+| `seo-audit` | `coreyhaines31/marketingskills` @ `5b2b400eec1e` | MIT |
+| `ai-seo` | `coreyhaines31/marketingskills` @ `5b2b400eec1e` | MIT |
 | `schema` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
 | `site-architecture` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
 | `programmatic-seo` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
 | `content-strategy` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
-| `copywriting` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
+| `copywriting` | `coreyhaines31/marketingskills` @ `5b2b400eec1e` | MIT |
 | `copy-editing` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
 | `cro` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
 
