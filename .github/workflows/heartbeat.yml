@@ -376,9 +376,22 @@ jobs:
           # throughout. A watchdog that cries wolf every cycle teaches you to ignore
           # it, which is worse than no watchdog.
           #
+          # ⚠️ AN INTERVAL, NOT A CRONTAB, SINCE 23 NOV 2026. With `43 */12 * * *` Sentry expected
+          # a check-in at 00:43 and 12:43 UTC and gave up 360 minutes later, at 06:43 and 18:43. But
+          # GitHub ran this job 60 times in the 26 days to 23 Nov where 104 were scheduled, never
+          # once in the 00:43 slot, and the runs it did start began 4 to 358 minutes after their
+          # slot. So Sentry raised VIEWER-4 at exactly 06:43 and 18:43 UTC every day (27 events in
+          # 14 days) and cleared it at the next check-in, with every run of this workflow green.
+          # The window was measured against the GAP, as above, but a crontab counts from clock
+          # times, not from the last check-in: after a check-in at 07:40 the next tick is 12:43,
+          # so the real allowance was 11 hours, not 18. An interval of 12 hours is meant to count
+          # from the last check-in (Sentry, Crons "HTTP" page: `{"type": "interval", "value": 2,
+          # "unit": "hour"}`; the page does not spell out the counting, so the proof is VIEWER-4
+          # staying quiet). 12 h + 360 = 1080 minutes against a worst gap of 931 in those 60 runs.
+          #
           # Re-measure both numbers before tightening either — the gap, not the delay:
           #   gh run list --workflow=heartbeat.yml --limit 40 --json createdAt,event
-          payload='{"status":"ok","monitor_config":{"schedule":{"type":"crontab","value":"43 */12 * * *"},"checkin_margin":360,"max_runtime":30,"timezone":"UTC","failure_issue_threshold":1,"recovery_threshold":1}}'
+          payload='{"status":"ok","monitor_config":{"schedule":{"type":"interval","value":12,"unit":"hour"},"checkin_margin":360,"max_runtime":30,"timezone":"UTC","failure_issue_threshold":1,"recovery_threshold":1}}'
           curl -fsS --max-time 15 --retry 2 --retry-delay 3 --retry-all-errors \
             -o /dev/null -X POST "${SENTRY_CRON_URL}" \
             -H 'Content-Type: application/json' -d "${payload}"

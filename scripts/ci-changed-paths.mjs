@@ -80,7 +80,19 @@ const NOT_SHIPPED_FOLDERS = ['docs/', '.claude/', '.agents/', '.github/']
  * store in every region for 20 files of skill text. Named by exact path on purpose: a file of
  * the same name anywhere else is still code.
  */
-const NOT_SHIPPED_FILES = ['skills-lock.json']
+/**
+ * And two measuring scripts. `scripts/perf-probe.mjs` and `scripts/first-visit-burst.mjs` are run
+ * only by perf-watch.yml, against the live site; no Worker build, no deploy step and no other
+ * script imports either (checked 23 Nov 2026). On that day #459 changed one number in
+ * perf-probe.mjs and its test, and the merge ran a full deploy that emptied the page store in
+ * every region. Named by exact path, like the file above: any other script still counts, because
+ * most of scripts/ is run BY the deploy job and a change to one should be proven on a real deploy.
+ */
+const NOT_SHIPPED_FILES = [
+  'skills-lock.json',
+  'scripts/perf-probe.mjs',
+  'scripts/first-visit-burst.mjs',
+]
 
 /**
  * @param {string} file a repo-relative path from `git diff --name-only`

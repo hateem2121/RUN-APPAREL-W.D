@@ -40,9 +40,14 @@ jobs:
     # against production before go-live.
     if: vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-26.04
-    # ~106 requests at >=1.2s apart (crawl politeness) plus latency — measured 154.5s
-    # locally. Generous headroom for a slower run without threatening the job's budget.
-    timeout-minutes: 10
+    # One request at a time, 1.2 s apart (crawl politeness), so the time grows with the site:
+    # about 106 requests and 154.5 s when this was written; 361 fetched in 462.9 s on 9 Nov 2026
+    # (run 42629936805); 495 fetched in 735.8 s on 23 Nov 2026 (this Mac), after the Russian pages
+    # and more guides. The pauses alone were then 594 s, so the old limit of 10 minutes cancelled
+    # the runs of 16 and 23 Nov before they could print a line, and a cancelled run names no link.
+    # 30 minutes holds about 1,200 requests at the same pace. If the site outgrows that, crawl in
+    # two jobs; do not shorten the pause.
+    timeout-minutes: 30
     steps:
       - name: Network guard (Harden-Runner, watch mode)
         uses: step-security/harden-runner@v2.22.4
