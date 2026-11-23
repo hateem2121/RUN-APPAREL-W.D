@@ -1811,7 +1811,11 @@ jobs:
       - name: Pre-live analytics tag (new versions)
         env:
           CF_VERSION_PAIRS: run-apparel-viewer-cms=${{ steps.stage.outputs.cms_new }},run-apparel-viewer-site=${{ steps.stage.outputs.site_new }},run-apparel-site-only=${{ steps.stage.outputs.siteonly_new }},run-apparel-site-door=${{ steps.stage.outputs.door_new }}
-        run: NODE_OPTIONS="--import=./scripts/version-overrides-preload.mjs" node scripts/beacon-probe.mjs
+        # ⚠️ `--pages-only`: this job's network guard is in BLOCK mode and Cloudflare's script
+        # host is not on its list. Without the flag the probe passed both pages and then died
+        # asking that host ("fetch failed", exit 2), which failed the deploy of 23 Nov 2026
+        # (run 45115732500) with nothing moved. Uptime runs the whole probe, script host included.
+        run: NODE_OPTIONS="--import=./scripts/version-overrides-preload.mjs" node scripts/beacon-probe.mjs --pages-only
 
       # CMS first: the viewer reads the CMS's data, and new CMS + old viewer for a few seconds is the
       # same pairing every plain deploy has had.

@@ -2,7 +2,13 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beaconLoader } from '@run-apparel/shared'
 import { describe, expect, it } from 'vitest'
-import { hasBeaconTag } from '../../../scripts/beacon-probe.mjs'
+import {
+  BEACON_SRC,
+  hasBeaconTag,
+  PAGES,
+  PAGES_ONLY_FLAG,
+  probe,
+} from '../../../scripts/beacon-probe.mjs'
 
 /**
  * SO-12 — `hasBeaconTag` reads the WHOLE body rather than grepping line by line, because
@@ -59,5 +65,74 @@ describe('hasBeaconTag', () => {
       'staticXcloudflareinsights',
     )
     expect(hasBeaconTag(`<script>${fake}</script>`)).toBe(false)
+  })
+})
+
+/**
+ * THE DEPLOY RUNS THIS PROBE BEHIND A NETWORK GUARD THAT BLOCKS (23 Nov 2026, run 45115732500).
+ *
+ * The first deploy with the probe in it passed both pages, then asked Cloudflare's script host
+ * for the cookie check. The deploy job allows only the hosts it lists and that one is not
+ * listed, so the request failed, the step exited 2, and the deploy stopped with nothing moved.
+ * Uptime, in watch mode, had run the same command for weeks without a fault, which is why the
+ * fixture here is the guard itself: a `fetch` that refuses every host the job does not list.
+ */
+describe('the probe inside the deploy job', () => {
+  const ci = readFileSync(join(import.meta.dirname, '../../../.github/workflows/ci.yml'), 'utf8')
+  const deployJob = ci.slice(ci.indexOf('\n  deploy:\n'))
+  const allowed = (/allowed-endpoints: >-\n((?: {12}\S+\n)+)/.exec(deployJob)?.[1] ?? '')
+    .split('\n')
+    .map((line) => line.trim().replace(/:\d+$/, ''))
+    .filter(Boolean)
+  const scriptHost = new URL(`https://${BEACON_SRC}`).hostname
+  const page = '<script src="https://static.cloudflareinsights.com/beacon.min.js"></script>'
+
+  /** The deploy job's guard: a host that is not on its list cannot be reached. */
+  const guarded = (async (input: RequestInfo | URL) => {
+    const host = new URL(String(input)).hostname
+    if (!allowed.includes(host)) throw new TypeError('fetch failed')
+    return new Response(page)
+  }) as typeof fetch
+
+  it('the job blocks, lists our own hosts, and does not list Cloudflare’s script host', () => {
+    expect(deployJob).toContain('egress-policy: block')
+    for (const url of PAGES) expect(allowed, url).toContain(new URL(url).hostname)
+    expect(allowed).not.toContain(scriptHost)
+  })
+
+  it('with the flag it asks our pages only, and passes behind the guard', async () => {
+    const asked: string[] = []
+    const failures = await probe({
+      fetchImpl: ((input: RequestInfo | URL) => {
+        asked.push(new URL(String(input)).hostname)
+        return guarded(input)
+      }) as typeof fetch,
+      pagesOnly: true,
+      log: () => {},
+    })
+    expect(failures).toEqual([])
+    expect(asked).toEqual(PAGES.map((url) => new URL(url).hostname))
+  })
+
+  it('negative control: without the flag the same guard stops it, as it stopped the deploy', async () => {
+    await expect(probe({ fetchImpl: guarded, pagesOnly: false, log: () => {} })).rejects.toThrow(
+      'fetch failed',
+    )
+  })
+
+  it('negative control: a page with no tag still fails with the flag', async () => {
+    const failures = await probe({
+      fetchImpl: (async () => new Response('<html></html>')) as typeof fetch,
+      pagesOnly: true,
+      log: () => {},
+    })
+    expect(failures).toHaveLength(PAGES.length)
+    expect(failures[0]).toContain('CF_ANALYTICS_TOKEN')
+  })
+
+  it('every use of the probe in the deploy job carries the flag', () => {
+    const uses = deployJob.match(/node scripts\/beacon-probe\.mjs[^\n]*/g) ?? []
+    expect(uses.length).toBeGreaterThan(0)
+    for (const use of uses) expect(use).toContain(PAGES_ONLY_FLAG)
   })
 })
