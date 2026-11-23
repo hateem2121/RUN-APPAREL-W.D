@@ -23,6 +23,9 @@ import { escapeRegExp } from '../apps/cms/regexEscape.mjs'
 export const PAGES = ['https://wear-run.com/', 'https://wear-run.com/products/rxps/wine']
 export const BEACON_SRC = 'static.cloudflareinsights.com/beacon.min.js'
 
+/** Ask our own pages only, never Cloudflare's script host (the note in main() says why). */
+export const PAGES_ONLY_FLAG = '--pages-only'
+
 /**
  * Where to look first when a page has no tag. 22 Nov 2026 (issue #455): the site-only Worker
  * went live without CF_ANALYTICS_TOKEN, a website page draws nothing without it, and this probe
@@ -48,35 +51,53 @@ export function hasBeaconTag(html) {
   return tag.test(html) || loader.test(html)
 }
 
-async function main() {
+/**
+ * The probe itself, with the two things a test needs to hand in: what fetches, and the flag.
+ * @param {{ fetchImpl?: typeof fetch, pagesOnly?: boolean, log?: (line: string) => void }} [options]
+ * @returns {Promise<string[]>} what failed; empty when nothing did
+ */
+export async function probe({ fetchImpl = fetch, pagesOnly = false, log = console.log } = {}) {
   const failures = []
 
   for (const page of PAGES) {
-    const res = await fetch(page, { headers: { accept: 'text/html' } })
+    const res = await fetchImpl(page, { headers: { accept: 'text/html' } })
     if (res.status === 403 || res.status === 429) {
-      console.log(`⚠️  ${page} returned ${res.status} — INCONCLUSIVE (Bot Fight Mode).`)
+      log(`⚠️  ${page} returned ${res.status} — INCONCLUSIVE (Bot Fight Mode).`)
       continue
     }
     const html = await res.text()
     if (!hasBeaconTag(html)) {
       failures.push(`${page} carries no Cloudflare beacon script tag. ${MISSING_TAG_HINT}`)
     } else {
-      console.log(`   ${page} carries the beacon tag`)
+      log(`   ${page} carries the beacon tag`)
     }
   }
 
   // Cookieless: GET the beacon script itself and confirm no Set-Cookie. Not plantable —
   // that would mean adding a real cookie to Cloudflare's own third-party script, which
   // this repo cannot do — so this half is proven only by today's live evidence.
-  const beaconRes = await fetch(`https://${BEACON_SRC}`)
-  if (beaconRes.status === 403 || beaconRes.status === 429) {
-    console.log(`⚠️  https://${BEACON_SRC} returned ${beaconRes.status} — INCONCLUSIVE.`)
+  //
+  // ⚠️ NOT IN THE DEPLOY (`--pages-only`). The deploy job's network guard is in BLOCK mode and
+  // allows only the hosts it lists (ci.yml, `allowed-endpoints`); Cloudflare's script host is
+  // not one of them, and need not be: this half says nothing about our new versions. On
+  // 23 Nov 2026 (run 45115732500) the first deploy with this probe in it passed both pages,
+  // then died here on "fetch failed", exit 2, and nothing was moved to 100%.
+  const beaconRes = pagesOnly ? null : await fetchImpl(`https://${BEACON_SRC}`)
+  if (!beaconRes) {
+    log(`   https://${BEACON_SRC} not asked (${PAGES_ONLY_FLAG}); Uptime asks it`)
+  } else if (beaconRes.status === 403 || beaconRes.status === 429) {
+    log(`⚠️  https://${BEACON_SRC} returned ${beaconRes.status} — INCONCLUSIVE.`)
   } else if (beaconRes.headers.get('set-cookie')) {
     failures.push(`https://${BEACON_SRC} set a cookie: ${beaconRes.headers.get('set-cookie')}.`)
   } else {
-    console.log(`   https://${BEACON_SRC} sets no cookie`)
+    log(`   https://${BEACON_SRC} sets no cookie`)
   }
 
+  return failures
+}
+
+async function main() {
+  const failures = await probe({ pagesOnly: process.argv.includes(PAGES_ONLY_FLAG) })
   if (failures.length > 0) {
     for (const f of failures) console.error(`::error::${f}`)
     process.exit(1)
