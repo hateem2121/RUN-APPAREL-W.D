@@ -319,10 +319,67 @@ describe('IndexNow on publish (E10)', () => {
     const broken = vi.fn(async () => {
       throw new Error('offline')
     })
-    await expect(sendIndexNow(['https://wear-run.com/journal'], broken, report)).resolves.toBe(
-      false,
-    )
+    await expect(
+      sendIndexNow(['https://wear-run.com/journal'], broken, report, async () => {}),
+    ).resolves.toBe(false)
     expect(report).toHaveBeenCalledTimes(2)
+  })
+
+  /*
+   * Sentry CMS-F, 21 Nov 2026: three garment saves in 15 seconds each got 525 from the one
+   * request, and the pages were never announced. 525 is Cloudflare's own answer when its secure
+   * connection to the other server (here Microsoft's, which runs api.indexnow.org) does not
+   * complete; IndexNow's documentation lists 200, 202, 400, 403, 422 and 429 only.
+   */
+  it('asks once more when the connection failed, and reports nothing if that works', async () => {
+    const report = vi.fn(async () => {})
+    const pause = vi.fn(async () => {})
+    const answers = [525, 200]
+    const post = vi.fn(async () => new Response('', { status: answers.shift() ?? 500 }))
+    await expect(sendIndexNow(['https://wear-run.com/journal'], post, report, pause)).resolves.toBe(
+      true,
+    )
+    expect(post).toHaveBeenCalledTimes(2)
+    expect(pause).toHaveBeenCalledTimes(1)
+    expect(report).not.toHaveBeenCalled()
+
+    let calls = 0
+    const dropped = vi.fn(async () => {
+      calls += 1
+      if (calls === 1) throw new Error('offline')
+      return new Response('', { status: 202 })
+    })
+    await expect(
+      sendIndexNow(['https://wear-run.com/journal'], dropped, report, pause),
+    ).resolves.toBe(true)
+    expect(dropped).toHaveBeenCalledTimes(2)
+    expect(report).not.toHaveBeenCalled()
+  })
+
+  it('asks twice at most, then reports the last answer once', async () => {
+    const report = vi.fn(async (_where: string, _error: unknown) => {})
+    const post = vi.fn(async () => new Response('', { status: 525 }))
+    await expect(
+      sendIndexNow(['https://wear-run.com/journal'], post, report, async () => {}),
+    ).resolves.toBe(false)
+    expect(post).toHaveBeenCalledTimes(2)
+    expect(report).toHaveBeenCalledTimes(1)
+    expect(String(report.mock.calls[0]?.[1])).toContain('IndexNow answered 525')
+  })
+
+  it('does not ask again when IndexNow itself said no', async () => {
+    // Its own refusals: a second identical request gets the same answer, and 429 means "too often".
+    for (const status of [400, 403, 422, 429]) {
+      const report = vi.fn(async () => {})
+      const pause = vi.fn(async () => {})
+      const post = vi.fn(async () => new Response('', { status }))
+      await expect(
+        sendIndexNow(['https://wear-run.com/journal'], post, report, pause),
+      ).resolves.toBe(false)
+      expect(post).toHaveBeenCalledTimes(1)
+      expect(pause).not.toHaveBeenCalled()
+      expect(report).toHaveBeenCalledTimes(1)
+    }
   })
 
   it('posts JSON to the endpoint and counts 200 and 202 as sent', async () => {
