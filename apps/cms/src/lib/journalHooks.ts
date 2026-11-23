@@ -245,31 +245,63 @@ export function indexNowBody(host: string, urlList: readonly string[]) {
 
 type Post = (url: string, init: RequestInit) => Promise<Response>
 type Report = (where: string, error: unknown) => Promise<void>
+type Pause = (ms: number) => Promise<void>
+
+/** How long to wait before the one second try (`sendIndexNow`). */
+const INDEXNOW_RETRY_PAUSE_MS = 2_000
 
 /**
  * Sends the list. 200 and 202 are success (202: the key is still being checked). Anything
  * else, and any network failure, is reported and answered `false`. ⚠️ NEVER THROWS: it runs
  * after the owner's save has already succeeded, and a search engine being unreachable must
  * never look like a failed publish.
+ *
+ * ⚠️ ONE SECOND TRY, ONLY WHEN THE CONNECTION FAILED (Sentry CMS-F, 21 Nov 2026). Three garment
+ * saves in 15 seconds each got 525, and those pages were never announced: nothing sends a save's
+ * addresses again. 525 is Cloudflare's answer when its secure connection to the other server did
+ * not complete (its "Error 525" page); api.indexnow.org is Microsoft's server, and IndexNow's
+ * documentation lists 200, 202, 400, 403, 422 and 429 only. So a 5xx or a thrown request is tried
+ * once more after a pause, and IndexNow's own refusals (4xx) are not: the same request gets the
+ * same answer, and 429 means "too often". Two tries of 10 s and the pause stay inside the 30 s a
+ * Worker's `waitUntil` is given after the response.
  */
 export async function sendIndexNow(
   urlList: readonly string[],
   post: Post = fetch,
   report: Report = reportCaught,
+  pause: Pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 ): Promise<boolean> {
+  const ask = async (): Promise<number | Error> => {
+    try {
+      const host = new URL(urlList[0] ?? SITE_ORIGIN).host
+      const res = await post(INDEXNOW_ENDPOINT, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json; charset=utf-8' },
+        body: JSON.stringify(indexNowBody(host, urlList)),
+        signal: AbortSignal.timeout(10_000),
+      })
+      return res.status
+    } catch (error) {
+      return error instanceof Error ? error : new Error(String(error))
+    }
+  }
+  const sent = (answer: number | Error) => answer === 200 || answer === 202
+  const connectionFailed = (answer: number | Error) => answer instanceof Error || answer >= 500
   try {
-    const host = new URL(urlList[0] ?? SITE_ORIGIN).host
-    const res = await post(INDEXNOW_ENDPOINT, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json; charset=utf-8' },
-      body: JSON.stringify(indexNowBody(host, urlList)),
-      signal: AbortSignal.timeout(10_000),
-    })
-    if (res.status === 200 || res.status === 202) return true
-    await report('indexnow.publish', new Error(`IndexNow answered ${res.status}`))
+    let answer = await ask()
+    if (!sent(answer) && connectionFailed(answer)) {
+      await pause(INDEXNOW_RETRY_PAUSE_MS)
+      answer = await ask()
+    }
+    if (sent(answer)) return true
+    await report(
+      'indexnow.publish',
+      answer instanceof Error ? answer : new Error(`IndexNow answered ${answer}`),
+    )
     return false
   } catch (error) {
-    await report('indexnow.publish', error)
+    // Only `pause` or `report` can throw here; the rule above still holds.
+    await report('indexnow.publish', error).catch(() => {})
     return false
   }
 }
