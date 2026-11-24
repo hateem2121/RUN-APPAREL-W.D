@@ -392,15 +392,25 @@ test.describe('a browser that asks for Russian first, on an English page', () =>
     })
   }
 
-  for (const width of [375, 1280] as const) {
-    test(`at ${width}px no control a keyboard reaches is hidden under it (WCAG 2.4.11)`, async ({
+  /*
+   * A guide and a policy page (2026-11-24): each has a link at the very top of the page (the guide's
+   * label, the policy's "Home" and "Policies"), where the page cannot scroll up to clear it, so the
+   * note steps down instead (`stepNoteBelow`). Until then only the guide was walked, and the policy
+   * pages' two links sat wholly under the note at 375px.
+   */
+  for (const [width, path] of [
+    [375, EN],
+    [1280, EN],
+    [375, '/policies/quality'],
+  ] as const) {
+    test(`${path} at ${width}px: no control a keyboard reaches is hidden under the note (WCAG 2.4.11)`, async ({
       page,
       browserName,
     }) => {
       // Safari tabs to links only with Option held (its default setting).
       const tab = browserName === 'webkit' ? 'Alt+Tab' : 'Tab'
       await page.setViewportSize({ width, height: 700 })
-      await open(page, EN)
+      await open(page, path)
       await touchThePage(page)
       await expect(note(page)).toBeVisible()
 

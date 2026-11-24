@@ -3301,6 +3301,8 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
     sections: [
       {
         heading: 'From your color to the bulk fabric',
+        // One of the owner's factory photos, beside the words that name it (the guides audit, 2026-11-24).
+        photo: 'lab',
         blocks: [
           {
             kind: 'text',
@@ -5507,6 +5509,8 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
       },
       {
         heading: 'On our floor',
+        // One of the owner's factory photos, beside the words that name it (the guides audit, 2026-11-24).
+        photo: 'stitching',
         blocks: [
           {
             kind: 'text',
@@ -6466,6 +6470,8 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
       },
       {
         heading: 'When is an order inspected?',
+        // One of the owner's factory photos, beside the words that name it (the guides audit, 2026-11-24).
+        photo: 'final-check',
         blocks: [
           {
             kind: 'text',

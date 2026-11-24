@@ -173,6 +173,13 @@ const SEARCH_WORDING = '2026-11-15T11:30:02+05:00'
 /** The ball guide shows all four balls in 3D, not the Kaizen alone (owner, 2026-11-21). */
 const FOUR_BALLS = '2026-11-21T13:57:02+05:00'
 /**
+ * Four guides gained one of the owner's factory photos beside words that name it: packing, the color
+ * cabinet, the sewing floor and the final check (the guides audit, owner 2026-11-24). No word changed.
+ */
+const PHOTOS_PLACED = '2026-11-24T10:38:07+05:00'
+/** The ball guide's making steps, eight lines the owner approved (2026-11-24; `guides.ts`). */
+const MAKING_STEPS = '2026-11-24T10:27:19+05:00'
+/**
  * The vetting guide's note that SECP's eServices site may not open outside Pakistan (owner,
  * 2026-11-15), after the weekly source check timed out on it from the US (issue #394). It replaces
  * the guide's previous change date, its SECP QR-code line (owner approved as written,
@@ -223,8 +230,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/private-label-packaging': byline(
     AUTHORS.merchandiser,
     GUIDES_2,
-    SITE_CHECK,
-    '42dd0cb36541',
+    PHOTOS_PLACED,
+    '50f875c0fbd0',
   ),
   '/guides/shipping-and-import-duties': byline(
     AUTHORS.merchandiser,
@@ -249,8 +256,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/how-soccer-balls-are-made': byline(
     AUTHORS.production,
     WAVE_ONE,
-    FOUR_BALLS,
-    '9ffd045c88dc',
+    MAKING_STEPS,
+    '83e9d14145e4',
   ),
   '/guides/how-we-write-our-guides': byline(
     AUTHORS.contentTeam,
@@ -287,7 +294,12 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     GUIDE_PHOTOS,
     'd496addb82bc',
   ),
-  '/guides/dyeing-and-color-matching': byline(AUTHORS.production, LIBRARY, LIBRARY, 'ea6796c8deb0'),
+  '/guides/dyeing-and-color-matching': byline(
+    AUTHORS.production,
+    LIBRARY,
+    PHOTOS_PLACED,
+    '2ae23df749a8',
+  ),
   '/guides/garment-cutting': byline(AUTHORS.production, LIBRARY, LIBRARY, '639a05723561'),
   '/guides/sportswear-compliance-by-market': byline(
     AUTHORS.merchandiser,
@@ -307,7 +319,12 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
     TECH_PACK_AND_TOOLS,
     '68ac190a4b52',
   ),
-  '/guides/how-to-order-team-kits': byline(AUTHORS.merchandiser, LIBRARY, LIBRARY, 'fa70bce55438'),
+  '/guides/how-to-order-team-kits': byline(
+    AUTHORS.merchandiser,
+    LIBRARY,
+    PHOTOS_PLACED,
+    '0d1975af20bf',
+  ),
   '/guides/apparel-manufacturing-technology': byline(
     AUTHORS.contentTeam,
     LIBRARY,
@@ -326,8 +343,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/aql-inspection': byline(
     AUTHORS.merchandiser,
     HELD_GUIDES_LIVE,
-    HELD_GUIDES_LIVE,
-    'df55a18eba36',
+    PHOTOS_PLACED,
+    '1f7b3119ae5f',
   ),
   '/guides/fabric-and-garment-testing': byline(
     AUTHORS.production,

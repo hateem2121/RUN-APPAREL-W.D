@@ -3596,6 +3596,98 @@ a.contact-block__value:active {
   color: var(--muted);
 }
 
+/*
+ * A reference garment's own picture beside its link (the guides audit, owner 2026-11-24: "Turn our
+ * balls in 3D" was four bare names). 64 by 80px, the pictures' own 4:5, drawn whole (`contain`), on
+ * the card ground the gallery gives them. The line under the link starts where the name does.
+ */
+.see-also__thumb {
+  flex: none;
+  inline-size: 64px;
+  block-size: 80px;
+  margin-inline-end: 16px;
+  border-radius: var(--radius-chip);
+  background: var(--surface);
+  object-fit: contain;
+}
+
+.see-also__pictured {
+  margin-block-end: 12px;
+}
+
+.see-also__pictured .see-also__why {
+  margin-inline-start: 80px;
+}
+
+/*
+ * A link's card (LinkPreview.tsx, 2026-11-24): the linked page's own name and description, or a
+ * garment's picture, beside the link for a mouse or the keyboard. A raised paper card, as the
+ * cookie card is: a hairline on all four sides and the one shadow token, no blur behind it
+ * (VC-08). It fades; it grows 3% from the link only where motion is welcome. Over the page and
+ * under the bar, the language note's layer: the two are never open on the same spot.
+ */
+.link-preview__place {
+  z-index: var(--z-language-note);
+}
+
+.link-preview {
+  box-sizing: border-box;
+  inline-size: max-content;
+  max-inline-size: min(304px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--raised);
+  box-shadow: var(--shadow-raised);
+  color: var(--text);
+  transform-origin: var(--transform-origin);
+  transition: opacity var(--instant) var(--ease);
+}
+
+.link-preview[data-starting-style],
+.link-preview[data-ending-style] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .link-preview {
+    transition:
+      opacity var(--fast) var(--ease),
+      scale var(--fast) var(--ease);
+  }
+
+  .link-preview[data-starting-style],
+  .link-preview[data-ending-style] {
+    scale: 0.97;
+  }
+}
+
+.link-preview__img {
+  display: block;
+  inline-size: 176px;
+  block-size: 220px;
+  margin-block-end: 12px;
+  border-radius: var(--radius-chip);
+  background: var(--surface);
+  object-fit: contain;
+}
+
+.link-preview .link-preview__title {
+  margin: 0;
+  font-size: var(--text-card-title);
+  font-weight: 700;
+  letter-spacing: var(--tracking-card-title);
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.link-preview .link-preview__text {
+  margin: 4px 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
 /* The links at the end of a guide are drawn the same way (`.see-also__list`, polish X22). */
 .legal__toc a,
 .see-also__list a {
@@ -3665,6 +3757,74 @@ a.contact-block__value:active {
 }
 
 /*
+ * ⚠️ A GUIDE NAMES ITS PARTS UNDER ITS INTRO (the guides audit, 2026-11-24). Measured that day on the
+ * live site: the median guide is 17 phone screens long (the longest 31) with 7 to 20 sections, and no
+ * guide had a list of them. "On this page" is the legal pages' own list (OnThisPage.tsx): beside the
+ * lede and byline from 900px, in the half of the hero that was empty, and under the byline on a
+ * phone. Below 900px the wrapper draws no box (`display: contents`), so the lede and byline sit
+ * exactly where they did. Not sticky here: a guide's hero scrolls away with its headline.
+ */
+.guide-intro {
+  display: contents;
+}
+
+.guide-toc {
+  margin-block-start: 32px;
+}
+
+@media (min-width: 900px) {
+  .guide-intro {
+    display: grid;
+    /* The halves a section's heading and its words use below (`.spread`), so the list starts on
+       the same line as the words under it. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    /* The byline keeps its place under the lede: a list taller than both gives its extra height to
+       the second row, below the byline, never between the two. */
+    grid-template-rows: auto 1fr;
+    column-gap: 64px;
+    align-items: start;
+  }
+
+  .guide-intro > :not(.guide-toc) {
+    grid-column: 1;
+  }
+
+  .guide-intro > .guide-toc {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    position: static;
+    margin-block-start: 16px;
+  }
+}
+
+/*
+ * The guide's label is the way back to every guide (GuidePage.tsx), and it is read, so 12px on a
+ * phone where the other pages' labels keep 10px (the audit's detector: text under 11px). `max()`
+ * keeps the 13px step from 1920px (tokens.css). The link inside the chip is 44px tall: its padding
+ * reaches past the chip and its margin takes the same back, so the chip, the headline under it and
+ * the 10px between them (e2e/composition.spec.ts) are where they were. Nothing else can be tapped
+ * within that reach: the bar is above the hero's padding and the headline below is not a link.
+ */
+.site-hero .label--guide {
+  font-size: max(var(--text-mono-sm), var(--text-mono-lg));
+}
+
+.label__way {
+  display: inline-block;
+  margin-block: -13px;
+  padding-block: 13px;
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .label__way:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+/*
  * A guide's source list, a little narrower again (6 Nov 2026). A source is a name — an author list,
  * "Légifrance, Décret n° 2022-748", a register's title — so its lines carry more narrow letters,
  * commas and digits than prose: three set 76 and 77 characters at 28.635em (486.8px) in CI's
@@ -3684,6 +3844,27 @@ a.contact-block__value:active {
 /* A hyphenated word in a guide's heading, kept on one line (`WholeWords` in GuidePage.tsx; TY-12). */
 .whole-word {
   white-space: nowrap;
+}
+
+/*
+ * ⚠️ UNLESS THE READER'S TEXT SIZE LEAVES THE WORD NO ROOM (the guides audit, 2026-11-24). With the
+ * browser's text size doubled, "duty-free?", "Ring-spun," and "tech-pack" ran 15 to 47px past a
+ * 390px phone (WCAG 1.4.4). Each guide heading is a container, and a heading narrower than 14rem lets
+ * the word break at its hyphen again. At the default size the narrowest heading is 17.5rem (a 280px
+ * column at 320px wide), so TY-12 still holds everywhere it did; with the text doubled a 390px
+ * phone's 350px column is 10.9rem. In rem, the reader's own text size, so the rule answers to
+ * exactly the setting that causes the overflow. Measured in Chromium, Firefox and WebKit: the word
+ * breaks in two and the page is 0px wider than the screen (e2e/guideParts.spec.ts).
+ */
+.hero-guide,
+.prose--guide .display--section {
+  container-type: inline-size;
+}
+
+@container (width < 14rem) {
+  .whole-word {
+    white-space: normal;
+  }
 }
 
 /*
@@ -3875,7 +4056,10 @@ a.contact-block__value:active {
   max-width: 28.635em;
 }
 
-@container (width < 600px) {
+/* In em since 2026-11-24 (35.29em is 600px at the 17px body size): with the reader's text size
+   doubled the column holds half as many letters, and nine Russian guides' tables ran up to 818px
+   past a 1440px screen while the query still read 600px as wide enough. */
+@container (width < 35.29em) {
   .guide-table--stack,
   .guide-table--stack :is(caption, tbody, tr, th, td) {
     display: block;
@@ -3919,7 +4103,9 @@ a.contact-block__value:active {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 5px;
-  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  /* 55% since 2026-11-24: the line is what marks the link (WCAG 1.4.11, 3:1). At 45% it measured
+     2.75:1 on the page's paper; 55% is 3.61:1 there and 5.11:1 in the dark scheme. */
+  text-decoration-color: color-mix(in srgb, currentColor 55%, transparent);
   transition:
     text-decoration-color var(--ui) var(--ease),
     scale var(--instant) var(--ease);

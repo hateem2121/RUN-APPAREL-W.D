@@ -2110,6 +2110,7 @@ export const LIBRARY_GUIDES_RU_B: readonly Guide[] = [
       },
       {
         heading: 'На нашем производстве',
+        photo: 'stitching',
         blocks: [
           {
             kind: 'text',
@@ -3096,6 +3097,7 @@ export const LIBRARY_GUIDES_RU_B: readonly Guide[] = [
       },
       {
         heading: 'Когда проверяют заказ?',
+        photo: 'final-check',
         blocks: [
           {
             kind: 'text',
