@@ -3344,6 +3344,7 @@ export const LIBRARY_GUIDES_RU_A: readonly Guide[] = [
     sections: [
       {
         heading: 'От вашего цвета до ткани для партии',
+        photo: 'lab',
         blocks: [
           {
             kind: 'text',

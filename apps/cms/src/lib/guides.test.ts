@@ -375,7 +375,28 @@ describe('a guide shows a factory photo only beside words that name it (polish X
       'confirmed against a physical sample',
     ],
     ['/guides/private-label-packaging', 'Where it happens', 'tagging', 'Tagging'],
+    // Four more of the owner's photos, each beside words that name it (the guides audit, owner
+    // 2026-11-24: "place existing photos where they fit"; 17 of 31 guide pages had no picture).
+    [
+      '/guides/private-label-packaging',
+      'Where packing sits in the order',
+      'packing',
+      'Packing comes last',
+    ],
     ['/guides/shipping-and-import-duties', 'The price terms we quote', 'exterior', 'our buildings'],
+    [
+      '/guides/dyeing-and-color-matching',
+      'From your color to the bulk fabric',
+      'lab',
+      'our color cabinet',
+    ],
+    ['/guides/how-to-order-team-kits', 'On our floor', 'stitching', 'sewn on our one site'],
+    [
+      '/guides/aql-inspection',
+      'When is an order inspected?',
+      'final-check',
+      'final AQL inspection',
+    ],
   ] as const
 
   const shown = GUIDES.flatMap((guide) =>

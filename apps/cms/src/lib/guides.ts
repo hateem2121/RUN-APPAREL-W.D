@@ -1630,6 +1630,8 @@ export const GUIDES: readonly Guide[] = [
       },
       {
         heading: 'Where packing sits in the order',
+        // One of the owner's factory photos, beside the words that name it (the guides audit, 2026-11-24).
+        photo: 'packing',
         blocks: [
           {
             kind: 'text',
@@ -2972,6 +2974,38 @@ export const GUIDES: readonly Guide[] = [
             title: 'Hybrid',
             // The Kaizen page's own "Trinity Technology" answer (`familyPages.ts`), another page.
             text: 'Two or more builds in one ball. Our Kaizen is one: its panels are thermobonded, then machine stitched; the last panel is closed by hand, and the seams are sealed.',
+          },
+        ],
+      },
+      {
+        /*
+         * The making steps (owner, 2026-11-24). Search Console, 26 Oct to 23 Nov: the page ranked 11
+         * to 16 for "how are soccer balls made" and its variants, with no steps on it. The owner
+         * ticked each of the eight steps as done on RUN's own floor and approved these words that
+         * day; no step here comes from another maker or an outside source. Three lines were reworded
+         * the same day, with the owner's yes, so that no run of five words is said twice on the page
+         * (the repeat check in `guides.test.ts`): "stitched inside out", "before the ball is closed",
+         * and a closing line without "joined with heat and glue".
+         */
+        heading: 'How a stitched ball is made, step by step',
+        blocks: [
+          {
+            kind: 'list',
+            ordered: true,
+            items: [
+              'The cover material is glued to its backing layers in flat sheets.',
+              'Panels are cut from the sheets with a die.',
+              'Logos and artwork are printed on the flat panels.',
+              'The panels are stitched inside out, by hand or by machine.',
+              'The bladder goes in before the ball is closed.',
+              'The last seam is closed by hand.',
+              'Each ball is inflated and checked for shape, weight and air loss.',
+              'The balls are cleaned and packed for shipping.',
+            ],
+          },
+          {
+            kind: 'text',
+            text: 'A thermobonded ball has no stitching step.',
           },
         ],
       },

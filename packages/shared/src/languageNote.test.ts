@@ -7,6 +7,7 @@ import {
   LANGUAGE_NOTE_STORAGE_KEY,
   LANGUAGE_NOTE_WORDS,
   liftClearOfNote,
+  stepNoteBelow,
   offeredLanguage,
   PERSON_EVENTS,
   READ_IN_ENGLISH,
@@ -219,6 +220,28 @@ describe('watchForPerson: the note waits for a person', () => {
     page.fire('pointerdown', true)
     expect(onPerson).not.toHaveBeenCalled()
     expect(page.count()).toBe(0)
+  })
+})
+
+describe('stepNoteBelow: at the top of a page the note moves, because the page cannot (2026-11-24)', () => {
+  // The website at 375px: the two-row note under the bar, and a guide's label link beneath it.
+  const note = { top: 68, bottom: 182, left: 8, right: 367 }
+  const label = { top: 74, bottom: 119, left: 28, right: 136 }
+
+  it('steps down to just under the element when the page is at its top', () => {
+    expect(stepNoteBelow(note, label, 0, 700)).toBe(119 - 68 + 8)
+    // Scrolled a little, but by less than the lift needs (182 - 74 + 8 = 116px).
+    expect(stepNoteBelow(note, label, 100, 700)).toBe(119 - 68 + 8)
+  })
+
+  it('does not move when the page has room to scroll the element clear', () => {
+    expect(stepNoteBelow(note, label, 116, 700)).toBe(0)
+    expect(stepNoteBelow(note, label, 900, 700)).toBe(0)
+  })
+
+  it('does not move for an element that is not under the note', () => {
+    expect(stepNoteBelow(note, { top: 200, bottom: 244, left: 28, right: 136 }, 0, 700)).toBe(0)
+    expect(stepNoteBelow(note, { top: 74, bottom: 119, left: 380, right: 420 }, 0, 700)).toBe(0)
   })
 })
 
