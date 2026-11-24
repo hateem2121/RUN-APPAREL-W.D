@@ -103,6 +103,11 @@ updates:
       # Only these two versions are ignored, so the next release opens its own PR to be tested.
       - dependency-name: "@playwright/test"
         versions: ["1.65.0", "1.65.1"]
+      # Held at 14.12.0 (docs/DEPENDENCY-HOLDS.md, 2026-11-24): 14.14.0 adds 1,098 bytes to the
+      # viewer's motion chunk and puts the script budget over by 619 bytes in CI. Only these two
+      # versions are ignored, so the next release opens its own pull request to be weighed.
+      - dependency-name: motion
+        versions: ["14.13.0", "14.14.0"]
 
   # The shrink container's own packages (apps/shrink/container), since 2026-10-03: the one
   # package list Dependabot did not reach. It is not a pnpm workspace member and keeps its
