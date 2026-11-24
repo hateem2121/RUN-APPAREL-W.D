@@ -2000,20 +2000,6 @@ jobs:
       - name: Post-deploy security.txt and redirect headers
         run: node scripts/public-security-probe.mjs
 
-      # The outside check of the keep step above: each live list must name THIS release, and every
-      # earlier file this run kept must answer from the live site with its own type and size.
-      # ⚠️ A WARNING, NOT A FAILED DEPLOY, FOR NOW (added 23 Nov 2026): the first run has no earlier
-      # list to keep from, and whether Cloudflare serves a new list at once under the hashed files'
-      # one-year header was not known when this was written. Read its lines after each deploy; make
-      # it fatal once two deploys in a row have kept files and passed.
-      - name: Post-deploy check that earlier releases' files still answer
-        timeout-minutes: 3
-        continue-on-error: true
-        run: |
-          node scripts/keep-earlier-files.mjs --check --saved "$RUNNER_TEMP/kept-viewer.json"
-          node scripts/keep-earlier-files.mjs --check --saved "$RUNNER_TEMP/kept-site-only.json"
-          node scripts/keep-earlier-files.mjs --check --saved "$RUNNER_TEMP/kept-whole.json"
-
       # Tells search engines only about the pages this push changed (2026-10-07, plan E10).
       # `before` is the commit main pointed at before the push; the script fetches it on its own
       # (the checkout above is shallow) and falls back to the whole sitemap when it cannot.
@@ -2045,6 +2031,23 @@ jobs:
         env:
           BUILT_BEFORE: ${{ steps.site-before.outputs.build }}
         run: node scripts/warm-regions.mjs https://wear-run.com "--built-before=$BUILT_BEFORE"
+
+      # The outside check of the keep step above: each live list must name THIS release, and every
+      # earlier file this run kept must answer from the live site with its own type and size.
+      # ⚠️ IT FAILS THE RUN SINCE 24 NOV 2026. It was a warning from 23 Nov until two deploys in a
+      # row had kept files and passed: runs 45251167123 (14 viewer files) and 45327058933 (28 viewer
+      # files, 6 for each website build, every one answering). A page opened before a deploy that
+      # cannot load its script is a broken page for that visitor, so a release that loses a kept
+      # file must be seen. It exits 1 when a live list does not name this release or a kept file
+      # does not answer; with no saved list it warns and passes (scripts/keep-earlier-files.mjs).
+      # ⚠️ LAST OF THE POST-DEPLOY STEPS, ON PURPOSE: the site is already live when this runs, so a
+      # failure here must not skip the IndexNow ping or the regions' warm-up above.
+      - name: Post-deploy check that earlier releases' files still answer
+        timeout-minutes: 3
+        run: |
+          node scripts/keep-earlier-files.mjs --check --saved "$RUNNER_TEMP/kept-viewer.json"
+          node scripts/keep-earlier-files.mjs --check --saved "$RUNNER_TEMP/kept-site-only.json"
+          node scripts/keep-earlier-files.mjs --check --saved "$RUNNER_TEMP/kept-whole.json"
 
       # Put the rollback command where someone will actually be looking.
       #

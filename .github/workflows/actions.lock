@@ -75,7 +75,7 @@ workflows:
         - 'actions/download-artifact@v8.0.2'
         - 'actions/upload-artifact@v7.0.2'
         - 'aquasecurity/trivy-action@v0.36.0'
-        - 'github/codeql-action@v4.39.1'
+        - 'github/codeql-action@v4.39.3'
         - 'ossf/scorecard-action@v2.5.0'
         - 'step-security/harden-runner@v2.22.4'
     '.github/workflows/tool-versions.yml':
@@ -148,9 +148,9 @@ dependencies:
         uses:
             - 'actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae'
             - 'aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514'
-    'github/codeql-action@v4.39.1':
-        ref: 'v4.39.1'
-        commit: 'sha1-9b3254085494b55a0f7c4c2b3d2d52cc712ce370'
+    'github/codeql-action@v4.39.3':
+        ref: 'v4.39.3'
+        commit: 'sha1-33d7b85da1a04171e211befe2c739303b9a4c066'
         owner_id: 9919
         repo_id: 259445878
     'ossf/scorecard-action@v2.5.0':
