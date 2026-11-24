@@ -356,6 +356,16 @@ fastest first:
    the door on no route: its check says "no version of run-apparel-site-door answered" as a
    warning and carries on.
 
+**Where the door's own wait goes (since 24 Nov 2026).** A copy of the door that has just started
+reads three things before it can ask the store, and says how long each took in the answer's
+`Server-Timing` header: `door-switch` (the `front-door` switch), `door-flags` (the
+`page-store-build` flag) and `door-build` (the site's build-name file). A copy that still
+remembers them adds nothing, so most answers carry no `door-` marks. A wait of 100 ms or more is
+also one line in Workers Logs with the field `doorWait`. Why: on 23 Nov 2026 the first garment
+data requests from Sydney after a quiet spell took 582 to 862 ms as store hits, and about 400 ms
+of that was in these three reads with nothing measuring them. Read the marks with
+`curl -s -o /dev/null -D - https://cms.wear-run.help/api/public/viewer/rxps/wine`.
+
 **How the door is deployed (since 21 Nov 2026).** With the other two Workers: `ci.yml` uploads its
 new version, stages it at 0%, and the pre-live checks name it in the override header, so they
 pass through the NEW door. `https://wear-run.com/products/__door/version` answers which version
