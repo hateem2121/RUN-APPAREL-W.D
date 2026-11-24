@@ -2429,6 +2429,11 @@ In each list, `lastLive: null` marks the release's own files and a date marks a 
 12 earlier files kept …`. A `::warning::not kept:` line names a file the live site did not answer
 with its own type and size; it is left out and the release goes on. The step "Post-deploy check
 that earlier releases' files still answer" asks the live site for every kept file afterwards.
+Since 24 Nov 2026 that step fails the run when a live list does not name the new release or a kept
+file does not answer (it was a warning for its first two deploys, both clean). The site is already
+live by then and nothing is rolled back: it is the last post-deploy step, so the search-engine
+ping and the regions' warm-up have run. Read which file it names, then decide with the owner
+whether to deploy again; a failed deploy is never re-run without the owner's yes.
 
 **What it does not cover.**
 - For the few seconds a deploy takes to reach every Cloudflare location, a NEW page's file
