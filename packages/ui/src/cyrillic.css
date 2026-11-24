@@ -68,7 +68,9 @@
  * on the live /ru/guides/how-soccer-balls-are-made that day Chromium drew 22 headline letters in
  * Arial and 15 accent letters in Georgia, where /ru/about drew Roboto Flex. Same files as above, so nothing new is downloaded by a page that
  * already uses them. `optional`, as the family is: a face that misses the first paint is not
- * swapped in, so the headline cannot jump; it is used from the next page view, when it is cached.
+ * swapped in, so the headline cannot jump. It is used on a view where the browser has it from its
+ * cache in time: on a Mac that was the second reload of a cold page; in CI's Linux image five
+ * reloads never got there (2026-11-24), which is why the test judges the faces, not the timing.
  * The descriptors match site.css's own "Optional" faces (apps/cms/src/cyrillicFaces.test.ts).
  */
 @font-face {

@@ -99,30 +99,74 @@ test.describe('a Russian guide', () => {
   }
 
   /*
-   * ⚠️ A NO-SWAP FACE IS USED ONLY ONCE IT IS CACHED, SO THE PAGE IS LOADED UNTIL IT IS. Measured
-   * here 24 Nov 2026 on a cold server: the first load and the first reload drew the whole headline
-   * in Arial and Georgia (that is the promise: no jump on a cold visit), and every load from the
-   * second reload on drew Roboto Flex and Cormorant. Before the fix no reload ever could, which is
-   * what this still fails on.
+   * ⚠️ THE TIMING IS TAKEN OUT, SO THIS JUDGES THE FACES AND NOT THE CACHE. A no-swap face
+   * (`font-display: optional`) is used only when the browser has it within about a tenth of a
+   * second of first paint. Measured 24 Nov 2026: on this Mac it took until the second reload, and in
+   * CI's Linux image five reloads never got there (Liberation Sans and Serif, CI run 45390662839),
+   * so a version of this test that reloaded until the face appeared failed there. The defect it is
+   * here for is not timing: the no-swap families had NO Cyrillic face, so no load could ever draw
+   * one. So the page's own no-swap faces are told to swap in for this check, which a family with
+   * a Cyrillic face answers with that face and a family without one cannot.
    */
-  test('draws the guide headline itself in the brand-matched faces once they are cached', async ({
+  /** The page's own no-swap rules, told to swap; `dropCyrillic` first removes the rules the fix added. */
+  const swapTheNoSwapFaces = (page: Page, dropCyrillic = false) =>
+    page.evaluate(async (drop) => {
+      const rules: CSSFontFaceRule[] = []
+      for (const sheet of document.styleSheets) {
+        for (const rule of sheet.cssRules) {
+          if (
+            rule instanceof CSSFontFaceRule &&
+            rule.style.getPropertyValue('font-family').includes('Optional')
+          )
+            rules.push(rule)
+        }
+      }
+      let dropped = 0
+      for (const rule of rules) {
+        const cyrillic = /U\+0?4/i.test(rule.style.getPropertyValue('unicode-range'))
+        if (drop && cyrillic) {
+          const sheet = rule.parentStyleSheet
+          if (sheet) sheet.deleteRule([...sheet.cssRules].indexOf(rule))
+          dropped += 1
+        } else rule.style.setProperty('font-display', 'swap')
+      }
+      await Promise.all([...document.fonts].map((face) => face.load().catch(() => null)))
+      await document.fonts.ready
+      await new Promise<void>((done) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => done())),
+      )
+      return { rules: rules.length, dropped }
+    }, dropCyrillic)
+
+  test('the guide headline’s own families have Cyrillic faces: no system font draws it', async ({
     page,
     browserName,
   }) => {
     test.skip(browserName !== 'chromium', 'read through Chromium’s DevTools protocol')
     await page.goto(RU_GUIDE)
-    let fonts = await headlineFonts(page)
-    for (let load = 0; load < 5 && fonts.some((font) => !font.web); load++) {
-      await page.reload()
-      await page.waitForLoadState('networkidle')
-      fonts = await headlineFonts(page)
-    }
+    const changed = await swapTheNoSwapFaces(page)
+    // Five in site.css and the two Cyrillic companions in cyrillic.css.
+    expect(changed.rules, 'the no-swap rules were not found, so nothing was tested').toBe(7)
+    const fonts = await headlineFonts(page)
     expect(fonts.length).toBeGreaterThan(0)
     expect(
       fonts.filter((font) => !font.web),
-      'a system font still drew part of the headline after five reloads',
+      'a system font drew part of the headline',
     ).toEqual([])
     expect(fonts.map((font) => font.name)).toContain('Roboto Flex')
+  })
+
+  test('NEGATIVE CONTROL: with the Cyrillic no-swap faces taken away, a system font draws it', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'read through Chromium’s DevTools protocol')
+    await page.goto(RU_GUIDE)
+    // The page as it was before the fix: the two no-swap families with no Cyrillic face.
+    const changed = await swapTheNoSwapFaces(page, true)
+    expect(changed.dropped, 'the rules to take away were not found, so nothing was tested').toBe(2)
+    const fonts = await headlineFonts(page)
+    expect(fonts.some((font) => !font.web)).toBe(true)
   })
 
   test('NEGATIVE CONTROL: a headline forced to a system font is read as one', async ({
