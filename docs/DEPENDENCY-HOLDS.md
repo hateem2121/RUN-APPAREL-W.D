@@ -11,6 +11,42 @@ trusting the dates.
 
 ---
 
+## HELD 2026-11-24 — `motion` stays at 14.12.0: 14.14.0 puts the viewer's scripts over their budget
+
+**What happened.** Dependabot's PR #466 moved six packages at once, `motion` 14.12.0 → 14.14.0
+among them, and its `verify` job failed the bundle weight gate
+(`scripts/check-bundle-budget.mjs`, run 45231763629): script 496.7 KB against a budget of
+496.1 KB, over by 619 bytes.
+
+**Which package — measured 2026-11-24** by building the viewer four ways on this Mac, with the
+other four updates in place each time:
+
+| `motion` | `@sentry/browser` | script, gzip |
+|---|---|---|
+| 14.14.0 | 11.13.0 | 494.7 KB |
+| 14.12.0 | 11.13.0 | 493.7 KB |
+| 14.14.0 | 11.12.0 | 494.7 KB |
+| 14.12.0 | 11.12.0 | 493.7 KB |
+
+So the Sentry update weighs nothing and `motion` is the whole difference: its chunk goes from
+45,723 to 46,821 bytes gzipped (+1,098; 138,214 to 141,047 raw). This Mac reads the same files
+about 2 KB lighter than CI does (494.7 KB here against CI's 496.7 KB), so the gate passes locally
+with the new `motion` and fails in CI: judge it on CI's figure.
+
+**The decision (owner, 24 Nov 2026):** find the package that breaks the budget and hold only that
+one. On 18 Nov 2026 the same package's 14.9.0 → 14.11.1 (+1,518 bytes) was taken by raising the
+budget instead; this time the budget stays where it is.
+
+**The hold.** `apps/viewer/package.json` keeps `motion` at 14.12.0, and `.github/dependabot.yml`
+ignores 14.13.0 and 14.14.0 only, so the next release opens its own pull request.
+
+**What releases it.** A `motion` release whose chunk fits: build the viewer with it and run
+`node scripts/check-bundle-budget.mjs --report`, then compare the pull request's own CI figure
+with the budget, since CI reads heavier. Or an owner's yes to raise the script budget again.
+Not measured: what in 14.13.0 or 14.14.0 added the bytes, and whether 14.13.0 alone would fit.
+
+---
+
 ## HELD 2026-11-18 — `@playwright/test` stays at 1.64.1: Playwright's Firefox 159 crashes two viewer tests
 
 **What happened.** Dependabot's PR #416 moved `@playwright/test` 1.64.1 → 1.65.0. That also moves

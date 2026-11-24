@@ -16,6 +16,11 @@ Moved from the root `CLAUDE.md` on 2026-09-26, word for word except where marked
   Dependabot's ignore move together. The evidence and the test that releases it:
   `docs/DEPENDENCY-HOLDS.md`.
 
+- **🟡 `motion` is HELD at 14.12.0 (2026-11-24).** 14.14.0 adds 1,098 bytes to the viewer's motion
+  chunk and puts the script budget over by 619 bytes in CI, which reads about 2 KB heavier than
+  this Mac. Dependabot ignores 14.13.0 and 14.14.0; the measurements and what releases it:
+  `docs/DEPENDENCY-HOLDS.md`.
+
 - **Run `pnpm build`, not just typecheck and tests, before pushing a dependency
   change.** `apps/cms` was pinned to TypeScript 6 until 2026-08-12 — Next.js 16.2.12
   refused TS 7 outright; RESOLVED by 16.3.0. The lesson is not about TypeScript:
