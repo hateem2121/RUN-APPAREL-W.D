@@ -46,6 +46,7 @@
  * The door has an address of its own for the same proof (DOOR_VERSION_PATH, below).
  */
 import {
+  CONTENT_VERSION_KEY,
   KEPT_FILES,
   memoKvGet,
   NEVER_KEPT_PATHS,
@@ -53,8 +54,10 @@ import {
   SITE_BUILD_PATTERN,
   SITE_HOST,
   STORE_BUILD_KEY,
+  STORE_MODE_KEY,
 } from './pageCache.mjs'
 import { createSiteFetch } from './siteEdge.mjs'
+import { RSC_STORE_KEY } from './tapStore.mjs'
 import { forwardsToViewer } from './viewerForward.mjs'
 import { WORKER_VERSION_PATH } from './workerVersion.mjs'
 
@@ -381,6 +384,43 @@ export async function liveBuild(env, now = Date.now(), split = false, spans = un
  */
 export const doorClock = { now: () => performance.now() }
 
+/**
+ * START EVERY SETTINGS READ AT ONCE, BEFORE THE FIRST ONE IS WAITED FOR (24 Nov 2026).
+ *
+ * ⚠️ WHY. The marks above showed where Sydney's wait went. Ten garment-data requests sent at once
+ * at 05:08 UTC that day, all store hits, reached their first byte in 429 to 718 ms, and each
+ * carried three waits of about the same length, one after another: `door-switch` up to 217 ms,
+ * `door-flags` 149 to 211 ms, and the answer's own `kv` 214 to 228 ms (viewerApiCache.mjs). The
+ * build-name file took 5 to 15 ms and the store 4 to 13 ms. Each wait is a read of a KV key the
+ * region had not asked for lately, which KV fetches from further away (Cloudflare, "How KV
+ * works", last updated 21 Apr 2026), and the steps asked for them in a row because each step
+ * only asks for its own.
+ *
+ * Every read goes through memoKvGet (pageCache.mjs), which hands a read that is already in
+ * flight to whoever asks next. So asking for all of them here, without waiting, turns three
+ * waits into one: each later step finds its answer already on the way.
+ *
+ * IT ASKS FOR NOTHING NEW. A page or a garment's data reads all four keys on its way to the store
+ * anyway, and a tap reads the fifth; the namespace's daily read limit (memoKvGet's own note) is
+ * why a file, a form post and anything else that is not a GET or HEAD starts nothing here. The one
+ * case that reads more than before is a request the store then turns away (a signed-in visitor's
+ * page): up to two keys, once per copy of this Worker per 30 seconds.
+ *
+ * Nothing here can fail a request: each read's own caller still waits for it and still handles
+ * its failure; the copies started here only have their rejection swallowed.
+ *
+ * @param {Request} request
+ * @param {{ SITE_CACHE?: any, SITE_PAGES?: any }} env
+ */
+export function startSettingsReads(request, env) {
+  if (!env.SITE_CACHE || !env.SITE_PAGES) return
+  if (request.method !== 'GET' && request.method !== 'HEAD') return
+  const keys = [DOOR_SWITCH_KEY, STORE_BUILD_KEY, CONTENT_VERSION_KEY, STORE_MODE_KEY]
+  // A tap between pages asks its own switch as well (tapStore.mjs tapStoreOn).
+  if (request.headers.has('rsc')) keys.push(RSC_STORE_KEY)
+  for (const key of keys) memoKvGet(env.SITE_CACHE, key).catch(() => null)
+}
+
 /** A wait this long is written to Workers Logs too: a header is gone once the visitor has it. */
 export const DOOR_WAIT_LOGGED_MS = 100
 
@@ -501,6 +541,9 @@ export default {
       // Garment pages and the viewer's files: straight to the small viewer Worker.
       if (env.VIEWER && forwardsToViewer(url)) return env.VIEWER.fetch(request)
       // Asked only when the site-only Worker is bound: without it a file still costs no KV read.
+      // Every settings read this request will need, started together (startSettingsReads says
+      // why). Not for a file: it reads one key at most, and must not cost the namespace four.
+      if (!alwaysHandedOn(url)) startSettingsReads(request, env)
       const spans = { switchMs: 0, flagsMs: 0, buildMs: 0 }
       const startedAt = doorClock.now()
       const split = hasSiteOnly(env) && (await siteOnlyOn(env))

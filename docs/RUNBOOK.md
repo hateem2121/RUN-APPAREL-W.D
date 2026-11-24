@@ -365,6 +365,10 @@ also one line in Workers Logs with the field `doorWait`. Why: on 23 Nov 2026 the
 data requests from Sydney after a quiet spell took 582 to 862 ms as store hits, and about 400 ms
 of that was in these three reads with nothing measuring them. Read the marks with
 `curl -s -o /dev/null -D - https://cms.wear-run.help/api/public/viewer/rxps/wine`.
+The marks found it the same day: three waits of about 210 ms in a row (the switch, the flag, then
+the answer's own `kv`), each a KV read the region had not made lately. Since then the door starts
+every such read together (`startSettingsReads` in `apps/cms/door.mjs`), so a fresh copy shows one
+wait, in `door-switch`, with `door-flags` and `kv` near 0. Three waits again means that line was lost.
 
 **How the door is deployed (since 21 Nov 2026).** With the other two Workers: `ci.yml` uploads its
 new version, stages it at 0%, and the pre-live checks name it in the override header, so they

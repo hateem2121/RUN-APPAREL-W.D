@@ -15,7 +15,14 @@ import door, {
   VERSION_OVERRIDES_HEADER,
   withDoorTiming,
 } from '../door.mjs'
-import { forgetKvMemo, keptHeaders, STORE_BUILD_KEY } from '../pageCache.mjs'
+import {
+  CONTENT_VERSION_KEY,
+  forgetKvMemo,
+  keptHeaders,
+  STORE_BUILD_KEY,
+  STORE_MODE_KEY,
+} from '../pageCache.mjs'
+import { RSC_STORE_KEY } from '../tapStore.mjs'
 import {
   CMS_WORKER,
   SITE_ONLY_WORKER,
@@ -131,9 +138,12 @@ beforeEach(() => {
  * `store;dur` 3 to 6 ms): about 400 ms went to waits nothing measured.
  *
  * THE STAND-IN. A Worker's clock moves only while it waits on something outside itself, so the
- * clock here is moved BY the three things the door waits on: each KV key and the build-name file
- * cost what the test says, and nothing else moves it. That is the production shape: a copy of the
- * door that has just started pays for every read, and one that remembers them pays nothing.
+ * clock here is moved BY the things the door waits on: each KV key and the build-name file cost
+ * what the test says, and nothing else moves it. A KV read ends its cost after the moment it was
+ * STARTED, as a real one does, so reads started together overlap (door.mjs startSettingsReads,
+ * 24 Nov 2026: the switch's wait now covers the flag's, which reads 0). That is the production
+ * shape: a copy of the door that has just started pays for its reads, and one that remembers
+ * them pays nothing.
  */
 describe('the door’s own wait, in its timing marks', () => {
   type Costs = { switchMs: number; flagMs: number; fileMs: number }
@@ -145,8 +155,11 @@ describe('the door’s own wait, in its timing marks', () => {
     doorClock.now = () => clock
     const values: Record<string, string | null> = { 'content-version': '7' }
     w.env.SITE_CACHE.get.mockImplementation(async (key: string) => {
-      if (key === DOOR_SWITCH_KEY) clock += costs.switchMs
-      if (key === STORE_BUILD_KEY) clock += costs.flagMs
+      const cost =
+        key === DOOR_SWITCH_KEY ? costs.switchMs : key === STORE_BUILD_KEY ? costs.flagMs : 0
+      const doneAt = clock + cost
+      await Promise.resolve()
+      clock = Math.max(clock, doneAt)
       return values[key] ?? null
     })
     const answerOf = w.siteOnly.fetch.getMockImplementation()
@@ -163,7 +176,9 @@ describe('the door’s own wait, in its timing marks', () => {
     const w = slowWorld({ switchMs: 270, flagMs: 130, fileMs: 60 })
     const response = await w.ask()
     const timing = response.headers.get('server-timing') ?? ''
-    expect(timing).toContain('door-switch;dur=270, door-flags;dur=130, door-build;dur=60')
+    // The flag's read ran inside the switch's wait (they start together), so it shows 0.
+    // Until 24 Nov 2026 this read 270, 130, 60: one wait after another.
+    expect(timing).toContain('door-switch;dur=270, door-flags;dur=0, door-build;dur=60')
     // The answer is the store's, still marked as a hit, and neither Worker behind the door ran.
     expect(timing).toContain('api-cache;desc="hit"')
     expect(response.status).toBe(200)
@@ -199,12 +214,12 @@ describe('the door’s own wait, in its timing marks', () => {
     try {
       const waits = () => log.mock.calls.map(([line]) => line).filter((line) => line?.doorWait)
       await slowWorld({ switchMs: 270, flagMs: 130, fileMs: 60 }).ask()
-      expect(waits()).toEqual([{ doorWait: 460, switchMs: 270, flagsMs: 130, buildMs: 60 }])
+      expect(waits()).toEqual([{ doorWait: 330, switchMs: 270, flagsMs: 0, buildMs: 60 }])
       log.mockClear()
       forgetKvMemo()
       forgetBuild()
       const short = await slowWorld({ switchMs: 40, flagMs: 30, fileMs: 20 }).ask()
-      expect(40 + 30 + 20).toBeLessThan(DOOR_WAIT_LOGGED_MS)
+      expect(40 + 20).toBeLessThan(DOOR_WAIT_LOGGED_MS)
       expect(short.headers.get('server-timing')).toContain('door-switch;dur=40')
       expect(waits()).toEqual([])
     } finally {
@@ -228,6 +243,117 @@ describe('the door’s own wait, in its timing marks', () => {
       } as unknown as Response
       expect(withDoorTiming(broken, { switchMs: 300, flagsMs: 0, buildMs: 0 })).toBe(broken)
       expect(error).toHaveBeenCalledTimes(1)
+    } finally {
+      error.mockRestore()
+    }
+  })
+})
+
+/**
+ * THE SETTINGS READS START TOGETHER (door.mjs startSettingsReads, 24 Nov 2026).
+ *
+ * WHAT PRODUCTION DID. Sydney, 05:08 UTC that day: ten garment-data requests, all store hits,
+ * first byte 429 to 718 ms, each made of three waits in a row of about 210 ms (the switch, the
+ * `page-store-build` flag, then the content version and store mode). Each step asked KV for its
+ * own key only when the step before had its answer.
+ *
+ * THE STAND-IN. A stopwatch cannot show this honestly in a test, so the KV here does not answer
+ * until the test lets it: whatever has been asked for by then is what the door asks for AT ONCE.
+ * In production each of those reads takes about 210 ms from a region that has gone quiet, so
+ * "asked at once" is one wait and "asked one after another" is three.
+ */
+describe('the door’s settings reads, started together', () => {
+  /** A world whose KV holds every answer back until `release()`; `asked()` is what was read so far. */
+  function heldWorld() {
+    const w = world()
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const values: Record<string, string | null> = { [CONTENT_VERSION_KEY]: '7' }
+    w.env.SITE_CACHE.get.mockImplementation(async (key: string) => {
+      await gate
+      return values[key] ?? null
+    })
+    const asked = () => w.env.SITE_CACHE.get.mock.calls.map(([key]) => key).sort()
+    /** Long enough for every step that is not waiting on KV to have run. */
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 20))
+    return { ...w, release, asked, settle }
+  }
+
+  const EVERY_READ = [CONTENT_VERSION_KEY, DOOR_SWITCH_KEY, STORE_BUILD_KEY, STORE_MODE_KEY].sort()
+  /** The contact form's address: a stand-in request inside this test, sent to no server. */
+  const FORM_PATH = '/contact/submit'
+
+  it('a garment’s data: all four keys are asked for before the first one answers', async () => {
+    const w = heldWorld()
+    const answer = door.fetch(
+      get('https://cms.wear-run.help/api/public/viewer/rxps/wine'),
+      w.env,
+      w.ctx,
+    )
+    await w.settle()
+    // NEGATIVE CONTROL, run on the door as it was before this change: only the switch had been
+    // asked for here (`['front-door']`), and the other three waited their turn.
+    expect(w.asked()).toEqual(EVERY_READ)
+    w.release()
+    const response = await answer
+    expect(await response.text()).toBe('CMS store')
+    expect(response.headers.get('server-timing')).toContain('api-cache;desc="hit"')
+    // Asked for once each: the steps behind found the reads already made.
+    expect(w.asked()).toEqual(EVERY_READ)
+  })
+
+  it('a website page: the same four, at once, and the page is the store’s', async () => {
+    const w = heldWorld()
+    const answer = door.fetch(get('https://wear-run.com/faq'), w.env, w.ctx)
+    await w.settle()
+    expect(w.asked()).toEqual(EVERY_READ)
+    w.release()
+    expect(await (await answer).text()).toBe('site-only store')
+    expect(w.asked()).toEqual(EVERY_READ)
+  })
+
+  it('a tap between pages also starts its own switch', async () => {
+    const w = heldWorld()
+    const answer = door.fetch(get('https://wear-run.com/faq', { rsc: '1' }), w.env, w.ctx)
+    await w.settle()
+    expect(w.asked()).toEqual([...EVERY_READ, RSC_STORE_KEY].sort())
+    w.release()
+    await answer
+  })
+
+  it('a file starts nothing extra: it reads the switch and no other key', async () => {
+    const w = heldWorld()
+    const answer = door.fetch(get('https://wear-run.com/_next/static/chunks/a.js'), w.env, w.ctx)
+    await w.settle()
+    expect(w.asked()).toEqual([DOOR_SWITCH_KEY])
+    w.release()
+    expect(await (await answer).text()).toBe('site-only Worker: GET /_next/static/chunks/a.js')
+    expect(w.asked()).toEqual([DOOR_SWITCH_KEY])
+  })
+
+  it('a form post starts nothing extra either, and still reaches the CMS Worker', async () => {
+    const w = heldWorld()
+    const sent = new Request(`https://wear-run.com${FORM_PATH}`, { method: 'POST', body: 'a=b' })
+    const answer = door.fetch(sent, w.env, w.ctx)
+    await w.settle()
+    expect(w.asked()).not.toContain(CONTENT_VERSION_KEY)
+    expect(w.asked()).not.toContain(STORE_MODE_KEY)
+    w.release()
+    expect(await (await answer).text()).toBe(`CMS Worker: POST ${FORM_PATH}`)
+  })
+
+  it('a KV that fails every read never fails the page: it is handed on', async () => {
+    const w = world()
+    w.env.SITE_CACHE.get.mockImplementation(async () => {
+      throw new Error('KV is down')
+    })
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const response = await door.fetch(get('https://wear-run.com/faq'), w.env, w.ctx)
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain('/faq')
     } finally {
       error.mockRestore()
     }
