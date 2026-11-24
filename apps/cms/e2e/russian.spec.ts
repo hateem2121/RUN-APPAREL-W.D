@@ -86,9 +86,6 @@ test.describe('a Russian guide', () => {
    * (packages/ui/src/cyrillic.css). Chromium only: the reading is its DevTools protocol's.
    */
   const headlineFonts = async (page: Page, plant = '') => {
-    await page.goto(RU_GUIDE)
-    // Second load: a no-swap face is used once it is cached (visual.spec.ts does the same).
-    await page.reload()
     if (plant) await page.addStyleTag({ content: plant })
     await page.evaluate(() => document.fonts.ready)
     const cdp = await page.context().newCDPSession(page)
@@ -97,19 +94,33 @@ test.describe('a Russian guide', () => {
     const { root } = await cdp.send('DOM.getDocument')
     const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: 'h1' })
     const { fonts } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId })
+    await cdp.detach()
     return fonts.map((font) => ({ name: font.familyName, web: font.isCustomFont }))
   }
 
-  test('draws the guide headline itself in the brand-matched faces, no system font', async ({
+  /*
+   * ⚠️ A NO-SWAP FACE IS USED ONLY ONCE IT IS CACHED, SO THE PAGE IS LOADED UNTIL IT IS. Measured
+   * here 24 Nov 2026 on a cold server: the first load and the first reload drew the whole headline
+   * in Arial and Georgia (that is the promise: no jump on a cold visit), and every load from the
+   * second reload on drew Roboto Flex and Cormorant. Before the fix no reload ever could, which is
+   * what this still fails on.
+   */
+  test('draws the guide headline itself in the brand-matched faces once they are cached', async ({
     page,
     browserName,
   }) => {
     test.skip(browserName !== 'chromium', 'read through Chromium’s DevTools protocol')
-    const fonts = await headlineFonts(page)
+    await page.goto(RU_GUIDE)
+    let fonts = await headlineFonts(page)
+    for (let load = 0; load < 5 && fonts.some((font) => !font.web); load++) {
+      await page.reload()
+      await page.waitForLoadState('networkidle')
+      fonts = await headlineFonts(page)
+    }
     expect(fonts.length).toBeGreaterThan(0)
     expect(
       fonts.filter((font) => !font.web),
-      'a system font drew part of the headline',
+      'a system font still drew part of the headline after five reloads',
     ).toEqual([])
     expect(fonts.map((font) => font.name)).toContain('Roboto Flex')
   })
@@ -119,6 +130,7 @@ test.describe('a Russian guide', () => {
     browserName,
   }) => {
     test.skip(browserName !== 'chromium', 'read through Chromium’s DevTools protocol')
+    await page.goto(RU_GUIDE)
     const fonts = await headlineFonts(
       page,
       'h1, h1 * { font-family: Arial, sans-serif !important }',
