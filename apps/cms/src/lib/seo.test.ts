@@ -212,3 +212,38 @@ describe('buildArticleMetadata', () => {
     })
   })
 })
+
+describe('a buyer guide is shared as an article (guides audit, 2026-11-24)', () => {
+  it('marks every guide, in both languages, with its byline’s own dates', async () => {
+    const { GUIDES } = await import('./guides')
+    const { bylineFor } = await import('./bylines')
+    expect(GUIDES.length).toBeGreaterThanOrEqual(30)
+    for (const guide of GUIDES) {
+      const byline = bylineFor(guide.path)
+      if (!byline) throw new Error(`${guide.path} has no byline`)
+      for (const locale of ['en', 'ru'] as const) {
+        const meta = buildMetadata({ title: 't', description: 'd', path: guide.path, locale })
+        expect(meta.openGraph).toMatchObject({
+          type: 'article',
+          publishedTime: byline.published,
+          modifiedTime: byline.changed.on,
+        })
+        const authors = (meta.openGraph as { authors?: string[] }).authors
+        if (byline.author.kind === 'person') {
+          expect(authors).toEqual([`${SITE_ORIGIN}${byline.author.path}`])
+        } else {
+          expect(authors).toBeUndefined()
+        }
+      }
+    }
+  })
+
+  it('NEGATIVE CONTROL: the guides list and every other page stay a website, with no dates', () => {
+    for (const path of ['/guides', '/products', '/policies/quality', '/about', '/']) {
+      const og = buildMetadata({ title: 't', description: 'd', path }).openGraph
+      expect(og).toMatchObject({ type: 'website' })
+      expect(og).not.toHaveProperty('publishedTime')
+      expect(og).not.toHaveProperty('modifiedTime')
+    }
+  })
+})

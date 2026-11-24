@@ -12,6 +12,7 @@ import {
   garmentPreview,
   guidePreview,
   headingId,
+  keepUnits,
   SOURCES_ID,
   sectionIds,
 } from './GuidePage'
@@ -229,5 +230,39 @@ describe('a link’s card says only what the linked page says (2026-11-24)', () 
     }
     // No card is in the page until a visitor asks for one.
     expect(html).not.toContain('link-preview')
+  })
+})
+
+describe('a number and its unit stay on one line (2026-11-24)', () => {
+  const NBSP = '\u00a0'
+
+  it('joins a number to its unit and changes nothing else', () => {
+    expect(keepUnits('a 180 GSM jersey, washed at 40 °C')).toBe(
+      `a 180${NBSP}GSM jersey, washed at 40${NBSP}°C`,
+    )
+    expect(keepUnits('under 1 mg/kg and 30 cm wide')).toBe(
+      `under 1${NBSP}mg/kg and 30${NBSP}cm wide`,
+    )
+  })
+
+  it('NEGATIVE CONTROL: a number before an ordinary word keeps its plain space', () => {
+    for (const words of [
+      'in 2026 to 2027',
+      '16 CFR 1610',
+      '5 meters',
+      '3 months',
+      '12 gives',
+      '4 g/',
+    ])
+      expect(keepUnits(words)).toBe(words)
+  })
+
+  it('is drawn in a guide’s paragraphs and lists, and the guide’s own words are unchanged', () => {
+    const drawn = GUIDES.filter((guide) => render(guide).includes(NBSP))
+    expect(drawn.length).toBeGreaterThan(0)
+    // The source keeps the plain space wherever the page draws a joined pair.
+    const guide = guideAt('/guides/sportswear-fabrics-and-weights')
+    expect(JSON.stringify(guide)).toMatch(/\d GSM/)
+    expect(render(guide)).toMatch(new RegExp(`\\d${NBSP}GSM`))
   })
 })

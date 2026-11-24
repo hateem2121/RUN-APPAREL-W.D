@@ -10,6 +10,11 @@
 # year with `immutable` is safe (OpenNext for Cloudflare, "Caching"). The photo folders keep fixed
 # names, so they get a week; a replaced photo reaches a returning visitor within seven days.
 #
+# After that week a returning browser shows its saved photo at once and checks for a newer one
+# behind it, for 30 more days (`stale-while-revalidate`; guides audit, 2026-11-24). A replaced photo still arrives within the
+# week, or on the view after the first one past it. MDN's compatibility data, read 2026-11-24:
+# Chrome 75, Firefox 68, Safari 14; an older browser ignores the words and keeps the week.
+#
 # ⚠️ NO `/*` RULE. Rules that both match are COMBINED, not overridden: a `/*` Cache-Control would
 # be appended to every rule below and ship two contradictory values (.claude/rules/viewer-headers.md).
 # src/staticHeaders.test.ts reads this file and fails on that.
@@ -18,16 +23,16 @@
   Cache-Control: public, max-age=31536000, immutable
 
 /factory/*
-  Cache-Control: public, max-age=604800
+  Cache-Control: public, max-age=604800, stale-while-revalidate=2592000
 
 /families/*
-  Cache-Control: public, max-age=604800
+  Cache-Control: public, max-age=604800, stale-while-revalidate=2592000
 
 /standards/*
-  Cache-Control: public, max-age=604800
+  Cache-Control: public, max-age=604800, stale-while-revalidate=2592000
 
 /film/*
-  Cache-Control: public, max-age=604800
+  Cache-Control: public, max-age=604800, stale-while-revalidate=2592000
 
 # Each page type's share picture (polish X14). Fixed names, like the photos: a remade card reaches a
 # returning visitor within the week, and `scripts/gen-share-images.mjs` remakes them only on purpose.

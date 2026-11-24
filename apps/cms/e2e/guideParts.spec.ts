@@ -327,6 +327,31 @@ test.describe('twice-size text on a guide', () => {
     })
   }
 
+  // Measured 24 Nov 2026 before the fix: 8, 31 and 28px of sideways scroll, each from one long
+  // Russian word in a paragraph or a list.
+  const LONG_WORDS = [
+    '/ru/guides/sportswear-fabrics-and-weights',
+    '/ru/guides/yarn-count-and-denier',
+    '/ru/guides/tech-pack-template',
+  ]
+  for (const path of LONG_WORDS) {
+    test(`${path} at 390px: a long word breaks, the page does not scroll sideways`, async ({
+      page,
+    }) => {
+      expect(await sideways(page, path, 390), 'px of sideways scroll').toBeLessThanOrEqual(1)
+    })
+  }
+
+  test('NEGATIVE CONTROL: a long word that may not break runs off the phone', async ({ page }) => {
+    const spill = await sideways(
+      page,
+      '/ru/guides/yarn-count-and-denier',
+      390,
+      '.prose--guide .spread__body :is(p, li) { overflow-wrap: normal !important }',
+    )
+    expect(spill).toBeGreaterThan(1)
+  })
+
   test('NEGATIVE CONTROL: a heading word held on one line runs off the phone', async ({ page }) => {
     const spill = await sideways(
       page,
@@ -382,6 +407,12 @@ test.describe('the Russian list of guides: a headline that does not jump', () =>
 })
 
 test.describe('a link’s card says where it goes', () => {
+  // The card's code arrives after the page is idle (LinkPreview.tsx); a link met before then is a
+  // plain link, so each check waits for the page's own signal first.
+  const cardsReady = async (page: Page) => {
+    await scriptsHaveRun(page)
+    await expect(page.locator('html')).toHaveAttribute('data-link-cards', 'ready')
+  }
   const first = (page: Page) => page.locator('main a.prose__link[href^="/guides/"]').first()
 
   test('a mouse resting on a guide link opens that guide’s title and description beside it', async ({
@@ -389,7 +420,7 @@ test.describe('a link’s card says where it goes', () => {
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(FIBERS)
-    await scriptsHaveRun(page)
+    await cardsReady(page)
     const link = first(page)
     const href = (await link.getAttribute('href')) ?? ''
     await link.scrollIntoViewIfNeeded()
@@ -413,7 +444,7 @@ test.describe('a link’s card says where it goes', () => {
   test('the keyboard opens it too, and Escape closes it', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(FIBERS)
-    await scriptsHaveRun(page)
+    await cardsReady(page)
     await first(page).focus()
     await expect(page.locator('.link-preview')).toBeVisible()
     await page.keyboard.press('Escape')
@@ -423,7 +454,7 @@ test.describe('a link’s card says where it goes', () => {
   test('the link still goes where it says', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(FIBERS)
-    await scriptsHaveRun(page)
+    await cardsReady(page)
     const link = first(page)
     const href = (await link.getAttribute('href')) ?? ''
     await link.click()
@@ -433,7 +464,7 @@ test.describe('a link’s card says where it goes', () => {
   test('NEGATIVE CONTROL: a link to a page that is not a guide has no card', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(FIBERS)
-    await scriptsHaveRun(page)
+    await cardsReady(page)
     const other = page.locator('main a.prose__link:not([href^="/guides/"])').first()
     await expect(other).toHaveCount(1)
     await other.scrollIntoViewIfNeeded()
@@ -441,5 +472,53 @@ test.describe('a link’s card says where it goes', () => {
     // Longer than the card's own opening delay (600ms, Base UI's default).
     await page.waitForTimeout(1200)
     await expect(page.locator('.link-preview')).toHaveCount(0)
+  })
+})
+
+/**
+ * The card's code reaches only a device that can open a card (LinkPreview.tsx). Measured 24 Nov
+ * 2026 on this guide: 213,909 bytes of compressed script with the card imported directly, 179,043
+ * on a phone with it fetched on demand; the live page that day was 178,158.
+ */
+test.describe('the link card’s code is fetched only where a card can open', () => {
+  test.skip(({ browserName }) => browserName !== 'chromium', 'phone emulation is Chromium’s')
+
+  // A context of its own, so the device is set before the page exists. A guide with no garment
+  // links asks the media host for nothing, so the suite's local media answers are not needed here.
+  const scripts = async (page: Page, device: 'phone' | 'computer') => {
+    const context = await page
+      .context()
+      .browser()
+      ?.newContext(
+        device === 'phone'
+          ? { viewport: { width: 412, height: 915 }, hasTouch: true, isMobile: true }
+          : { viewport: { width: 1440, height: 900 } },
+      )
+    if (!context) throw new Error('no browser to open a context in')
+    const fresh = await context.newPage()
+    let files = 0
+    fresh.on('request', (request) => {
+      if (request.resourceType() === 'script') files += 1
+    })
+    await fresh.goto(FIBERS)
+    await fresh.waitForLoadState('networkidle')
+    // Past the idle wait and the fetch that follows it (LinkPreview.tsx).
+    await fresh.waitForTimeout(1_500)
+    const canHover = await fresh.evaluate(
+      () => matchMedia('(any-hover: hover), (any-pointer: fine)').matches,
+    )
+    await context.close()
+    return { canHover, files }
+  }
+
+  test('a touch-only phone fetches fewer script files than a computer with a mouse', async ({
+    page,
+  }) => {
+    const phone = await scripts(page, 'phone')
+    const computer = await scripts(page, 'computer')
+    expect(phone.canHover, 'the phone was not emulated, so nothing was measured').toBe(false)
+    expect(computer.canHover).toBe(true)
+    expect(phone.files).toBeGreaterThan(0)
+    expect(phone.files).toBeLessThan(computer.files)
   })
 })

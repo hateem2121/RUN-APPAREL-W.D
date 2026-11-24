@@ -157,6 +157,17 @@ function GuideAnchor({
 }
 
 /**
+ * A number and its unit stay on one line ("180 GSM", "40 °C"), so a line never ends on the number
+ * with the unit alone on the next (guides audit, 2026-11-24). The space between them is drawn as a
+ * no-break space; the guide's own words (`guides.ts`) are not changed, so no guide's fingerprint
+ * or "last changed" date moves. Only these units, each counted in the English guides that day; the
+ * Russian guides already write the no-break space themselves. Paragraphs and lists only: a table
+ * cell is narrow, and a pair that cannot break there could widen the table.
+ */
+const UNIT_AFTER_NUMBER = /(\d) (GSM|g\/m²|mg\/kg|kg|g|mm|cm|m|°C|ppm|dtex)(?![\w/])/g
+export const keepUnits = (text: string): string => text.replace(UNIT_AFTER_NUMBER, '$1\u00a0$2')
+
+/**
  * Words with their links (`GuideLink`): each phrase becomes a link where it first appears, and the
  * words around it are drawn as they are. A phrase not found is drawn as plain words (`guides.test.ts`
  * fails it before it ships), and one inside an earlier link's words is left plain, so links never nest.
@@ -173,7 +184,7 @@ export function LinkedWords({
   /** A Russian page links a garment to its Russian page (owner, 2026-11-16). */
   locale?: Locale
 }) {
-  if (!links?.length) return text
+  if (!links?.length) return keepUnits(text)
   const spots = links
     .flatMap((link) => {
       const at = text.indexOf(link.phrase)
@@ -184,11 +195,11 @@ export function LinkedWords({
   let from = 0
   for (const spot of spots) {
     if (spot.at < from) continue
-    parts.push(<Fragment key={`w${from}`}>{text.slice(from, spot.at)}</Fragment>)
+    parts.push(<Fragment key={`w${from}`}>{keepUnits(text.slice(from, spot.at))}</Fragment>)
     parts.push(<GuideAnchor key={`a${spot.at}`} link={spot.link} cards={cards} locale={locale} />)
     from = spot.end
   }
-  parts.push(<Fragment key={`w${from}`}>{text.slice(from)}</Fragment>)
+  parts.push(<Fragment key={`w${from}`}>{keepUnits(text.slice(from))}</Fragment>)
   return parts
 }
 

@@ -3876,6 +3876,17 @@ a.contact-block__value:active {
 }
 
 /*
+ * A word longer than its line breaks instead of widening the page. Measured 24 Nov 2026 at twice
+ * the text size on a 390px phone: three Russian guides scrolled 8, 31 and 28px sideways, each from
+ * one long word in a paragraph or a list («воздухопроницаемость» is twenty letters), and 0px with
+ * this rule (Chromium, all three). `break-word` acts only on a word that cannot fit a whole line,
+ * so nothing moves at the default size.
+ */
+.prose--guide .spread__body :is(p, li) {
+  overflow-wrap: break-word;
+}
+
+/*
  * A guide heading with a very long word shrinks just enough for that word to fit its own column
  * (`FitWords` in GuidePage.tsx says why and how it was measured). The heading is the container, so
  * `100cqi` is its own width at every screen size, in the hero and in a section's half row.
@@ -6165,6 +6176,16 @@ a.contact-block__value:active {
  */
 .guide-card .product-card__desc {
   max-width: 29em;
+}
+
+/*
+ * A guide card's title is balanced, so its last line is not one stranded word. Measured 24 Nov 2026
+ * on the guides list, titles whose last line was under a third of the first: 14 of 30 at 390px and
+ * 8 of 30 at 768px in English, 7 and 3 in Russian; 0 with this, and no title changed height, so no
+ * card moved. At 1440px every title is one line.
+ */
+.guide-card .product-card__name {
+  text-wrap: balance;
 }
 
 .guide-card__link {
