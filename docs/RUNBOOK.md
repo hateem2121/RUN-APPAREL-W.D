@@ -398,8 +398,8 @@ question every Monday (`perf-watch.yml`) and fails when the first byte is not un
 **If first visits are slow right after a deploy (21 Nov 2026).** A deploy that changes the website
 empties every region's page store, by design: a kept page names script files only its own build
 has. What refills it: `warm-shared-store.mjs` from the CI runner's US region, then
-`warm-regions.mjs` from seven countries (`scripts/warm-regions.countries.json`: 25 addresses each,
-one probe each, 231 of Globalping's 250 free tests an hour). Every other first visit is covered by
+`warm-regions.mjs` from seven countries (`scripts/warm-regions.countries.json`: 27 addresses each
+since 24 Nov 2026, one probe each, 245 of Globalping's 250 free tests an hour). Every other first visit is covered by
 the shared copy of the page in R2, kept in THREE buckets (`run-apparel-page-copies`, Asia-Pacific;
 `run-apparel-page-copies-enam`, Eastern North America; `run-apparel-page-copies-eeur`, Eastern
 Europe, added the same day as the test for Pakistan and the Middle East), read at once, first answer wins. In

@@ -117,6 +117,42 @@ describe('regionTargets', () => {
     expect(pathsAsked.some((path) => path.startsWith('/guides/nested-'))).toBe(false)
   })
 
+  /**
+   * WHAT PRODUCTION DID (21 to 24 Nov 2026). The warm-up's note promised "five more top-level
+   * pages" after the garments, and the 25-address cut fell before the first of them: the Russian
+   * home page was warmed in none of the seven countries. The sitemap here has the live one's
+   * shape: the five judged pages, then /ru and the buyer pages.
+   */
+  it('warms the first two pages beyond the five judged ones: the Russian home page is one', async () => {
+    const live = {
+      pages: [
+        ...['/', '/products', '/about', '/contact', '/faq'].map((path) => `${ORIGIN}${path}`),
+        `${ORIGIN}/ru`,
+        `${ORIGIN}/custom-teamwear-manufacturer`,
+        `${ORIGIN}/custom-activewear-manufacturer`,
+      ],
+      garments: Array.from({ length: 41 }, (_, i) => `${API}/r-${i}/wine`),
+    }
+    const pathsOf = (targets: Array<{ url: string; headers: Record<string, string> }>) =>
+      targets.filter((target) => !target.headers.rsc).map((target) => new URL(target.url).pathname)
+    const asked = pathsOf(await regionTargets(live, ORIGIN))
+    expect(asked).toContain('/ru')
+    expect(asked).toContain('/custom-teamwear-manufacturer')
+    // The cut is still a cut: the third page beyond the judged five is left to the shared copy.
+    expect(asked).not.toContain('/custom-activewear-manufacturer')
+    // Nothing was given up for them: every judged page and all ten garments are still asked.
+    for (const judged of ['/', '/products', '/about', '/contact', '/faq']) {
+      expect(asked, judged).toContain(judged)
+    }
+    expect(asked.filter((path) => path.startsWith('/api/public/viewer/'))).toHaveLength(
+      REGION_GARMENTS_MAX,
+    )
+    // NEGATIVE CONTROL: at the size of 21 Nov (25) the same sitemap warms neither page.
+    const before = pathsOf(await regionTargets(live, ORIGIN, 25))
+    expect(before).not.toContain('/ru')
+    expect(before).not.toContain('/custom-teamwear-manufacturer')
+  })
+
   it(`asks for at most ${REGION_GARMENTS_MAX} garments, and never more than ${REGION_TARGETS_MAX} addresses`, async () => {
     const many = {
       pages: Array.from({ length: 80 }, (_, i) => `${ORIGIN}/page-${i}`),
@@ -383,9 +419,14 @@ describe('readBackPlan', () => {
     const file = new URL('../../../scripts/warm-regions.countries.json', import.meta.url)
     const countries = JSON.parse(readFileSync(file, 'utf8')).length
     const tests = (REGION_TARGETS_MAX + READ_BACK_MAX) * countries * PROBES_PER_COUNTRY
-    // 25 addresses and 8 read back, seven countries, one probe each (21 Nov 2026).
-    expect(tests).toBe(231)
+    // 27 addresses and 8 read back, seven countries, one probe each (24 Nov 2026; 25 and 231
+    // from 21 Nov, which left no room for any page beyond the five judged ones).
+    expect(tests).toBe(245)
     expect(tests).toBeLessThan(250)
+    // One more address would not fit: the next page has to take a garment's place.
+    expect(
+      (REGION_TARGETS_MAX + 1 + READ_BACK_MAX) * countries * PROBES_PER_COUNTRY,
+    ).toBeGreaterThan(250)
     // NEGATIVE CONTROL: the sizes of 20 Nov (70 addresses, 15 read back, 2 probes) in seven
     // countries would ask for 1,190 tests, nearly five free hours.
     expect((70 + 15) * countries * 2).toBeGreaterThan(250)
