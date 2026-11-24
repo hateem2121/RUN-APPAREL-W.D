@@ -1,5 +1,5 @@
 import { RU_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
-import { expect, test } from './offlineMedia'
+import { expect, type Page, test } from './offlineMedia'
 
 /**
  * THE RUSSIAN SECTION IN A REAL BROWSER (2026-11-15; design in
@@ -77,6 +77,53 @@ test.describe('a Russian guide', () => {
       cyrillicFile,
       'the Cyrillic face was never fetched: Russian headings fell back to a system font',
     ).toBe(true)
+  })
+
+  /*
+   * The check above passes when the file is fetched for ANY text on the page. This one reads which
+   * font drew the headline itself. Measured on the live site, 24 Nov 2026: this guide's headline
+   * drew 22 letters in Arial and 15 in Georgia, because its no-swap families had no Cyrillic face
+   * (packages/ui/src/cyrillic.css). Chromium only: the reading is its DevTools protocol's.
+   */
+  const headlineFonts = async (page: Page, plant = '') => {
+    await page.goto(RU_GUIDE)
+    // Second load: a no-swap face is used once it is cached (visual.spec.ts does the same).
+    await page.reload()
+    if (plant) await page.addStyleTag({ content: plant })
+    await page.evaluate(() => document.fonts.ready)
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    const { root } = await cdp.send('DOM.getDocument')
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: 'h1' })
+    const { fonts } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId })
+    return fonts.map((font) => ({ name: font.familyName, web: font.isCustomFont }))
+  }
+
+  test('draws the guide headline itself in the brand-matched faces, no system font', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'read through Chromium’s DevTools protocol')
+    const fonts = await headlineFonts(page)
+    expect(fonts.length).toBeGreaterThan(0)
+    expect(
+      fonts.filter((font) => !font.web),
+      'a system font drew part of the headline',
+    ).toEqual([])
+    expect(fonts.map((font) => font.name)).toContain('Roboto Flex')
+  })
+
+  test('NEGATIVE CONTROL: a headline forced to a system font is read as one', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'read through Chromium’s DevTools protocol')
+    const fonts = await headlineFonts(
+      page,
+      'h1, h1 * { font-family: Arial, sans-serif !important }',
+    )
+    expect(fonts.some((font) => !font.web)).toBe(true)
   })
 
   test('has no horizontal scroll on a 375px phone', async ({ page }) => {
