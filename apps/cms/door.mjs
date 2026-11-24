@@ -341,15 +341,86 @@ export async function buildFromSite(env, now = Date.now(), split = false) {
  *
  * @returns {Promise<string | null>}
  */
-export async function liveBuild(env, now = Date.now(), split = false) {
+export async function liveBuild(env, now = Date.now(), split = false, spans = undefined) {
   if (!env.SITE_PAGES || !env.SITE_CACHE) return null
+  const startedAt = doorClock.now()
   // Remembered reads (pageCache.mjs memoKvGet): 30 seconds per copy of this Worker.
   const [door, keying] = await Promise.all([
     memoKvGet(env.SITE_CACHE, DOOR_SWITCH_KEY).catch(() => null),
     memoKvGet(env.SITE_CACHE, STORE_BUILD_KEY).catch(() => null),
   ])
+  const flaggedAt = doorClock.now()
+  if (spans) spans.flagsMs = flaggedAt - startedAt
   if (door === DOOR_OFF || keying === PER_DEPLOY) return null
-  return buildFromSite(env, now, split)
+  const build = await buildFromSite(env, now, split)
+  if (spans) spans.buildMs = doorClock.now() - flaggedAt
+  return build
+}
+
+/**
+ * WHERE THE DOOR'S OWN WAIT GOES, for the network panel, a `curl -D -` and Workers Logs.
+ *
+ * ⚠️ WHY (23 Nov 2026). From Sydney, after 21 quiet minutes, ten garment-data requests sent at
+ * once took 582 to 862 ms to their first byte. Every one was a store HIT answered by this Worker
+ * alone (wall 537 to 699 ms, processor 0 to 2 ms; neither Worker behind it ran), and the answer's
+ * own marks accounted for under half of it: `kv;dur` 267 to 273 ms, `store;dur` 3 to 6 ms
+ * (viewerApiCache.mjs apiCacheTiming). The rest, about 400 ms, was spent in the three waits below,
+ * which no mark covered, so nothing could say which one to fix. The same day's burst from Sydney
+ * read p90 1,125 ms for the garment data, 9 of 30 at or over 800 ms.
+ *
+ *   door-switch  the `front-door` switch read that decides whether the site-only Worker is used
+ *   door-flags   the two flag reads in liveBuild (the switch again, remembered; `page-store-build`)
+ *   door-build   the site's build-name file, read over a binding
+ *
+ * Each is milliseconds read around an `await`, the only place a Worker's clock moves (Cloudflare,
+ * Workers "Performance", read 24 Nov 2026: timers "only advance or increment after I/O occurs").
+ * A copy of this Worker that still remembers all three waits 0 ms, and then NOTHING is added: the
+ * answer leaves as the very object it arrived as, with no cost and no change.
+ *
+ * `doorClock` is an object so that door.test.ts can stand a clock of its own in its place.
+ */
+export const doorClock = { now: () => performance.now() }
+
+/** A wait this long is written to Workers Logs too: a header is gone once the visitor has it. */
+export const DOOR_WAIT_LOGGED_MS = 100
+
+/** @param {{ switchMs: number, flagsMs: number, buildMs: number }} spans */
+export function doorTiming(spans) {
+  const ms = (value) => Math.round(value * 10) / 10
+  return `door-switch;dur=${ms(spans.switchMs)}, door-flags;dur=${ms(spans.flagsMs)}, door-build;dur=${ms(spans.buildMs)}`
+}
+
+/**
+ * The answer with the door's marks added, or the answer itself when the door did not wait. Never
+ * the reason an answer fails: anything that throws here hands back what arrived.
+ *
+ * @param {Response} response
+ * @param {{ switchMs: number, flagsMs: number, buildMs: number }} spans
+ */
+export function withDoorTiming(response, spans) {
+  try {
+    const waited = spans.switchMs + spans.flagsMs + spans.buildMs
+    if (!(waited >= 1)) return response
+    if (waited >= DOOR_WAIT_LOGGED_MS) {
+      // One structured line (Workers Logs indexes the fields); nothing about the visitor is in it.
+      console.log({
+        doorWait: Math.round(waited),
+        switchMs: Math.round(spans.switchMs),
+        flagsMs: Math.round(spans.flagsMs),
+        buildMs: Math.round(spans.buildMs),
+      })
+    }
+    const headers = new Headers(response.headers)
+    headers.append('server-timing', doorTiming(spans))
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    })
+  } catch (error) {
+    console.error('[front-door] could not add its timing; sending the answer as it is', error)
+    return response
+  }
 }
 
 const site = createSiteFetch({
@@ -430,16 +501,21 @@ export default {
       // Garment pages and the viewer's files: straight to the small viewer Worker.
       if (env.VIEWER && forwardsToViewer(url)) return env.VIEWER.fetch(request)
       // Asked only when the site-only Worker is bound: without it a file still costs no KV read.
+      const spans = { switchMs: 0, flagsMs: 0, buildMs: 0 }
+      const startedAt = doorClock.now()
       const split = hasSiteOnly(env) && (await siteOnlyOn(env))
+      spans.switchMs = doorClock.now() - startedAt
       if (alwaysHandedOn(url)) {
         return split && forSiteOnly(request, url)
           ? handToSiteOnly(request, env)
           : handOn(request, env)
       }
-      const build = await liveBuild(env, Date.now(), split)
+      const build = await liveBuild(env, Date.now(), split, spans)
       if (!build) return handOn(request, env)
       // The steps read the build's name off `env`, as they do in the site's Worker.
-      return await (split ? splitSite : site)(request, { ...env, SITE_BUILD: build }, ctx)
+      const answer = await (split ? splitSite : site)(request, { ...env, SITE_BUILD: build }, ctx)
+      // Where this Worker's own wait went (doorTiming says why); untouched when it did not wait.
+      return withDoorTiming(answer, spans)
     } catch (error) {
       // The door may make a page faster; it must never be the reason one fails.
       console.error('[front-door] failed; handing the request on', error)

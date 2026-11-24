@@ -5,12 +5,15 @@ import door, {
   DOOR_FULL,
   DOOR_OFF,
   DOOR_SWITCH_KEY,
+  DOOR_WAIT_LOGGED_MS,
+  doorClock,
   forgetBuild,
   forSiteOnly,
   hasSiteOnly,
   SITE_BUILD_PATH,
   siteOnlyOn,
   VERSION_OVERRIDES_HEADER,
+  withDoorTiming,
 } from '../door.mjs'
 import { forgetKvMemo, keptHeaders, STORE_BUILD_KEY } from '../pageCache.mjs'
 import {
@@ -115,6 +118,120 @@ const get = (url: string, headers: HeadersInit = {}) => new Request(url, { heade
 beforeEach(() => {
   forgetKvMemo()
   forgetBuild()
+  // A stopped clock, so only the tests that move it see the door's timing marks.
+  doorClock.now = () => 0
+})
+
+/**
+ * WHERE THE DOOR'S OWN WAIT GOES (door.mjs doorTiming, 24 Nov 2026).
+ *
+ * WHAT PRODUCTION DID. From Sydney on 23 Nov 2026, after 21 quiet minutes, ten garment-data
+ * requests took 582 to 862 ms to their first byte. Each was a store hit answered by the door
+ * alone, and the answer's own marks covered under half of it (`kv;dur` 267 to 273 ms,
+ * `store;dur` 3 to 6 ms): about 400 ms went to waits nothing measured.
+ *
+ * THE STAND-IN. A Worker's clock moves only while it waits on something outside itself, so the
+ * clock here is moved BY the three things the door waits on: each KV key and the build-name file
+ * cost what the test says, and nothing else moves it. That is the production shape: a copy of the
+ * door that has just started pays for every read, and one that remembers them pays nothing.
+ */
+describe('the door’s own wait, in its timing marks', () => {
+  type Costs = { switchMs: number; flagMs: number; fileMs: number }
+
+  /** A world whose reads cost time, and the garment-data request the Sydney probes sent. */
+  function slowWorld(costs: Costs) {
+    const w = world()
+    let clock = 0
+    doorClock.now = () => clock
+    const values: Record<string, string | null> = { 'content-version': '7' }
+    w.env.SITE_CACHE.get.mockImplementation(async (key: string) => {
+      if (key === DOOR_SWITCH_KEY) clock += costs.switchMs
+      if (key === STORE_BUILD_KEY) clock += costs.flagMs
+      return values[key] ?? null
+    })
+    const answerOf = w.siteOnly.fetch.getMockImplementation()
+    w.siteOnly.fetch.mockImplementation(async (request: Request) => {
+      if (new URL(request.url).pathname === SITE_BUILD_PATH) clock += costs.fileMs
+      return (answerOf as (request: Request) => Promise<Response>)(request)
+    })
+    const ask = () =>
+      door.fetch(get('https://cms.wear-run.help/api/public/viewer/rxps/wine'), w.env, w.ctx)
+    return { ...w, ask }
+  }
+
+  it('a copy of the door that has just started says how long each of its three waits took', async () => {
+    const w = slowWorld({ switchMs: 270, flagMs: 130, fileMs: 60 })
+    const response = await w.ask()
+    const timing = response.headers.get('server-timing') ?? ''
+    expect(timing).toContain('door-switch;dur=270, door-flags;dur=130, door-build;dur=60')
+    // The answer is the store's, still marked as a hit, and neither Worker behind the door ran.
+    expect(timing).toContain('api-cache;desc="hit"')
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('CMS store')
+    expect(w.asked(w.cms)).toEqual([])
+    expect(w.asked(w.siteOnly)).toEqual([])
+  })
+
+  it('a copy that remembers all three adds nothing: the next answer carries no door marks', async () => {
+    const w = slowWorld({ switchMs: 270, flagMs: 130, fileMs: 60 })
+    await w.ask()
+    const second = await w.ask()
+    expect(second.headers.get('server-timing')).toContain('api-cache;desc="hit"')
+    expect(second.headers.get('server-timing')).not.toContain('door-')
+    // Negative control for the line above: the first answer in a fresh world does carry them.
+    forgetKvMemo()
+    forgetBuild()
+    const fresh = await slowWorld({ switchMs: 270, flagMs: 130, fileMs: 60 }).ask()
+    expect(fresh.headers.get('server-timing')).toContain('door-switch;dur=270')
+  })
+
+  it('a website page gets the same marks, beside what the store said', async () => {
+    const w = slowWorld({ switchMs: 12, flagMs: 0, fileMs: 30 })
+    const response = await door.fetch(get('https://wear-run.com/faq'), w.env, w.ctx)
+    const timing = response.headers.get('server-timing') ?? ''
+    expect(timing).toContain('page-cache;desc="hit"')
+    expect(timing).toContain('door-switch;dur=12, door-flags;dur=0, door-build;dur=30')
+    expect(await response.text()).toBe('site-only store')
+  })
+
+  it('a long wait is written to Workers Logs as well, a short one is not', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      const waits = () => log.mock.calls.map(([line]) => line).filter((line) => line?.doorWait)
+      await slowWorld({ switchMs: 270, flagMs: 130, fileMs: 60 }).ask()
+      expect(waits()).toEqual([{ doorWait: 460, switchMs: 270, flagsMs: 130, buildMs: 60 }])
+      log.mockClear()
+      forgetKvMemo()
+      forgetBuild()
+      const short = await slowWorld({ switchMs: 40, flagMs: 30, fileMs: 20 }).ask()
+      expect(40 + 30 + 20).toBeLessThan(DOOR_WAIT_LOGGED_MS)
+      expect(short.headers.get('server-timing')).toContain('door-switch;dur=40')
+      expect(waits()).toEqual([])
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  it('an answer the door did not wait for leaves as the very object it arrived as', () => {
+    const answer = new Response('kept')
+    expect(withDoorTiming(answer, { switchMs: 0, flagsMs: 0, buildMs: 0 })).toBe(answer)
+    expect(withDoorTiming(answer, { switchMs: 0.4, flagsMs: 0.3, buildMs: 0.2 })).toBe(answer)
+  })
+
+  it('never fails an answer: one whose headers cannot be read is sent as it is', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const broken = {
+        get headers(): Headers {
+          throw new Error('headers are gone')
+        },
+      } as unknown as Response
+      expect(withDoorTiming(broken, { switchMs: 300, flagsMs: 0, buildMs: 0 })).toBe(broken)
+      expect(error).toHaveBeenCalledTimes(1)
+    } finally {
+      error.mockRestore()
+    }
+  })
 })
 
 describe('a website page, with the site-only Worker in use', () => {

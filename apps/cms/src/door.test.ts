@@ -12,6 +12,7 @@ import door, {
   DOOR_OFF,
   DOOR_SWITCH_KEY,
   DOOR_VERSION_PATH,
+  doorClock,
   doorVersionResponse,
   forgetBuild,
   isStaticFile,
@@ -118,6 +119,9 @@ const get = (url: string, headers: HeadersInit = {}) => new Request(url, { heade
 beforeEach(() => {
   forgetKvMemo()
   forgetBuild()
+  // A stopped clock: the door adds its timing marks only when it waited (doorSiteOnly.test.ts
+  // holds that), and nothing here may depend on how busy the machine running the tests is.
+  doorClock.now = () => 0
 })
 
 describe('what the door hands straight on', () => {
