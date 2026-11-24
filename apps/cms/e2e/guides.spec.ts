@@ -32,6 +32,10 @@ const BALLS = '/guides/how-soccer-balls-are-made'
 const WITH_PHOTOS = GUIDES.filter((guide) => guide.sections.some((section) => section.photo)).map(
   (guide) => guide.path,
 )
+/** How many photos each of those guides shows: one until 2026-11-24, when the packaging guide got a second. */
+const PHOTOS_IN = new Map(
+  GUIDES.map((guide) => [guide.path, guide.sections.filter((section) => section.photo).length]),
+)
 
 async function open(page: Page, path: string, width: number, extraCss?: string) {
   await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -141,7 +145,7 @@ test.describe('X22 — a factory photo in the heading’s half, beside the words
     test(`${path} at 1440px: under the heading, 64px clear of the words`, async ({ page }) => {
       await open(page, path, 1440)
       const places = await photoPlaces(page)
-      expect(places.length, 'no section with a photo').toBe(1)
+      expect(places.length, "a section's photo is missing").toBe(PHOTOS_IN.get(path))
       for (const place of places) {
         expect(place.alignedLeft, place.section).toBeLessThanOrEqual(0.5)
         expect(place.roomBeforeWords, place.section).toBeGreaterThanOrEqual(63.5)
@@ -179,7 +183,7 @@ test.describe('X22 — a factory photo in the heading’s half, beside the words
             (img) => ({ sizes: img.sizes, drawn: img.getBoundingClientRect().width }),
           ),
         )
-        expect(pictures.length, `${path}: no photo with a sizes hint`).toBe(1)
+        expect(pictures.length, `${path}: a photo has no sizes hint`).toBe(PHOTOS_IN.get(path))
         for (const picture of pictures) {
           const hinted = await hintedWidth(page, picture.sizes)
           if (!(hinted >= picture.drawn - 0.5)) {

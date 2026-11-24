@@ -24,7 +24,13 @@ export default function RussianGuidesPage() {
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
           <p className="label">{t('ru', '[ Buyer guides ]')}</p>
-          <h1 className="display display--hero">
+          {/* `hero-legal`: this headline never swaps fonts (site.css, "The guide headlines never swap").
+              Measured on the live site, 23 Nov 2026: about half a second after load the Cyrillic
+              face arrived, the headline re-wrapped (100px, 117px, back to 100px tall) and the page
+              under it moved up to 70px: layout shift 0.04, 0.47 and 0.48 in three runs at 1440px,
+              0.03 to 0.06 on a phone. The English list measured 0 and is unchanged. The Russian
+              guides, policy and buyer pages already draw their headlines this way. */}
+          <h1 className="display display--hero hero-legal">
             {GUIDES_INDEX_RU.heading}{' '}
             <span className="serif-accent">{GUIDES_INDEX_RU.headingAccent}</span>
           </h1>

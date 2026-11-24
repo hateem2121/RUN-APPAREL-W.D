@@ -17,13 +17,19 @@ export interface PageSection {
 export function OnThisPage({
   sections,
   locale = 'en',
+  className,
 }: {
   sections: readonly PageSection[]
+  /** A second class for a page that places the list its own way (the guides, 2026-11-24). */
+  className?: string
   /** Russian section (2026-11-15): the label in Russian. */
   locale?: 'en' | 'ru'
 }) {
   return (
-    <nav className="legal__toc" aria-labelledby="on-this-page">
+    <nav
+      className={className ? `legal__toc ${className}` : 'legal__toc'}
+      aria-labelledby="on-this-page"
+    >
       <p className="mono legal__toc-label" id="on-this-page">
         {locale === 'ru' ? 'На этой странице' : 'On this page'}
       </p>

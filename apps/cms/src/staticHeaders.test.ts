@@ -39,6 +39,18 @@ describe('public/_headers', () => {
     expect(next?.headers['cache-control']).toBe('public, max-age=31536000, immutable')
   })
 
+  it('keeps a photo for a week, then shows the saved copy while it checks for a newer one', () => {
+    for (const folder of ['factory', 'families', 'standards', 'film']) {
+      const rule = rules.find((entry) => entry.path === `/${folder}/*`)
+      expect(rule?.headers['cache-control'], folder).toBe(
+        'public, max-age=604800, stale-while-revalidate=2592000',
+      )
+    }
+    // The share cards are read by link-preview robots, not returning visitors: the plain week.
+    const share = rules.find((entry) => entry.path === '/share/*')
+    expect(share?.headers['cache-control']).toBe('public, max-age=604800')
+  })
+
   it('has no catch-all rule, which would be COMBINED with every other rule', () => {
     // Matching rules are joined with a comma, so a `/*` Cache-Control would ship two
     // contradictory values on every file (.claude/rules/viewer-headers.md).

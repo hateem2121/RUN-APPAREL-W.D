@@ -10,6 +10,7 @@ import {
   rememberLanguageChoice,
   safeStorage,
   startLanguageNote,
+  stepNoteBelow,
   type TrackerWindow,
   trackerEvent,
 } from '@run-apparel/shared'
@@ -128,11 +129,23 @@ export function LanguageNote() {
       const note = card.current
       if (!note || !(event.target instanceof Element) || note.contains(event.target)) return
       if (event.target.closest('.notch-shell')) return
-      const lift = liftClearOfNote(
-        note.getBoundingClientRect(),
-        event.target.getBoundingClientRect(),
-        window.innerHeight,
-      )
+      // Back to its own place first, so both rules below measure the note where it rests.
+      // ⚠️ WITH NO TRANSITION ON THE MOVE. Under reduced motion base.css gives every element
+      // `transition-duration: 0.01ms !important`, so a changed margin is a transition that has not
+      // started when the next line measures: on 24 Nov 2026 the inline style read 61px, the
+      // computed margin 0px, and the focused link was still under the note for that frame.
+      note.style.transitionProperty = 'none'
+      note.style.marginBlockStart = ''
+      const noteBox = note.getBoundingClientRect()
+      const targetBox = event.target.getBoundingClientRect()
+      // At the top of a page there is nothing above to scroll to, so the note steps down under
+      // the element instead (`stepNoteBelow` has the measurement), until focus moves on.
+      const step = stepNoteBelow(noteBox, targetBox, window.scrollY, window.innerHeight)
+      if (step !== 0) {
+        note.style.marginBlockStart = `${Math.ceil(step)}px`
+        return
+      }
+      const lift = liftClearOfNote(noteBox, targetBox, window.innerHeight)
       if (lift !== 0) window.scrollBy({ top: lift, behavior: 'instant' })
     }
     document.addEventListener('focusin', keepClear)

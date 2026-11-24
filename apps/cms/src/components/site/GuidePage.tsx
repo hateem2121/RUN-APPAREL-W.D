@@ -1,4 +1,9 @@
-import { buildViewerPath, GARMENT_PATH_PREFIX, RU_GARMENT_PATH_PREFIX } from '@run-apparel/shared'
+import {
+  buildViewerPath,
+  GARMENT_PATH_PREFIX,
+  RU_GARMENT_PATH_PREFIX,
+  resizedCardImage,
+} from '@run-apparel/shared'
 import { FAQ_INDEX, faqTopicAt, faqTopicForGuide } from '../../lib/faqs'
 import { GLOSSARY_INDEX } from '../../lib/glossary'
 import { IntentLink as Link } from './IntentLink'
@@ -40,6 +45,8 @@ import { SiteClosing } from './ArticleParts'
 import { Byline } from './Byline'
 import { FactoryFigure, HALF_COLUMN_SIZES } from './FactoryFigure'
 import { JsonLd } from './JsonLd'
+import { LinkPreview, type LinkPreviewData } from './LinkPreview'
+import { OnThisPage, type PageSection } from './OnThisPage'
 import { BuyerQuestionsChart } from './BuyerQuestionsChart'
 import { GuideToolBlock } from './GuideTools'
 import { OrderSteps } from './OrderSteps'
@@ -59,6 +66,37 @@ export function blockKey(block: GuideBlock): string {
   return 'title' in block ? block.title : block.text
 }
 
+/** A small copy of a garment's picture, for a link's card (176px) or a list row (64px). */
+function smallPoster(url: string, sizes: string) {
+  const { src, srcSet } = resizedCardImage(url, sizes)
+  return { src, srcSet }
+}
+
+/** A garment link's card: its name, its type and its own picture, as the catalogue holds them. */
+export function garmentPreview(card: ProductCard, locale: Locale): LinkPreviewData {
+  const type =
+    locale === 'ru' && card.garmentType
+      ? (GARMENT_TYPE_RU[card.garmentType] ?? card.garmentType)
+      : card.garmentType
+  return {
+    title: card.productName,
+    text: type || undefined,
+    image: card.posterUrl ? smallPoster(card.posterUrl, '176px') : undefined,
+  }
+}
+
+/** A guide link's card: that guide's own title and description; nothing for any other page. */
+export function guidePreview(href: string, locale: Locale): LinkPreviewData | null {
+  const path = href.split('#')[0] ?? href
+  if (!path.startsWith(`${GUIDES_INDEX.path}/`)) return null
+  try {
+    const guide = locale === 'ru' ? guideAtRu(path) : guideAt(path)
+    return { title: guide.title, text: guide.description }
+  } catch {
+    return null
+  }
+}
+
 /**
  * One link inside a guide's words (`GuideLink`). A garment (`/products/<slug>`) links to its default
  * colour's page, read from the live catalogue as the garment links at a guide's end are: the address
@@ -66,6 +104,9 @@ export function blockKey(block: GuideBlock): string {
  * own, no canonical). It is a plain anchor, because the viewer Worker draws garment pages, not Next.
  * A garment the catalogue does not hold is drawn as plain words, never linked dead. Every other page
  * is a site page and gets the site's link (`IntentLink`).
+ *
+ * A link to a garment or to another guide also says where it goes, in a card beside it for a mouse
+ * or the keyboard (`LinkPreview.tsx`, 2026-11-24); every other link is as it was.
  */
 function GuideAnchor({
   link,
@@ -81,16 +122,21 @@ function GuideAnchor({
     const card = cards.find((entry) => entry.slug === slug)
     if (!card) return link.phrase
     return (
-      <a
-        className="prose__link"
-        href={buildViewerPath(
-          card.slug,
-          card.defaultColourSlug,
-          locale === 'ru' ? RU_GARMENT_PATH_PREFIX : GARMENT_PATH_PREFIX,
-        )}
-      >
-        {link.phrase}
-      </a>
+      <LinkPreview
+        preview={garmentPreview(card, locale)}
+        link={
+          <a
+            className="prose__link"
+            href={buildViewerPath(
+              card.slug,
+              card.defaultColourSlug,
+              locale === 'ru' ? RU_GARMENT_PATH_PREFIX : GARMENT_PATH_PREFIX,
+            )}
+          >
+            {link.phrase}
+          </a>
+        }
+      />
     )
   }
   // A file to save (the buyer-questions CSV, C7) is a plain anchor with a file name, not a page.
@@ -101,12 +147,25 @@ function GuideAnchor({
       </a>
     )
   }
-  return (
+  const anchor = (
     <Link className="prose__link" href={link.href}>
       {link.phrase}
     </Link>
   )
+  const preview = guidePreview(link.href, locale)
+  return preview ? <LinkPreview preview={preview} link={anchor} /> : anchor
 }
+
+/**
+ * A number and its unit stay on one line ("180 GSM", "40 °C"), so a line never ends on the number
+ * with the unit alone on the next (guides audit, 2026-11-24). The space between them is drawn as a
+ * no-break space; the guide's own words (`guides.ts`) are not changed, so no guide's fingerprint
+ * or "last changed" date moves. Only these units, each counted in the English guides that day; the
+ * Russian guides already write the no-break space themselves. Paragraphs and lists only: a table
+ * cell is narrow, and a pair that cannot break there could widen the table.
+ */
+const UNIT_AFTER_NUMBER = /(\d) (GSM|g\/m²|mg\/kg|kg|g|mm|cm|m|°C|ppm|dtex)(?![\w/])/g
+export const keepUnits = (text: string): string => text.replace(UNIT_AFTER_NUMBER, '$1\u00a0$2')
 
 /**
  * Words with their links (`GuideLink`): each phrase becomes a link where it first appears, and the
@@ -125,7 +184,7 @@ export function LinkedWords({
   /** A Russian page links a garment to its Russian page (owner, 2026-11-16). */
   locale?: Locale
 }) {
-  if (!links?.length) return text
+  if (!links?.length) return keepUnits(text)
   const spots = links
     .flatMap((link) => {
       const at = text.indexOf(link.phrase)
@@ -136,11 +195,11 @@ export function LinkedWords({
   let from = 0
   for (const spot of spots) {
     if (spot.at < from) continue
-    parts.push(<Fragment key={`w${from}`}>{text.slice(from, spot.at)}</Fragment>)
+    parts.push(<Fragment key={`w${from}`}>{keepUnits(text.slice(from, spot.at))}</Fragment>)
     parts.push(<GuideAnchor key={`a${spot.at}`} link={spot.link} cards={cards} locale={locale} />)
     from = spot.end
   }
-  parts.push(<Fragment key={`w${from}`}>{text.slice(from)}</Fragment>)
+  parts.push(<Fragment key={`w${from}`}>{keepUnits(text.slice(from))}</Fragment>)
   return parts
 }
 
@@ -278,6 +337,46 @@ function FitWords({ text, children }: { text: string; children: ReactNode }) {
       {children}
     </span>
   )
+}
+
+/** A heading as an address: lower-case letters and digits, joined by hyphens. */
+export function headingId(heading: string): string {
+  return heading
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** The id of the Sources heading, on every guide that has one. */
+export const SOURCES_ID = 'sources'
+
+/**
+ * ⚠️ ONE ID PER SECTION, THE SAME ON THE ENGLISH AND THE RUSSIAN PAGE (the guides audit, 2026-11-24:
+ * the median guide is 17 phone screens long, 7 to 20 sections, and no heading had an id, so nothing
+ * could link to a part). The id is the ENGLISH heading's words, read from `guides.ts` by the
+ * guide's path, so a Russian page's address stays plain letters and a link to a part works in both
+ * languages. A guide whose Russian sections do not line up one to one with the English ones gets
+ * `part-1`, `part-2`…; two headings with the same words get a number on the second.
+ */
+export function sectionIds(guide: Guide): string[] {
+  let english: Guide | undefined
+  try {
+    english = guideAt(guide.path)
+  } catch {
+    english = undefined
+  }
+  const aligned = english?.sections.length === guide.sections.length
+  const seen = new Set<string>([SOURCES_ID])
+  return guide.sections.map((_section, index) => {
+    const base =
+      (aligned ? headingId(english?.sections[index]?.heading ?? '') : '') || `part-${index + 1}`
+    let id = base
+    for (let n = 2; seen.has(id); n += 1) id = `${base}-${n}`
+    seen.add(id)
+    return id
+  })
 }
 
 /** A list's links, each given only to the first item that holds its phrase. */
@@ -449,32 +548,15 @@ export function isWideTable(block: Extract<GuideBlock, { kind: 'table' }>): bool
  * same grid and gap, site.css), so the photo asks for `HALF_COLUMN_SIZES`; the files and their
  * widths are `factoryPhotos.ts`'s (`factoryPhotoImage`), as `OrderSteps.tsx` reads them.
  *
- * `priority` is true for ONE figure per page: the photo of the guide's FIRST section, the first
- * spread under the hero (see `GuidePage`). It loads eager at high priority (`FactoryFigure.tsx`
- * says why); every later section's photo stays lazy.
+ * Always lazy since 2026-11-24 (`GuidePage` below says why): `FactoryFigure`'s default.
  */
-function SectionPhoto({
-  slug,
-  priority,
-  locale,
-}: {
-  slug: string
-  priority: boolean
-  locale: Locale
-}) {
+function SectionPhoto({ slug, locale }: { slug: string; locale: Locale }) {
   const found = FACTORY_PHOTOS.find((entry) => entry.slug === slug)
   // `guides.test.ts` fails a slug with no photo; drawing nothing is the safe miss in production.
   if (!found) return null
   const photo = locale === 'ru' ? ruPhoto(found) : found
   // Every width the photo has (polish X16 added larger ones for sharp screens), as №01 asks.
-  return (
-    <FactoryFigure
-      photo={photo}
-      {...factoryPhotoImage(photo)}
-      sizes={HALF_COLUMN_SIZES}
-      priority={priority}
-    />
-  )
+  return <FactoryFigure photo={photo} {...factoryPhotoImage(photo)} sizes={HALF_COLUMN_SIZES} />
 }
 
 /** One group of links at the end of a page, under its own heading; `why` is drawn under a link. */
@@ -534,6 +616,8 @@ function GuideGarmentsSection({
           locale === 'ru' ? RU_GARMENT_PATH_PREFIX : GARMENT_PATH_PREFIX,
         ),
         name: card.productName,
+        // The garment's own picture beside its name (owner, 2026-11-24: a link shows what is in it).
+        image: card.posterUrl ? smallPoster(card.posterUrl, '64px') : null,
         // A Russian guide names the type in Russian (garmentTypes.ru.ts); the garment's name is a brand.
         detail: [
           locale === 'ru' && card.garmentType
@@ -554,8 +638,25 @@ function GuideGarmentsSection({
         <div className="spread__body">
           <ul className="see-also__list">
             {links.map((link) => (
-              <li key={link.href}>
-                <a href={link.href}>{link.name}</a>
+              <li key={link.href} className={link.image ? 'see-also__pictured' : undefined}>
+                <a href={link.href}>
+                  {link.image ? (
+                    // Decorative: the link's words name the garment, right beside the picture.
+                    // biome-ignore lint/performance/noImgElement: no `sharp` on Workers, so next/image cannot resize (ProductPoster.tsx measures why); Cloudflare resizes these copies, picked by srcSet.
+                    <img
+                      className="see-also__thumb"
+                      src={link.image.src}
+                      srcSet={link.image.srcSet}
+                      sizes="64px"
+                      width={64}
+                      height={80}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : null}
+                  {link.name}
+                </a>
                 {link.detail ? <p className="see-also__why">{link.detail}</p> : null}
               </li>
             ))}
@@ -608,7 +709,9 @@ function GuideSources({ sources, locale }: { sources: readonly GuideSource[]; lo
   return (
     <section className="site-section" data-site-reveal>
       <div className="site-container prose prose--guide spread">
-        <h2 className="display display--section">{t(locale, 'Sources')}</h2>
+        <h2 className="display display--section" id={SOURCES_ID}>
+          {t(locale, 'Sources')}
+        </h2>
         <div className="spread__body">
           <ol className="see-also__list guide-sources">
             {sources.map((source) => (
@@ -738,6 +841,12 @@ export function GuidePage({
   // A headline with a very long word shrinks to fit it (`FitWords`); read before the markup so the
   // className stays one template literal (`headlineLeading.test.ts` reads it).
   const heroFit = fitSuffix(`${guide.heading} ${guide.headingAccent}`)
+  const ids = sectionIds(guide)
+  // "On this page": every section, then the sources where the guide has them.
+  const parts: PageSection[] = [
+    ...guide.sections.map((section, index) => ({ id: ids[index] ?? '', title: section.heading })),
+    ...(guide.sources ? [{ id: SOURCES_ID, title: t(locale, 'Sources') }] : []),
+  ]
   return (
     <>
       <JsonLd data={guideBreadcrumbJsonLd(guide, locale)} />
@@ -748,7 +857,14 @@ export function GuidePage({
       <section className="site-hero">
         <div className="blueprint site-hero__grid" aria-hidden="true" />
         <div className="site-container">
-          <p className="label">{t(locale, '[ Buyer guide ]')}</p>
+          {/* The way back to every guide (the guides audit, 2026-11-24): the wide bar has no Guides
+              link (its one row fits two, docs/DESIGN.md), so from a guide the list was reachable
+              only at the very bottom. The label itself is the link; site.css gives it a 44px row. */}
+          <p className="label label--guide">
+            <Link className="label__way" href={GUIDES_INDEX.path}>
+              {t(locale, '[ Buyer guide ]')}
+            </Link>
+          </p>
           {/* `hero-guide`: this headline never swaps fonts mid-visit (site.css, 2026-10-01).
               `display--long`: 36-46 characters, so a phone sets it with more air (base.css, VA-45). */}
           <h1 className={`display display--hero display--long hero-guide${heroFit}`}>
@@ -756,8 +872,13 @@ export function GuidePage({
               {guide.heading} <span className="serif-accent">{guide.headingAccent}</span>
             </FitWords>
           </h1>
-          <p className="site-lede site-lede--guide">{guide.lede}</p>
-          <Byline path={guide.path} reviewed={guide.reviewed} locale={locale} />
+          {/* The lede and byline, with "On this page" in the half beside them from 900px, which was
+              empty; under the byline on a phone (`.guide-intro`, site.css). */}
+          <div className="guide-intro">
+            <p className="site-lede site-lede--guide">{guide.lede}</p>
+            <Byline path={guide.path} reviewed={guide.reviewed} locale={locale} />
+            <OnThisPage sections={parts} locale={locale} className="guide-toc" />
+          </div>
         </div>
       </section>
 
@@ -767,7 +888,7 @@ export function GuidePage({
           it comes between the heading and the words, as the markup has it. */}
       {guide.sections.map((section, index) => {
         const heading = (
-          <h2 className={`display display--section${fitSuffix(section.heading)}`}>
+          <h2 className={`display display--section${fitSuffix(section.heading)}`} id={ids[index]}>
             <FitWords text={section.heading}>
               <WholeWords text={section.heading} />
             </FitWords>
@@ -831,11 +952,10 @@ export function GuidePage({
                 {section.photo ? (
                   <div className="spread__head">
                     {heading}
-                    {/* Only the first section is the first spread under the hero, so only its
-                        photo is fetched early: the rest are further down, where lazy is right.
-                        Of the five guides with photos, the minimum-order and printing guides
-                        start with one (guides.ts); the other three have theirs later. */}
-                    <SectionPhoto slug={section.photo} priority={index === 0} locale={locale} />
+                    {/* Lazy, every one (2026-11-24): with "On this page" in the hero the first spread
+                        starts below the first screen, and an eager photo there took bandwidth from
+                        the fonts (GuidePage.test.ts has the measurements). */}
+                    <SectionPhoto slug={section.photo} locale={locale} />
                   </div>
                 ) : (
                   heading

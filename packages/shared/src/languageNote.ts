@@ -207,6 +207,29 @@ export function liftClearOfNote(note: Box, target: Box, viewportHeight: number, 
   return -(note.bottom - target.top + gap)
 }
 
+/**
+ * How far DOWN the note itself steps (px), when scrolling cannot clear a focused element, or 0.
+ *
+ * ⚠️ AT THE TOP OF A PAGE THERE IS NOTHING ABOVE TO SCROLL TO. `liftClearOfNote` scrolls the page up
+ * by the overlap; with the page scrolled less than that, the browser stops at 0 and the element
+ * stays under the note. Measured on the website at 375px, 24 Nov 2026, in a browser asking for
+ * Russian: the policy pages' "Home" and "Policies" links (82 to 126px down) and a guide's label
+ * link (74 to 119px) sat wholly inside the note (68 to 182px), and `e2e/languageNote.spec.ts` named
+ * the label as soon as it became a link. So there the note moves instead: down to just under the
+ * element, where it covers words and no control, until focus moves on.
+ */
+export function stepNoteBelow(
+  note: Box,
+  target: Box,
+  scrolled: number,
+  viewportHeight: number,
+  gap = 8,
+): number {
+  const lift = liftClearOfNote(note, target, viewportHeight, gap)
+  if (lift === 0 || scrolled >= -lift) return 0
+  return target.bottom - note.top + gap
+}
+
 export interface LanguageNoteStart {
   /** `navigator.webdriver`: an automated browser gets no note, unless a test lifts the flag. */
   readonly webdriver: boolean

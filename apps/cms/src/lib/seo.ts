@@ -1,5 +1,7 @@
 import { GARMENT_PATH_PREFIX, RU_GARMENT_PATH_PREFIX } from '@run-apparel/shared'
 import type { Metadata } from 'next'
+import { bylineFor } from './bylines'
+import { GUIDES_INDEX } from './guides'
 import { hasRussianTwin, type Locale, ruPath } from './locale'
 import { SHARE_IMAGE, shareCardFor, shareImageUrl } from './shareImages'
 
@@ -119,12 +121,29 @@ export function buildMetadata({
   const languages = hasRussianTwin(path)
     ? { en: at(path), ru: at(ruPath(path)), 'x-default': at(path) }
     : undefined
+  /*
+   * A buyer guide is an Open Graph `article` (guides audit, 2026-11-24: all 60 guide pages said
+   * `website`). ogp.me, read 2026-11-24: `article:published_time` is "when the article was first
+   * published", `article:modified_time` "when the article was last changed", and
+   * `article:author` a profile, so it is sent only for a named person, as that person's page here.
+   * The dates are the byline's own (bylines.ts), the same ones the page prints and its JSON-LD
+   * carries. Decided here, from the path, so no guide page can forget it.
+   */
+  const byline = path.startsWith(`${GUIDES_INDEX.path}/`) ? bylineFor(path) : undefined
+  const kind = byline
+    ? {
+        type: 'article' as const,
+        publishedTime: byline.published,
+        modifiedTime: byline.changed.on,
+        ...(byline.author.kind === 'person' ? { authors: [at(byline.author.path)] } : {}),
+      }
+    : { type: 'website' as const }
   return {
     title,
     description,
     alternates: languages ? { canonical: url, languages } : { canonical: url },
     openGraph: {
-      type: 'website',
+      ...kind,
       siteName: SITE_NAME,
       title,
       description,
