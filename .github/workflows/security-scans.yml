@@ -98,7 +98,7 @@ jobs:
             scorecard.sarif > scorecard-filtered.sarif
           echo "results before: $(jq '[.runs[].results[]] | length' scorecard.sarif), after: $(jq '[.runs[].results[]] | length' scorecard-filtered.sarif)"
       - name: Send to the Security tab
-        uses: github/codeql-action/upload-sarif@v4.39.1
+        uses: github/codeql-action/upload-sarif@v4.39.3
         with:
           sarif_file: scorecard-filtered.sarif
           category: scorecard
@@ -152,7 +152,7 @@ jobs:
           # fails the step ("cannot find ignorefile") instead of silently showing them again.
           trivyignores: .trivyignore
       - name: Send to the Security tab
-        uses: github/codeql-action/upload-sarif@v4.39.1
+        uses: github/codeql-action/upload-sarif@v4.39.3
         with:
           sarif_file: trivy-config.sarif
           category: trivy-dockerfile
