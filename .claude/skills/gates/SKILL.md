@@ -1,7 +1,7 @@
 ---
 name: gates
 description: Run this repo's CI gates locally, in CI's order, stopping at the first failure. Use before pushing anything, and after any dependency change.
-argument-hint: "[--from <gate>] [--list]"
+argument-hint: "[--from <gate>] [--list] [--dirty]"
 disable-model-invocation: true
 allowed-tools: Bash(node .claude/skills/gates/run-gates.mjs:*)
 ---
@@ -17,6 +17,11 @@ node .claude/skills/gates/run-gates.mjs
 
 Pass `--from <gate>` to resume after fixing one, `--list` to see the order without
 running anything.
+
+**Commit first.** With tracked files uncommitted the runner stops before it starts and
+says so, because the `routes` gate refuses a build made from uncommitted files, and used
+to say it only after every earlier gate had run (twice, 2026-11-23 and 24). `--dirty`
+runs anyway, for lint and tests on work in progress.
 
 ## Why a script owns the order
 

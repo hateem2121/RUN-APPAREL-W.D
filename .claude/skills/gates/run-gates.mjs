@@ -25,6 +25,7 @@
  *   node .claude/skills/gates/run-gates.mjs              # everything, in order
  *   node .claude/skills/gates/run-gates.mjs --from build # resume from a gate
  *   node .claude/skills/gates/run-gates.mjs --list       # names only, run nothing
+ *   node .claude/skills/gates/run-gates.mjs --dirty      # run although files are uncommitted
  */
 import { spawnSync } from 'node:child_process'
 
@@ -199,6 +200,12 @@ const GATES = [
     name: 'e2e',
     why: 'separate CI job — ALSO gates the deploy. Slowest in CI (8 machines since 2026-11-07), ~45s locally',
     argv: [...PNPM, '--filter', '@run-apparel/viewer', 'test:e2e'],
+    // ⚠️ THE VIEWER'S TEST SERVER MUST BE THIS RUN'S OWN (2026-11-24). Playwright reuses whatever
+    // already answers on 4173 (`reuseExistingServer` off CI). Two sessions ran this gate in two
+    // worktrees at once: the second tested the FIRST one's build, and when the first run ended
+    // its server went with it. Seen twice that day as 52 and then 2,020 "connection refused"
+    // failures on a branch that changed no viewer file. A busy port stops the gate, by name.
+    freePort: 4173,
   },
 ]
 
@@ -259,6 +266,38 @@ if (args.includes('--commands')) {
 
 const fromIndex = args.indexOf('--from')
 const from = fromIndex === -1 ? null : args[fromIndex + 1]
+
+/**
+ * ⚠️ AN UNCOMMITTED CHANGE IS NAMED BEFORE ANYTHING RUNS (2026-11-24). The `routes` gate refuses a
+ * build made from uncommitted files ("REQUIRE_BUILD_ARTIFACTS=1 but .next is stale … current
+ * source is uncommitted"), which is right, but it said so only after lint, typecheck, every test
+ * suite and the build had run. That cost a full pass on 2026-11-23 and again on 2026-11-24, the
+ * second time with the lesson already written in a note nobody had open. So: when the run will
+ * reach `routes` and tracked files differ from the last commit, stop here and say what to do.
+ * `--dirty` runs anyway (lint and tests on work in progress), and `routes` will then fail.
+ */
+const routesAt = GATES.findIndex((gate) => gate.name === 'routes')
+const fromAt = from === null ? 0 : GATES.findIndex((gate) => gate.name === from)
+if (fromAt !== -1 && fromAt <= routesAt) {
+  const status = spawnSync('git', ['status', '--porcelain', '--untracked-files=no'], {
+    encoding: 'utf8',
+  })
+  const changed = status.status === 0 ? status.stdout.split('\n').filter(Boolean) : []
+  if (changed.length > 0) {
+    console.log(`${changed.length} tracked file(s) differ from the last commit:`)
+    for (const line of changed.slice(0, 10)) console.log(`  ${line}`)
+    if (args.includes('--dirty')) {
+      console.log('--dirty: running anyway. The `routes` gate will refuse the build.\n')
+    } else {
+      console.log(
+        '\nNOTHING RAN. The `routes` gate refuses a build made from uncommitted files, after\n' +
+          'everything before it has already run. Commit first, then run this again; or pass\n' +
+          '--dirty to run the gates before it on work in progress.',
+      )
+      process.exit(2)
+    }
+  }
+}
 let started = from === null
 const startedAt = process.hrtime.bigint()
 const results = []
@@ -268,9 +307,26 @@ function isInstalled(program) {
   return spawnSync('sh', ['-c', `command -v ${program}`], { stdio: 'ignore' }).status === 0
 }
 
+/** Does anything accept a connection on this local port? (A constant from GATES, never user input.) */
+function portIsBusy(port) {
+  const probe =
+    "const s=require('node:net').connect(Number(process.argv[1]),'127.0.0.1');" +
+    "s.on('connect',()=>process.exit(0));s.on('error',()=>process.exit(1));" +
+    'setTimeout(()=>process.exit(1),1500)'
+  return spawnSync('node', ['-e', probe, String(port)], { stdio: 'ignore' }).status === 0
+}
+
 /** Run one gate. Returns true on success. */
-function runGate(name, argv, cwd, why, requires) {
+function runGate(name, argv, cwd, why, requires, freePort) {
   console.log(`\n=== ${name} === ${why}`)
+  if (freePort && portIsBusy(freePort)) {
+    console.log(
+      `STOPPED: something already answers on port ${freePort}, so this gate would test ITS files, not\n` +
+        'these. Another session is probably running the same tests: wait for it, then resume.',
+    )
+    results.push({ name, status: 'FAIL' })
+    return false
+  }
   if (requires && !isInstalled(requires)) {
     // Never a silent pass: it is counted, named in the summary, and the final line says so.
     console.log(`SKIPPED: ${requires} is not installed here, so this gate did NOT run.`)
@@ -300,7 +356,7 @@ for (const gate of GATES) {
       continue
     }
   }
-  if (runGate(gate.name, gate.argv, gate.cwd, gate.why, gate.requires)) continue
+  if (runGate(gate.name, gate.argv, gate.cwd, gate.why, gate.requires, gate.freePort)) continue
 
   console.log(`\n${gate.name} FAILED.`)
   summarise()

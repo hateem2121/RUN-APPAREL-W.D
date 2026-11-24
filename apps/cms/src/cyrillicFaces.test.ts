@@ -41,15 +41,25 @@ const brand = [
   ...faces(
     read('apps', 'viewer', 'node_modules', '@fontsource', 'instrument-serif', '400-italic.css'),
   ),
+  // The website's no-swap headline families (site.css), which have companions of their own.
+  ...faces(read('apps', 'cms', 'src', 'app', '(frontend)', 'site.css')).filter((face) =>
+    face.family.endsWith(' Optional'),
+  ),
 ]
 const companions = faces(read('packages', 'ui', 'src', 'cyrillic.css'))
 
 describe('the Cyrillic companions match the brand faces they join', () => {
-  it('declares one companion each for Archivo and the Instrument Serif italic', () => {
+  it('declares one companion each for Archivo and the Instrument Serif italic, swapping and no-swap', () => {
     expect(companions.map((face) => `${face.family} ${face.style}`).sort()).toEqual([
+      'Archivo Optional normal',
       'Archivo Variable normal',
+      'Instrument Serif Optional italic',
       'Instrument Serif italic',
     ])
+  })
+
+  it('finds the no-swap brand faces it compares against (five in site.css)', () => {
+    expect(brand.filter((face) => face.family.endsWith(' Optional'))).toHaveLength(5)
   })
 
   for (const companion of companions) {

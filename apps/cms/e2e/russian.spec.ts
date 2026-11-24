@@ -1,5 +1,5 @@
 import { RU_PAGE_SOURCES } from '../publicViewerHeaders.mjs'
-import { expect, test } from './offlineMedia'
+import { expect, type Page, test } from './offlineMedia'
 
 /**
  * THE RUSSIAN SECTION IN A REAL BROWSER (2026-11-15; design in
@@ -77,6 +77,109 @@ test.describe('a Russian guide', () => {
       cyrillicFile,
       'the Cyrillic face was never fetched: Russian headings fell back to a system font',
     ).toBe(true)
+  })
+
+  /*
+   * The check above passes when the file is fetched for ANY text on the page. This one reads which
+   * font drew the headline itself. Measured on the live site, 24 Nov 2026: this guide's headline
+   * drew 22 letters in Arial and 15 in Georgia, because its no-swap families had no Cyrillic face
+   * (packages/ui/src/cyrillic.css). Chromium only: the reading is its DevTools protocol's.
+   */
+  const headlineFonts = async (page: Page, plant = '') => {
+    if (plant) await page.addStyleTag({ content: plant })
+    await page.evaluate(() => document.fonts.ready)
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('DOM.enable')
+    await cdp.send('CSS.enable')
+    const { root } = await cdp.send('DOM.getDocument')
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: 'h1' })
+    const { fonts } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId })
+    await cdp.detach()
+    return fonts.map((font) => ({ name: font.familyName, web: font.isCustomFont }))
+  }
+
+  /*
+   * ⚠️ THE TIMING IS TAKEN OUT, SO THIS JUDGES THE FACES AND NOT THE CACHE. A no-swap face
+   * (`font-display: optional`) is used only when the browser has it within about a tenth of a
+   * second of first paint. Measured 24 Nov 2026: on this Mac it took until the second reload, and in
+   * CI's Linux image five reloads never got there (Liberation Sans and Serif, CI run 45390662839),
+   * so a version of this test that reloaded until the face appeared failed there. The defect it is
+   * here for is not timing: the no-swap families had NO Cyrillic face, so no load could ever draw
+   * one. So the page's own no-swap faces are told to swap in for this check, which a family with
+   * a Cyrillic face answers with that face and a family without one cannot.
+   */
+  /** The page's own no-swap rules, told to swap; `dropCyrillic` first removes the rules the fix added. */
+  const swapTheNoSwapFaces = (page: Page, dropCyrillic = false) =>
+    page.evaluate(async (drop) => {
+      const rules: CSSFontFaceRule[] = []
+      for (const sheet of document.styleSheets) {
+        for (const rule of sheet.cssRules) {
+          if (
+            rule instanceof CSSFontFaceRule &&
+            rule.style.getPropertyValue('font-family').includes('Optional')
+          )
+            rules.push(rule)
+        }
+      }
+      let dropped = 0
+      for (const rule of rules) {
+        const cyrillic = /U\+0?4/i.test(rule.style.getPropertyValue('unicode-range'))
+        if (drop && cyrillic) {
+          const sheet = rule.parentStyleSheet
+          if (sheet) sheet.deleteRule([...sheet.cssRules].indexOf(rule))
+          dropped += 1
+        } else rule.style.setProperty('font-display', 'swap')
+      }
+      await Promise.all([...document.fonts].map((face) => face.load().catch(() => null)))
+      await document.fonts.ready
+      await new Promise<void>((done) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => done())),
+      )
+      return { rules: rules.length, dropped }
+    }, dropCyrillic)
+
+  test('the guide headline’s own families have Cyrillic faces: no system font draws it', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'read through Chromium’s DevTools protocol')
+    await page.goto(RU_GUIDE)
+    const changed = await swapTheNoSwapFaces(page)
+    // Five in site.css and the two Cyrillic companions in cyrillic.css.
+    expect(changed.rules, 'the no-swap rules were not found, so nothing was tested').toBe(7)
+    const fonts = await headlineFonts(page)
+    expect(fonts.length).toBeGreaterThan(0)
+    expect(
+      fonts.filter((font) => !font.web),
+      'a system font drew part of the headline',
+    ).toEqual([])
+    expect(fonts.map((font) => font.name)).toContain('Roboto Flex')
+  })
+
+  test('NEGATIVE CONTROL: with the Cyrillic no-swap faces taken away, a system font draws it', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'read through Chromium’s DevTools protocol')
+    await page.goto(RU_GUIDE)
+    // The page as it was before the fix: the two no-swap families with no Cyrillic face.
+    const changed = await swapTheNoSwapFaces(page, true)
+    expect(changed.dropped, 'the rules to take away were not found, so nothing was tested').toBe(2)
+    const fonts = await headlineFonts(page)
+    expect(fonts.some((font) => !font.web)).toBe(true)
+  })
+
+  test('NEGATIVE CONTROL: a headline forced to a system font is read as one', async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'read through Chromium’s DevTools protocol')
+    await page.goto(RU_GUIDE)
+    const fonts = await headlineFonts(
+      page,
+      'h1, h1 * { font-family: Arial, sans-serif !important }',
+    )
+    expect(fonts.some((font) => !font.web)).toBe(true)
   })
 
   test('has no horizontal scroll on a 375px phone', async ({ page }) => {
