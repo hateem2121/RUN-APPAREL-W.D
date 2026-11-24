@@ -51,14 +51,24 @@
 # (9b26c709…), rxps 16,683,676 B (8e0264c5…). Control: `--no-uv-remap` on the pullover gave
 # 2,245,916 B (7ae698e9…), so the comparison sees a change — the same sizes 2026-10-20 measured.
 #
-# PINNED-ON: 2026-10-24
+# DIGEST REFRESH 2026-11-24 (Dependabot's #464, taken by hand with the date below): 36793bcb… ->
+# e6bedef2…, the same tag. It moves Node 26.12.1 -> 26.13.1; Debian 13.7, glibc
+# 2.41-12+deb13u4, sharp 0.35.5 and its own libvips 8.18.7 / libwebp 1.6.0 read the same in both
+# images. Print check the same way as 2026-10-24: both images built for linux/amd64 from this
+# Dockerfile (git archive of main at 6dbf7ebd), shrinkFile() run with shrinkFlagsFor()'s flags
+# on the canonical rxps export (382,107,380 B, balanced) and APEX FLEX PULLOVER (16,905,596 B,
+# fidelity). Outputs BYTE-IDENTICAL, SHA-256 equal, and equal to 2026-10-24's: pullover
+# 1,886,524 B (9b26c709…), rxps 16,683,676 B (8e0264c5…). Control: `--no-uv-remap` on the
+# pullover gave 2,245,916 B (7ae698e9…), so the comparison sees a change.
+#
+# PINNED-ON: 2026-11-24
 # ⚠️ That line is READ BY A TEST (apps/cms/src/baseImageAge.test.ts), which fails once
 # the pin is older than the refresh window. Base images are rebuilt mainly to pick up
 # operating-system security fixes, so pinning is correct and never refreshing is not —
 # and until 2026-08-29 nothing anywhere measured the age. Update the date in the SAME
 # pull request as the digest (Dependabot moves only the digest), or the gate is measuring
 # a lie.
-FROM node:26-trixie-slim@sha256:36793bcbb160a6a16cede1e62b93f84e26b78a972a8a4c0b879c1c12f22761ec
+FROM node:26-trixie-slim@sha256:e6bedef217677b276c591795e169840edd9096dbf13f29df8ef8d1856b8820bc
 
 WORKDIR /app
 
