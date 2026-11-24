@@ -19,6 +19,11 @@
       "url": "https://doi.org/10.56824/vujs.2026a005a",
       "until": "2026-12-15",
       "reason": "A correct DOI whose landing site vujs.vn has an expired TLS certificate (2026-11-15); the guide keeps the DOI. Look again on the date."
+    },
+    {
+      "url": "https://doi.org/10.14502/tekstilec2020.63.166-184",
+      "until": "2026-12-24",
+      "reason": "A correct DOI (Crossref names the paper the guide cites, 2026-11-24) that doi.org forwards to www.tekstilec.si, a host that did not answer: timed out for the weekly check on 2026-11-22 (issue #452) and from Pakistan on 2026-11-24, on http and https. The journal's newer home, journals.uni-lj.si/tekstilec, answers, but its search did not find this 2020 paper; article 12018 there is the same authors' 2021 paper, a different one. The guide keeps the DOI. Look again on the date."
     }
   ]
 }
