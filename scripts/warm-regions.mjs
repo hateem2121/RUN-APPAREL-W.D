@@ -45,13 +45,20 @@ import { API_ORIGIN, SITE_ORIGIN, warmTapTargets, warmTargets } from './warm-sha
  * /privacy (1.5 to 3.5 s) and London drew the home page (7.1 s): only Pakistan and the CI
  * runner's own US region had been warmed. The free hour is 250 tests, so seven countries cannot
  * each have 70 addresses: 25 addresses x 7 countries x 1 probe + the second pass's 8 x 7 = 231.
- * The 25 are the five judged pages, the tap into each, the first ten garments' data and five more
- * top-level pages. THE PRICE, for Pakistan: its nested pages (guides, policies, FAQ pages) are
+ * THE PRICE, for Pakistan: its nested pages (guides, policies, FAQ pages) are
  * no longer warmed there, as before 4 Nov. What covers them now is the shared copy, read from
  * two buckets and waited for 1.5 s (apps/cms/pageCopy.mjs); if a weekly `--measure` shows them
  * slow from Pakistan again, that is the trade to revisit.
+ *
+ * ⚠️ 27 SINCE 24 NOV 2026, BECAUSE THE 25 HELD NO PAGE BEYOND THE FIVE JUDGED ONES. This note said
+ * they ended with "five more top-level pages". They did not: the five judged pages, the tap and
+ * the hover into each (10) and ten garments' data are 25 by themselves, so the cut fell before the
+ * first other page. Listed from the live sitemap of 23 Nov 2026 (175 pages): the 26th address was
+ * /ru, the Russian home page, and the 27th /custom-teamwear-manufacturer, and neither was warmed
+ * in any of the seven countries. Two more fit the free hour without giving anything up:
+ * 27 x 7 + 8 x 7 = 245 of 250. A third would not (252), so the next page costs a garment.
  */
-export const REGION_TARGETS_MAX = 25
+export const REGION_TARGETS_MAX = 27
 /**
  * At most this many garments' data: the first cards of the products page, the ones a buyer sees
  * and opens first (cardGarments). The rest of the 41 are warmed in the buyer's own browser when a
@@ -95,8 +102,8 @@ export const READ_BACK_BUDGET_MS = 90_000
 /**
  * The second pass (review of 27 Oct; spec Part 6, Step 2): the first addresses again, the five
  * judged pages and their taps and hovers, from the probes the warm-up used, to say whether the
- * region then finds them kept. 8 addresses × 7 countries × 1 probe: 56 tests, 231 with the
- * warm-up's 175 (15 addresses × 2 probes in one country until 21 Nov 2026).
+ * region then finds them kept. 8 addresses × 7 countries × 1 probe: 56 tests, 245 with the
+ * warm-up's 189 (15 addresses × 2 probes in one country until 21 Nov 2026).
  */
 export const READ_BACK_MAX = 8
 /**
