@@ -3640,7 +3640,8 @@ a.contact-block__value:active {
   background: var(--raised);
   box-shadow: var(--shadow-raised);
   color: var(--text);
-  transform-origin: var(--transform-origin);
+  /* Base UI sets --transform-origin on the positioner; the fallback is the card's own corner. */
+  transform-origin: var(--transform-origin, 0 0);
   transition: opacity var(--instant) var(--ease);
 }
 
@@ -3799,20 +3800,27 @@ a.contact-block__value:active {
 
 /*
  * The guide's label is the way back to every guide (GuidePage.tsx), and it is read, so 12px on a
- * phone where the other pages' labels keep 10px (the audit's detector: text under 11px). `max()`
- * keeps the 13px step from 1920px (tokens.css). The link inside the chip is 44px tall: its padding
- * reaches past the chip and its margin takes the same back, so the chip, the headline under it and
- * the 10px between them (e2e/composition.spec.ts) are where they were. Nothing else can be tapped
- * within that reach: the bar is above the hero's padding and the headline below is not a link.
+ * phone where the other pages' labels keep 10px (the audit's detector: text under 11px), and the
+ * 13px step from 1920px that every label takes there (tokens.css). The link inside the chip is at
+ * least 44px tall: its padding (a step of the spacing scale) reaches past the chip and its margin
+ * takes the same back, so the chip, the headline under it and the 10px between them
+ * (e2e/composition.spec.ts) are where they were. Nothing else can be tapped within that reach: the
+ * bar is above the hero's padding and the headline below is not a link.
  */
 .site-hero .label--guide {
-  font-size: max(var(--text-mono-sm), var(--text-mono-lg));
+  font-size: var(--text-mono-lg);
+}
+
+@media (min-width: 1920px) {
+  .site-hero .label--guide {
+    font-size: var(--text-xs);
+  }
 }
 
 .label__way {
   display: inline-block;
-  margin-block: -13px;
-  padding-block: 13px;
+  margin-block: -14px;
+  padding-block: 14px;
   color: inherit;
   text-decoration: none;
 }
