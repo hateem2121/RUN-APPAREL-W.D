@@ -1808,6 +1808,10 @@ describe('TY-01 (VC-05, VC-06) — two brand typefaces and IBM Plex Mono for lab
   const CYRILLIC_COMPANIONS: Record<string, RegExp> = {
     'Archivo Variable': /^\s*url\(\.\.\/fonts\/roboto-flex-cyrillic-wdth-100-125\.woff2\)/,
     'Instrument Serif': /^\s*url\(\.\.\/fonts\/cormorant-italic-500-cyrillic\.woff2\)/,
+    // The no-swap headline copies get the same two files (2026-11-24): without them every Russian
+    // guide headline fell to Arial and Georgia (cyrillic.css says what was measured).
+    'Archivo Optional': /^\s*url\(\.\.\/fonts\/roboto-flex-cyrillic-wdth-100-125\.woff2\)/,
+    'Instrument Serif Optional': /^\s*url\(\.\.\/fonts\/cormorant-italic-500-cyrillic\.woff2\)/,
   }
   /** True when every range in a `unicode-range` lies inside U+0400-U+052F (Cyrillic). */
   const cyrillicOnly = (range: string) =>
