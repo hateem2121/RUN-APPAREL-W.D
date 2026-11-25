@@ -2479,6 +2479,8 @@ export const GUIDES: readonly Guide[] = [
       },
       {
         heading: 'See the factory before you order',
+        // One of the owner's factory photos, beside the words that name it (owner, 2026-11-25).
+        photo: 'showroom',
         blocks: [
           {
             kind: 'text',

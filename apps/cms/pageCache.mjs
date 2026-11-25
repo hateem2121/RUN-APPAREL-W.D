@@ -285,6 +285,19 @@ export function forgetKvMemo() {
 }
 
 /**
+ * What this copy of the Worker last read for `key`, without reading anything: `undefined` when it
+ * has never had an answer. For a decision that must not wait and may be wrong for a moment (the
+ * front door's early build-name read, door.mjs startBuildRead); never for the decision itself.
+ *
+ * @param {string} key
+ * @returns {string | null | undefined}
+ */
+export function lastKvValue(key) {
+  const held = globalThis.__runKvMemo?.get(key)
+  return held?.hasLast ? held.last : undefined
+}
+
+/**
  * keptStoreKey, plus what it read on the way: the content version and the name it keyed by. The
  * shared page copy (pageCopy.mjs, 10 Nov 2026) names its object from these, so it costs no extra
  * KV read: KV was at its free limit of 100,000 reads a day that week.

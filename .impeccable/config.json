@@ -57,6 +57,13 @@
         "files": ["apps/viewer/src/styles/tokens.test.ts"],
         "createdAt": "2026-10-12T04:58:09.210Z",
         "reason": "Claude, 2026-10-12: line 1538 is test VC-02, which FORBIDS background-clip:text in CSS and JSX; the match is that rule's own regex, and this Vitest file draws no text"
+      },
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "files": ["apps/cms/e2e/russian.spec.ts"],
+        "createdAt": "2026-11-25T03:03:52.500Z",
+        "reason": "Claude: a test's negative control forces the headline to a system font on purpose (russian.spec.ts, PR 475); it is a planted fault in a browser test, not site styling"
       }
     ]
   }

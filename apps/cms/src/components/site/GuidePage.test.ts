@@ -195,9 +195,11 @@ describe('no guide photo is fetched early (2026-11-24; one was, 2026-10-24)', ()
       '/guides/sportswear-fabrics-and-weights',
       '/guides/private-label-packaging',
       '/guides/shipping-and-import-duties',
+      '/guides/cost-to-start-an-activewear-brand',
       '/guides/dyeing-and-color-matching',
       '/guides/how-to-order-team-kits',
       '/guides/aql-inspection',
+      '/guides/fabric-and-garment-testing',
     ])
   })
 
