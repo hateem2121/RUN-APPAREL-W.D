@@ -140,10 +140,20 @@ updates:
   # options reference, read 25 Oct 2026: separate pull requests per directory unless
   # `group-by` is set), so at most one grouped PR per folder a week, after the same 7-day
   # wait. Playwright here should follow the workspace's @playwright/test.
+  #
+  # ⚠️ NOT UNDER .github/ (moved 25 Nov 2026). The two folders were .github/ci-installs/* for a
+  # month and this block never opened one pull request. Its run of 24 Nov 2026 (45413652704)
+  # found three updates, committed them, and was refused when it asked to open the pull
+  # request: 400 "The request contains invalid or unauthorized changes", which the updater
+  # reports as `dependency_file_not_supported`. Dependabot checks a pull request's files before
+  # opening it, and under .github/ it accepts changes from only a few ecosystems, mainly
+  # github-actions; npm is not one, and no setting here changes that (dependabot-core issue
+  # #15721, where a reporter relays GitHub Support's answer; read 25 Nov 2026).
+  # scripts/ci-changed-paths.mjs lists the new folder as never shipped, as .github/ was.
   - package-ecosystem: npm
     directories:
-      - /.github/ci-installs/puppeteer-browsers
-      - /.github/ci-installs/guidepup
+      - /ci-installs/puppeteer-browsers
+      - /ci-installs/guidepup
     schedule:
       interval: weekly
       day: monday
@@ -159,6 +169,11 @@ updates:
     ignore:
       - dependency-name: "@guidepup/setup"
         versions: ["0.29.3"]
+      # The workspace's hold (the first block, and docs/DEPENDENCY-HOLDS.md, 2026-11-18): the
+      # refused run of 24 Nov 2026 proposed playwright 1.64.1 -> 1.65.1 here, which that hold
+      # keeps out. The same two versions, so the next release opens its own pull request.
+      - dependency-name: playwright
+        versions: ["1.65.0", "1.65.1"]
 
   # The shrink container's base image (apps/shrink/Dockerfile), since 2026-10-03 (owner
   # decision, told that CI does not render garments inside this image). The pin is a

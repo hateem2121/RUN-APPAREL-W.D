@@ -69,8 +69,14 @@ export function touchesShrink(file) {
   )
 }
 
-/** Folders no Worker is built from. `.github/workflows/ci.yml` is the one exception. */
-const NOT_SHIPPED_FOLDERS = ['docs/', '.claude/', '.agents/', '.github/']
+/**
+ * Folders no Worker is built from. `.github/workflows/ci.yml` is the one exception.
+ * `ci-installs/` holds the lockfiles two scheduled workflows install their own command-line tools
+ * from (voiceover.yml, android-chrome.yml). It sat under `.github/` until 25 Nov 2026 and moved
+ * because Dependabot may not change npm files there (.github/dependabot.yml has the run); it is
+ * listed so that the move does not turn its weekly update into a deploy of the site.
+ */
+const NOT_SHIPPED_FOLDERS = ['docs/', '.claude/', '.agents/', '.github/', 'ci-installs/']
 
 /**
  * Files at the repo root that no Worker is built from. `skills-lock.json` records the
