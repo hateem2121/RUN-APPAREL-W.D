@@ -369,6 +369,11 @@ The marks found it the same day: three waits of about 210 ms in a row (the switc
 the answer's own `kv`), each a KV read the region had not made lately. Since then the door starts
 every such read together (`startSettingsReads` in `apps/cms/door.mjs`), so a fresh copy shows one
 wait, in `door-switch`, with `door-flags` and `kv` near 0. Three waits again means that line was lost.
+Since 25 Nov 2026 the build-name file is asked for at that same moment too (`startBuildRead`): on
+24 Nov it still waited for the switch and read 223 to 231 ms in `door-build` from Sydney. A fresh
+copy now shows `door-build` as only what is left once the switch has answered. With the switch at
+`full` or `off`, a copy that has never had the switch's answer reads the site-only Worker's
+build-name file once before it knows; that is a static file and runs none of that Worker's code.
 
 **How the door is deployed (since 21 Nov 2026).** With the other two Workers: `ci.yml` uploads its
 new version, stages it at 0%, and the pre-live checks name it in the override header, so they

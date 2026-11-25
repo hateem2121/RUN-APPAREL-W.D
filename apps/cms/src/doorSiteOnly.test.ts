@@ -139,11 +139,12 @@ beforeEach(() => {
  *
  * THE STAND-IN. A Worker's clock moves only while it waits on something outside itself, so the
  * clock here is moved BY the things the door waits on: each KV key and the build-name file cost
- * what the test says, and nothing else moves it. A KV read ends its cost after the moment it was
- * STARTED, as a real one does, so reads started together overlap (door.mjs startSettingsReads,
- * 24 Nov 2026: the switch's wait now covers the flag's, which reads 0). That is the production
- * shape: a copy of the door that has just started pays for its reads, and one that remembers
- * them pays nothing.
+ * what the test says, and nothing else moves it. Every read ends its cost after the moment it was
+ * STARTED, and the reads finish in the order of their finishing times, as real ones do. So reads
+ * started together overlap (door.mjs startSettingsReads, 24 Nov 2026, and startBuildRead, 25 Nov
+ * 2026): the longest wait covers the others, and what a later step still waits for is only what
+ * is left. That is the production shape: a copy of the door that has just started pays for its
+ * reads once, and one that remembers them pays nothing.
  */
 describe('the door’s own wait, in its timing marks', () => {
   type Costs = { switchMs: number; flagMs: number; fileMs: number }
@@ -153,32 +154,54 @@ describe('the door’s own wait, in its timing marks', () => {
     const w = world()
     let clock = 0
     doorClock.now = () => clock
+    /** Reads that have started and not finished: each finishes at its own time. */
+    const waiting: Array<{ doneAt: number; finish: () => void }> = []
+    const taking = (cost: number) =>
+      new Promise<void>((finish) => {
+        waiting.push({ doneAt: clock + cost, finish })
+      })
     const values: Record<string, string | null> = { 'content-version': '7' }
     w.env.SITE_CACHE.get.mockImplementation(async (key: string) => {
-      const cost =
-        key === DOOR_SWITCH_KEY ? costs.switchMs : key === STORE_BUILD_KEY ? costs.flagMs : 0
-      const doneAt = clock + cost
-      await Promise.resolve()
-      clock = Math.max(clock, doneAt)
+      await taking(
+        key === DOOR_SWITCH_KEY ? costs.switchMs : key === STORE_BUILD_KEY ? costs.flagMs : 0,
+      )
       return values[key] ?? null
     })
     const answerOf = w.siteOnly.fetch.getMockImplementation()
     w.siteOnly.fetch.mockImplementation(async (request: Request) => {
-      if (new URL(request.url).pathname === SITE_BUILD_PATH) clock += costs.fileMs
+      if (new URL(request.url).pathname === SITE_BUILD_PATH) await taking(costs.fileMs)
       return (answerOf as (request: Request) => Promise<Response>)(request)
     })
+    /** Let the door run until it waits, then finish the read that is due first; repeat. */
+    const drive = async (answer: Promise<Response>) => {
+      let settled = false
+      const done = answer.finally(() => {
+        settled = true
+      })
+      while (!settled) {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        waiting.sort((a, b) => a.doneAt - b.doneAt)
+        const next = waiting.shift()
+        if (next) {
+          clock = Math.max(clock, next.doneAt)
+          next.finish()
+        }
+      }
+      return done
+    }
     const ask = () =>
-      door.fetch(get('https://cms.wear-run.help/api/public/viewer/rxps/wine'), w.env, w.ctx)
-    return { ...w, ask }
+      drive(door.fetch(get('https://cms.wear-run.help/api/public/viewer/rxps/wine'), w.env, w.ctx))
+    return { ...w, ask, drive }
   }
 
   it('a copy of the door that has just started says how long each of its three waits took', async () => {
     const w = slowWorld({ switchMs: 270, flagMs: 130, fileMs: 60 })
     const response = await w.ask()
     const timing = response.headers.get('server-timing') ?? ''
-    // The flag's read ran inside the switch's wait (they start together), so it shows 0.
-    // Until 24 Nov 2026 this read 270, 130, 60: one wait after another.
-    expect(timing).toContain('door-switch;dur=270, door-flags;dur=0, door-build;dur=60')
+    // The flag's read and the build-name file's ran inside the switch's wait (all three start
+    // together), so both show 0. Until 24 Nov 2026 this read 270, 130, 60, one wait after
+    // another; on 24 Nov 270, 0, 60, the file still waiting for the switch.
+    expect(timing).toContain('door-switch;dur=270, door-flags;dur=0, door-build;dur=0')
     // The answer is the store's, still marked as a hit, and neither Worker behind the door ran.
     expect(timing).toContain('api-cache;desc="hit"')
     expect(response.status).toBe(200)
@@ -202,10 +225,12 @@ describe('the door’s own wait, in its timing marks', () => {
 
   it('a website page gets the same marks, beside what the store said', async () => {
     const w = slowWorld({ switchMs: 12, flagMs: 0, fileMs: 30 })
-    const response = await door.fetch(get('https://wear-run.com/faq'), w.env, w.ctx)
+    const response = await w.drive(door.fetch(get('https://wear-run.com/faq'), w.env, w.ctx))
     const timing = response.headers.get('server-timing') ?? ''
     expect(timing).toContain('page-cache;desc="hit"')
-    expect(timing).toContain('door-switch;dur=12, door-flags;dur=0, door-build;dur=30')
+    // The file takes longer than the switch here, so the door still waits for what is left of
+    // it: 30 less the 12 already spent on the switch.
+    expect(timing).toContain('door-switch;dur=12, door-flags;dur=0, door-build;dur=18')
     expect(await response.text()).toBe('site-only store')
   })
 
@@ -214,12 +239,12 @@ describe('the door’s own wait, in its timing marks', () => {
     try {
       const waits = () => log.mock.calls.map(([line]) => line).filter((line) => line?.doorWait)
       await slowWorld({ switchMs: 270, flagMs: 130, fileMs: 60 }).ask()
-      expect(waits()).toEqual([{ doorWait: 330, switchMs: 270, flagsMs: 0, buildMs: 60 }])
+      expect(waits()).toEqual([{ doorWait: 270, switchMs: 270, flagsMs: 0, buildMs: 0 }])
       log.mockClear()
       forgetKvMemo()
       forgetBuild()
       const short = await slowWorld({ switchMs: 40, flagMs: 30, fileMs: 20 }).ask()
-      expect(40 + 20).toBeLessThan(DOOR_WAIT_LOGGED_MS)
+      expect(40).toBeLessThan(DOOR_WAIT_LOGGED_MS)
       expect(short.headers.get('server-timing')).toContain('door-switch;dur=40')
       expect(waits()).toEqual([])
     } finally {
@@ -342,6 +367,50 @@ describe('the door’s settings reads, started together', () => {
     expect(w.asked()).not.toContain(STORE_MODE_KEY)
     w.release()
     expect(await (await answer).text()).toBe(`CMS Worker: POST ${FORM_PATH}`)
+  })
+
+  /**
+   * THE BUILD-NAME FILE TOO (door.mjs startBuildRead, 25 Nov 2026). Sydney on 24 Nov 2026, after
+   * the settings reads had been started together: `door-build` 223 to 231 ms on a copy of the
+   * door that had just started, because the file was asked for only once the switch had answered.
+   */
+  it('the build-name file is asked for before the switch answers', async () => {
+    const w = heldWorld()
+    const buildReads = () =>
+      w.siteOnly.fetch.mock.calls.filter(
+        ([request]) => new URL(request.url).pathname === SITE_BUILD_PATH,
+      ).length
+    const answer = door.fetch(
+      get('https://cms.wear-run.help/api/public/viewer/rxps/wine'),
+      w.env,
+      w.ctx,
+    )
+    await w.settle()
+    // NEGATIVE CONTROL, run on the door as it was on 24 Nov 2026: 0 here, the file not yet asked.
+    expect(buildReads()).toBe(1)
+    w.release()
+    expect(await (await answer).text()).toBe('CMS store')
+    // Asked once: liveBuild found the read already made, and the other Worker's file is not read.
+    expect(buildReads()).toBe(1)
+    expect(w.cmsFiles.fetch).not.toHaveBeenCalled()
+  })
+
+  it('a file and a form post start no build-name read', async () => {
+    const w = heldWorld()
+    const file = door.fetch(get('https://wear-run.com/_next/static/chunks/a.js'), w.env, w.ctx)
+    const sent = door.fetch(
+      new Request(`https://wear-run.com${FORM_PATH}`, { method: 'POST', body: 'a=b' }),
+      w.env,
+      w.ctx,
+    )
+    await w.settle()
+    expect(
+      w.siteOnly.fetch.mock.calls.filter(
+        ([request]) => new URL(request.url).pathname === SITE_BUILD_PATH,
+      ),
+    ).toHaveLength(0)
+    w.release()
+    await Promise.all([file, sent])
   })
 
   it('a KV that fails every read never fails the page: it is handed on', async () => {
@@ -506,7 +575,11 @@ describe('the site-only Worker’s off switch (KV `front-door` = `full`)', () =>
     expect(await file.text()).toContain('CMS Worker')
     const init = w.cmsPages.fetch.mock.calls[0]?.[1] as { cf: { cacheKey: string } }
     expect(init.cf.cacheKey).toContain(CMS_BUILD)
-    expect(w.siteOnly.fetch).not.toHaveBeenCalled()
+    // Nothing reaches the site-only Worker's CODE. Since 25 Nov 2026 a copy of the door that has
+    // never had the switch's answer reads that Worker's build-name file once before it knows
+    // (door.mjs startBuildRead): a static file, served without the Worker running.
+    expect(w.asked(w.siteOnly)).toEqual([])
+    expect(w.siteOnly.fetch.mock.calls.length).toBeLessThanOrEqual(1)
     expect(w.siteOnlyPages.fetch).not.toHaveBeenCalled()
   })
 
@@ -514,9 +587,41 @@ describe('the site-only Worker’s off switch (KV `front-door` = `full`)', () =>
     const w = world({ door: DOOR_OFF })
     const response = await door.fetch(get('https://wear-run.com/faq'), w.env, w.ctx)
     expect(await response.text()).toBe('CMS Worker: GET /faq')
-    expect(w.siteOnly.fetch).not.toHaveBeenCalled()
+    expect(w.asked(w.siteOnly)).toEqual([])
     expect(w.siteOnlyPages.fetch).not.toHaveBeenCalled()
     expect(w.cmsPages.fetch).not.toHaveBeenCalled()
+  })
+
+  /**
+   * THE EARLY BUILD-NAME READ MUST NOT UNDO THE SWITCH (door.mjs startBuildRead, 25 Nov 2026).
+   * What would break in production: with `full` thrown because the site-only Worker is faulty,
+   * a door that read that Worker's file early on every request would make its two remembered
+   * names forget each other, reading two files per request and remembering nothing.
+   */
+  it('with `full` thrown, a copy that knows it reads only the CMS Worker’s file, once', async () => {
+    const w = world({ door: DOOR_FULL })
+    for (let i = 0; i < 4; i++) {
+      const page = await door.fetch(get('https://wear-run.com/faq'), w.env, w.ctx)
+      expect(await page.text()).toBe('CMS store')
+    }
+    // One stray read while the fresh copy did not know the switch yet; none after that.
+    expect(w.siteOnly.fetch.mock.calls.length).toBeLessThanOrEqual(1)
+    expect(w.cmsFiles.fetch).toHaveBeenCalledTimes(1)
+    const keys = w.cmsPages.fetch.mock.calls.map(
+      ([, init]) => (init as { cf: { cacheKey: string } }).cf.cacheKey,
+    )
+    expect(keys).toHaveLength(4)
+    for (const key of keys) expect(key).toContain(CMS_BUILD)
+  })
+
+  it('with `off` thrown, a copy that knows it reads no build-name file at all', async () => {
+    const w = world({ door: DOOR_OFF })
+    await door.fetch(get('https://wear-run.com/faq'), w.env, w.ctx)
+    const readsBefore = w.siteOnly.fetch.mock.calls.length + w.cmsFiles.fetch.mock.calls.length
+    for (let i = 0; i < 3; i++) await door.fetch(get('https://wear-run.com/faq'), w.env, w.ctx)
+    const readsAfter = w.siteOnly.fetch.mock.calls.length + w.cmsFiles.fetch.mock.calls.length
+    expect(readsAfter).toBe(readsBefore)
+    expect(w.asked(w.siteOnly)).toEqual([])
   })
 
   it('says so: on without a value, off for `full` and `off`, off without the bindings', async () => {

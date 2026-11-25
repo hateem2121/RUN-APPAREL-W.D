@@ -48,6 +48,7 @@
 import {
   CONTENT_VERSION_KEY,
   KEPT_FILES,
+  lastKvValue,
   memoKvGet,
   NEVER_KEPT_PATHS,
   PER_DEPLOY,
@@ -315,11 +316,17 @@ export async function buildFromSite(env, now = Date.now(), split = false) {
   if (remembered.split !== split) remembered = { at: 0, build: null, reading: null, split }
   if (remembered.at > 0 && now - remembered.at < BUILD_MEMO_MS) return remembered.build
   if (remembered.reading) return remembered.reading
+  // ⚠️ A READ WRITES ITS ANSWER DOWN ONLY IF NOTHING HAS REPLACED IT MEANWHILE (25 Nov 2026).
+  // Since startBuildRead, a read for one Worker's file can still be in flight when the switch
+  // sends liveBuild to the other's, which forgets the first (the line above). Without this the
+  // late answer would be remembered as if it were current, under the Worker nobody is using.
+  const slot = remembered
   const reading = (async () => {
     try {
       const answer = await readBuildFile(env, split)
       const text = answer.ok ? (await answer.text()).trim() : ''
       const build = SITE_BUILD_PATTERN.test(text) ? text : null
+      if (remembered !== slot) return build
       // A read that answered is remembered even when it names no build: the site said so.
       if (answer.ok || answer.status === 404) remembered = { at: now, build, reading: null, split }
       else {
@@ -330,7 +337,7 @@ export async function buildFromSite(env, now = Date.now(), split = false) {
       return build
     } catch (error) {
       console.error('[front-door] could not read the site build; handing requests on', error)
-      remembered.reading = null
+      if (remembered === slot) remembered.reading = null
       return null
     }
   })()
@@ -419,6 +426,52 @@ export function startSettingsReads(request, env) {
   // A tap between pages asks its own switch as well (tapStore.mjs tapStoreOn).
   if (request.headers.has('rsc')) keys.push(RSC_STORE_KEY)
   for (const key of keys) memoKvGet(env.SITE_CACHE, key).catch(() => null)
+  startBuildRead(env)
+}
+
+/**
+ * THE BUILD-NAME FILE IS READ AT THE SAME MOMENT, NOT AFTER THE SWITCH ANSWERS (25 Nov 2026).
+ *
+ * ⚠️ WHY. With the settings reads started together, the largest wait left on a copy of this
+ * Worker that has just started was the build-name file. Two runs from Sydney on 24 Nov 2026, ten
+ * garment-data requests at once, all store hits: at 10:46 UTC `door-build` read 153 to 212 ms on
+ * eight of them, and at 14:01 UTC 223 to 231 ms on eight (first byte 299 to 507 ms on those).
+ * The file was asked for only once the switch had answered, so the two waits added up.
+ *
+ * WHICH FILE. The switch decides whether the site-only Worker draws the pages, and so whose build
+ * names the store's keys (readBuildFile). It is not known yet here, so this reads the file of the
+ * Worker the switch picks unless someone has thrown it: the site-only Worker's when it is bound.
+ * buildFromSite hands a read in flight to whoever asks next, so liveBuild then waits only for
+ * what is left of it. If the switch says otherwise (`full`), liveBuild asks for the other file,
+ * exactly as before, and this read is thrown away.
+ *
+ * ⚠️ A SWITCH THIS COPY ALREADY KNOWS IS THROWN STARTS NOTHING. The last value read for the
+ * switch is looked at without a read (pageCache.mjs lastKvValue): `off` means no store is asked,
+ * so no build name is needed, and `full` means the CMS Worker's file, which is then the one read
+ * early. Only a copy that has never had the switch's answer guesses, and with the switch thrown
+ * that guess is one stray read of a static file: the site-only Worker's code does not run for it.
+ *
+ * ⚠️ AND NOT WHEN THE DOOR ALREADY REMEMBERS THE OTHER WORKER'S NAME. buildFromSite forgets a
+ * name the moment it is asked for the other Worker's, so an early read for the wrong one on every
+ * request would make the two forget each other for ever: two file reads per request and nothing
+ * remembered. So only a copy that remembers nothing yet, or remembers this same Worker, starts one.
+ *
+ * ⚠️ ONLY OVER A BINDING. Without one (a local preview, a test) the file is asked of the site's
+ * Worker itself (handOn), and a read nobody may need must never be the thing that starts it.
+ *
+ * It costs no KV read and starts no Worker: a static file asked over a binding is served without
+ * the bound Worker's code running (readBuildFile's note). Nothing here can fail a request:
+ * buildFromSite catches its own failures and answers null.
+ */
+function startBuildRead(env) {
+  const lastSwitch = lastKvValue(DOOR_SWITCH_KEY)
+  // No store is asked with the door off or with keys named per deploy (liveBuild): no name needed.
+  if (lastSwitch === DOOR_OFF || lastKvValue(STORE_BUILD_KEY) === PER_DEPLOY) return
+  const usual = hasSiteOnly(env) && lastSwitch !== DOOR_FULL
+  if (!usual && !env.SITE_FILES) return
+  const knowsSomething = remembered.at > 0 || remembered.reading !== null
+  if (knowsSomething && remembered.split !== usual) return
+  buildFromSite(env, Date.now(), usual).catch(() => null)
 }
 
 /** A wait this long is written to Workers Logs too: a header is gone once the visitor has it. */
