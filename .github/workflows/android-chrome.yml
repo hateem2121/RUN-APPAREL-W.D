@@ -124,7 +124,7 @@ jobs:
       - name: Install the browser-install CLI
         run: |
           mkdir -p "${RUNNER_TEMP}/puppeteer-browsers"
-          cp .github/ci-installs/puppeteer-browsers/package.json .github/ci-installs/puppeteer-browsers/package-lock.json "${RUNNER_TEMP}/puppeteer-browsers/"
+          cp ci-installs/puppeteer-browsers/package.json ci-installs/puppeteer-browsers/package-lock.json "${RUNNER_TEMP}/puppeteer-browsers/"
           npm ci --no-audit --no-fund --prefix "${RUNNER_TEMP}/puppeteer-browsers"
 
       # The emulator boot itself, then ONE first real check once it is ready. Suggested by

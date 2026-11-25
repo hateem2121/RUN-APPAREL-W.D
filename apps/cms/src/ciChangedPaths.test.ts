@@ -126,6 +126,10 @@ describe('which files the deployed Workers are built from', () => {
       '.github/workflows/uptime.yml',
       '.github/dependabot.yml',
       '.github/CLAUDE.md',
+      // The two workflows' own tools (25 Nov 2026): out of .github/ so Dependabot can update
+      // them, and still nothing a Worker is built from.
+      'ci-installs/guidepup/package-lock.json',
+      'ci-installs/puppeteer-browsers/package.json',
       'apps/cms/src/ciChangedPaths.test.ts',
       'apps/viewer/src/lib/sentry.test.ts',
       'scripts/check-required-checks.test.mjs',
