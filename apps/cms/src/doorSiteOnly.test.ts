@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import door, {
+  buildFromSite,
   DOOR_FULL,
   DOOR_OFF,
   DOOR_SWITCH_KEY,
@@ -426,6 +427,91 @@ describe('the door’s settings reads, started together', () => {
     } finally {
       error.mockRestore()
     }
+  })
+})
+
+/**
+ * A BUILD-NAME READ THAT ANSWERS LATE (door.mjs buildFromSite, 25 Nov 2026).
+ *
+ * WHAT PRODUCTION WOULD DO IF THIS WENT WRONG. Since startBuildRead the door asks for one Worker's
+ * build-name file before the switch has answered. When the switch then names the OTHER Worker,
+ * the first read is still on its way. Written down when it lands, it would replace the name the
+ * door is using: the next request would forget it and read the file again, and with the switch at
+ * `full` that would repeat on every request. A late read that FAILED would also clear the mark
+ * that says "a read is on its way", so requests arriving together would each start their own.
+ *
+ * THE STAND-IN. The first file is held open by hand, so the test decides that it answers AFTER
+ * the other Worker's. What is counted is how often the other Worker's file is read: once is the
+ * door keeping what it knows, twice is the late answer having undone it. #480 shipped these
+ * guards with no test that fails without them; each test here was run with its guard taken out.
+ */
+describe('a build-name read that answers after the switch has moved on', () => {
+  /** One Worker's file held open until the test lets it answer, and the other's answering at once. */
+  function heldOpen() {
+    let answer: (response: Response) => void = () => {}
+    let fail: (error: Error) => void = () => {}
+    const late = new Promise<Response>((resolve, reject) => {
+      answer = resolve
+      fail = reject
+    })
+    const cmsFiles = { fetch: vi.fn((_request: Request) => late) }
+    const siteOnly = { fetch: vi.fn(async (_r: Request) => new Response(`${SITE_ONLY_BUILD}\n`)) }
+    return { env: { SITE_FILES: cmsFiles, SITE_ONLY: siteOnly }, cmsFiles, siteOnly, answer, fail }
+  }
+
+  it('a late NAME is handed to whoever asked for it, and is not written over the name in use', async () => {
+    const w = heldOpen()
+    const early = buildFromSite(w.env, 1_000, false)
+    expect(await buildFromSite(w.env, 1_000, true)).toBe(SITE_ONLY_BUILD)
+
+    w.answer(new Response(`${CMS_BUILD}\n`))
+    expect(await early).toBe(CMS_BUILD)
+
+    // Still remembered: the same Worker's name comes back without its file being read again.
+    expect(await buildFromSite(w.env, 1_001, true)).toBe(SITE_ONLY_BUILD)
+    expect(w.siteOnly.fetch).toHaveBeenCalledTimes(1)
+    expect(w.cmsFiles.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * The first read ends badly while the read that replaced it is still on its way. A request
+   * arriving then must join that read: a second one means the late answer cleared its mark.
+   */
+  async function endsBadlyMeanwhile(end: (w: ReturnType<typeof heldOpen>) => void) {
+    const w = heldOpen()
+    let answerSiteOnly: (response: Response) => void = () => {}
+    w.siteOnly.fetch.mockImplementation(
+      (_r: Request) =>
+        new Promise<Response>((resolve) => {
+          answerSiteOnly = resolve
+        }),
+    )
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const early = buildFromSite(w.env, 1_000, false)
+      const current = buildFromSite(w.env, 1_000, true)
+
+      end(w)
+      expect(await early).toBeNull()
+
+      const joined = buildFromSite(w.env, 1_000, true)
+      expect(w.siteOnly.fetch).toHaveBeenCalledTimes(1)
+
+      answerSiteOnly(new Response(`${SITE_ONLY_BUILD}\n`))
+      expect(await current).toBe(SITE_ONLY_BUILD)
+      expect(await joined).toBe(SITE_ONLY_BUILD)
+      expect(w.siteOnly.fetch).toHaveBeenCalledTimes(1)
+    } finally {
+      error.mockRestore()
+    }
+  }
+
+  it('a late REFUSAL leaves the read that replaced it in flight, so the next request shares it', async () => {
+    await endsBadlyMeanwhile((w) => w.answer(new Response('refused', { status: 530 })))
+  })
+
+  it('a late FAILURE leaves it in flight too', async () => {
+    await endsBadlyMeanwhile((w) => w.fail(new Error('the binding dropped the read')))
   })
 })
 
