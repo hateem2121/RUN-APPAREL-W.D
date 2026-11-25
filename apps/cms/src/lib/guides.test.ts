@@ -384,6 +384,14 @@ describe('a guide shows a factory photo only beside words that name it (polish X
       'Packing comes last',
     ],
     ['/guides/shipping-and-import-duties', 'The price terms we quote', 'exterior', 'our buildings'],
+    // Two more (owner, 2026-11-25): the showroom beside "You can visit", an inspection beside the
+    // testing guide's own three stages.
+    [
+      '/guides/cost-to-start-an-activewear-brand',
+      'See the factory before you order',
+      'showroom',
+      'You can visit',
+    ],
     [
       '/guides/dyeing-and-color-matching',
       'From your color to the bulk fabric',
@@ -396,6 +404,12 @@ describe('a guide shows a factory photo only beside words that name it (polish X
       'When is an order inspected?',
       'final-check',
       'final AQL inspection',
+    ],
+    [
+      '/guides/fabric-and-garment-testing',
+      'On our floor',
+      'inspection',
+      'bulk garments before shipping',
     ],
   ] as const
 

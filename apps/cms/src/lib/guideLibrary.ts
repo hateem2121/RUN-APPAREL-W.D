@@ -6907,6 +6907,8 @@ export const LIBRARY_GUIDES: readonly Guide[] = [
       },
       {
         heading: 'On our floor',
+        // One of the owner's factory photos, beside the words that name it (owner, 2026-11-25).
+        photo: 'inspection',
         blocks: [
           {
             kind: 'text',

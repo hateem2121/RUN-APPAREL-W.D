@@ -177,6 +177,8 @@ const FOUR_BALLS = '2026-11-21T13:57:02+05:00'
  * cabinet, the sewing floor and the final check (the guides audit, owner 2026-11-24). No word changed.
  */
 const PHOTOS_PLACED = '2026-11-24T10:38:07+05:00'
+/** Two more of the owner's photos: the showroom in the cost guide, an inspection in the testing guide (owner, 2026-11-25). */
+const PHOTOS_PLACED_2 = '2026-11-25T08:07:54+05:00'
 /** The ball guide's making steps, eight lines the owner approved (2026-11-24; `guides.ts`). */
 const MAKING_STEPS = '2026-11-24T10:27:19+05:00'
 /**
@@ -242,8 +244,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/cost-to-start-an-activewear-brand': byline(
     AUTHORS.hateem,
     NEW_GUIDES,
-    LIBRARY,
-    'ac7e8ef359a1',
+    PHOTOS_PLACED_2,
+    '7309275afd15',
   ),
   '/guides/pakistan-vs-china-vs-turkey': byline(
     AUTHORS.hateem,
@@ -349,8 +351,8 @@ export const BYLINES: Readonly<Record<string, Byline>> = {
   '/guides/fabric-and-garment-testing': byline(
     AUTHORS.production,
     HELD_GUIDES_LIVE,
-    HELD_GUIDES_LIVE,
-    '95672f7a7b35',
+    PHOTOS_PLACED_2,
+    '8a074947aa65',
   ),
   '/guides/what-sportswear-buyers-ask': byline(
     AUTHORS.contentTeam,

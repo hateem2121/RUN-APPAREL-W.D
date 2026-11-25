@@ -2165,6 +2165,7 @@ export const GUIDES_RU: readonly Guide[] = [
       },
       {
         heading: 'Посмотрите фабрику до заказа',
+        photo: 'showroom',
         blocks: [
           {
             kind: 'text',

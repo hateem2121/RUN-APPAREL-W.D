@@ -3538,6 +3538,7 @@ export const LIBRARY_GUIDES_RU_B: readonly Guide[] = [
       },
       {
         heading: 'На нашем производстве',
+        photo: 'inspection',
         blocks: [
           {
             kind: 'text',
