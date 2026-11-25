@@ -820,7 +820,7 @@ jobs:
       # the day Advanced Security exists again.
       - name: Dependency review (pull requests on a public repository only)
         if: github.event_name == 'pull_request' && github.event.repository.private == false
-        uses: actions/dependency-review-action@v5.0.0
+        uses: actions/dependency-review-action@v5.0.1
         with:
           fail-on-severity: high
           comment-summary-in-pr: on-failure
@@ -2071,8 +2071,8 @@ jobs:
             echo "If this deploy is wrong, roll back the affected Worker:"
             echo
             echo '```bash'
-            echo "npx wrangler@4.163.0 versions list --name run-apparel-viewer-site"
-            echo "npx wrangler@4.163.0 rollback --name run-apparel-viewer-site -m 'why'"
+            echo "npx wrangler@4.164.0 versions list --name run-apparel-viewer-site"
+            echo "npx wrangler@4.164.0 rollback --name run-apparel-viewer-site -m 'why'"
             echo '```'
             echo
             echo "Workers: \`run-apparel-viewer-site\` (public viewer) · \`run-apparel-viewer-cms\` (admin + API) · \`run-apparel-site-only\` (the website's pages; off switch: KV front-door = full) · \`run-apparel-site-door\` (front door) · \`run-apparel-viewer-shrink\` (processing only) · \`run-apparel-apex-404\` (apex catalogue + profile PDFs)"
