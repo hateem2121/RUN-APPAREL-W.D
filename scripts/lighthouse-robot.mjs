@@ -171,9 +171,29 @@ export const EXPECTED_BELOW_ONE = {}
  * under a typical job, so only a clear slowdown fails here — a small one shows on the Mac's
  * `local` floors. `lighthouseRobot.test.ts` pins every floor to this rule and this baseline.
  *
+ * ⚠️ GUIDE PAGE ADDED 2026-11-26, BY THE SAME RULE (owner: "Measure now, floors from ~6 runs").
+ * `guide-soccer-balls` is the first buyer guide the robot judges. Baseline: six dispatches of
+ * this workflow on branch site/robot-guide-page, one at a time, after #492's deploy settled
+ * (runs 45794224032, 45796521962, 45798688081, 45801036354, 45803342634, 45805456088;
+ * Lighthouse 13.6.0, five runs per page each). Phone medians 0.93 / 0.97 / 0.93 / 0.92 / 0.97 /
+ * 0.98, computer 1 in all six (3–5 valid runs). Floors: 0.92 − 0.03 and 1 − 0.01. Six medians
+ * is a smaller sample than the 30 behind the other pages: re-take it with the next baseline.
+ *
+ * ⚠️ NO `local` GUIDE FLOOR, ON PURPOSE (owner's choice, 2026-11-26). Since 2026-11-25 Chrome
+ * on the owner's Mac resets on wear-run.com (ECH in the site's HTTPS record), so the page could
+ * not be measured there, and the Mac's phone floors sit far below the runner's (home 0.69
+ * against 0.83), so copying the runner's number would only fail falsely. A Mac run therefore reports
+ * "no performance floor is recorded" for the guide; `LOCAL_NOT_MEASURED` names why, and
+ * `lighthouseRobot.test.ts` allows exactly these gaps. Measure on the Mac, then delete them.
+ *
  * ⚠️ Keyed by page name. A different default product is a different page with a different
  * model, so its missing floor FAILS the robot rather than borrowing this one — measure it.
  */
+export const LOCAL_NOT_MEASURED = {
+  'guide-soccer-balls.mobile': 'Chrome on the Mac resets on wear-run.com (ECH), 2026-11-25',
+  'guide-soccer-balls.desktop': 'Chrome on the Mac resets on wear-run.com (ECH), 2026-11-25',
+}
+
 const LOCAL_FLOORS = {
   'home.mobile': 0.69,
   'home.desktop': 0.89,
@@ -196,6 +216,8 @@ export const PERFORMANCE_FLOORS = {
     'contact.desktop': 0.97,
     'viewer-rxps-wine.mobile': 0.35,
     'viewer-rxps-wine.desktop': 0.45,
+    'guide-soccer-balls.mobile': 0.89,
+    'guide-soccer-balls.desktop': 0.99,
   },
 }
 

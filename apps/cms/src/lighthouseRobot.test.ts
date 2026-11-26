@@ -22,6 +22,7 @@ import {
   MAX_NOT_JUDGED,
   LIGHTHOUSE_TIMEOUT_MS,
   LIGHTHOUSE_VERSION,
+  LOCAL_NOT_MEASURED,
   lighthouseArgs,
   measuringMachine,
   median,
@@ -438,7 +439,9 @@ describe('the page list and its floors cannot drift apart', () => {
     const keys = PAGES.flatMap((page) => FORM_FACTORS.map((factor) => `${page.name}.${factor}`))
     for (const machine of ['local', 'github-runner'] as const) {
       const missing = keys.filter((key) => !(key in PERFORMANCE_FLOORS[machine]))
-      expect(missing).toEqual([])
+      // The Mac may lack only the pairs LOCAL_NOT_MEASURED names, each with its reason; the
+      // runner may lack none.
+      expect(missing).toEqual(machine === 'local' ? Object.keys(LOCAL_NOT_MEASURED) : [])
       for (const value of Object.values(PERFORMANCE_FLOORS[machine])) {
         expect(typeof value).toBe('number')
         expect(value).toBeGreaterThanOrEqual(0)
@@ -452,6 +455,26 @@ describe('the page list and its floors cannot drift apart', () => {
     // Socket. The robot runs the installed binary, so the two versions must never differ.
     const pkg = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'))
     expect(pkg.devDependencies?.lighthouse).toBe(LIGHTHOUSE_VERSION)
+  })
+
+  it('a Mac gap is a real gap with a reason, on a page that exists, and nothing more', () => {
+    const keys = new Set(PAGES.flatMap((page) => FORM_FACTORS.map((f) => `${page.name}.${f}`)))
+    for (const [key, reason] of Object.entries(LOCAL_NOT_MEASURED)) {
+      expect(keys.has(key), `${key} is not a page/device pair`).toBe(true)
+      expect(key in PERFORMANCE_FLOORS.local, `${key} has a Mac floor: delete its gap`).toBe(false)
+      expect(key in PERFORMANCE_FLOORS['github-runner']).toBe(true)
+      expect(String(reason).length).toBeGreaterThan(10)
+    }
+  })
+
+  it('NEGATIVE CONTROL: a Mac run judges an unmeasured guide as missing its floor', () => {
+    const { failures } = judgePage({
+      page: 'guide-soccer-balls',
+      formFactor: 'mobile',
+      machine: 'local',
+      runs: runs(5, { scores: { performance: 1 } }),
+    })
+    expect(failures.join()).toMatch(/no performance floor is recorded/)
   })
 
   it('only exempts pages that exist', () => {
@@ -496,6 +519,10 @@ describe('each measuring machine has its own floors', () => {
     'contact.desktop': 0.98,
     'viewer-rxps-wine.mobile': 0.38,
     'viewer-rxps-wine.desktop': 0.46,
+    // Added 2026-11-26 from six dispatches on site/robot-guide-page (lighthouse-robot.mjs,
+    // "GUIDE PAGE ADDED 2026-11-26"): phone medians 0.93/0.97/0.93/0.92/0.97/0.98, computer 1.
+    'guide-soccer-balls.mobile': 0.92,
+    'guide-soccer-balls.desktop': 1,
   }
 
   it('each runner floor is its baseline worst median minus the recorded margin, no more, no less', () => {
@@ -759,7 +786,7 @@ describe('a warm-up run is thrown away', () => {
   it('plannedRuns puts one unmeasured warm-up first', () => {
     const plan = plannedRuns({ pages, formFactors: FORM_FACTORS, runs: 5, warmUp: WARM_UP_RUNS })
     expect(WARM_UP_RUNS).toBe(1)
-    expect(plan).toHaveLength(41)
+    expect(plan).toHaveLength(pages.length * FORM_FACTORS.length * 5 + 1)
     expect(plan[0]).toEqual({ page: pages[0], formFactor: 'mobile', run: 0, measured: false })
     expect(plan.slice(1).every((entry) => entry.measured)).toBe(true)
     expect(plan[1]).toEqual({ page: pages[0], formFactor: 'mobile', run: 1, measured: true })
@@ -767,7 +794,7 @@ describe('a warm-up run is thrown away', () => {
 
   it('--warm-up=0 plans exactly the measured runs', () => {
     const plan = plannedRuns({ pages, formFactors: FORM_FACTORS, runs: 5, warmUp: 0 })
-    expect(plan).toHaveLength(40)
+    expect(plan).toHaveLength(pages.length * FORM_FACTORS.length * 5)
     expect(plan.every((entry) => entry.measured)).toBe(true)
   })
 
@@ -807,7 +834,9 @@ describe('a robot that measured too little says so', () => {
     expect(MAX_NOT_JUDGED).toBe(2)
     const verdict = robotRun(3)
     expect(verdict.ok).toBe(false)
-    expect(verdict.failures.join('\n')).toMatch(/3 of 8 page\/device pairs were not judged/)
+    expect(verdict.failures.join('\n')).toContain(
+      `3 of ${pairs.length} page/device pairs were not judged`,
+    )
   })
 
   it('two unjudged pairs pass, each named', () => {
