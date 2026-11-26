@@ -76,6 +76,10 @@ regexes = [
   # packages/shared/src/consent.ts has the citation. Its own literal, never a `phc_` pattern,
   # so any other PostHog token committed anywhere is still caught.
   '''phc_koNg9SmLSye49u8trEjUf9kd5cTYUveERNRDYKbW9p5y''',
+  # Ahrefs Web Analytics `data-key` (2026-11-26, owner-approved with the tracker). Public by
+  # design: Ahrefs' install snippet puts it in every page's HTML, and it only lets a browser send
+  # page views. packages/shared/src/consent.ts has the citation. Its own literal, never a pattern.
+  '''oY2SvYisD3eLxX6gb5IkrQ''',
   # IndexNow verification key for Bing/IndexNow search indexing — public by design,
   # served at /c7e4b2d9a1f83c5e6d0a7b4f2e9c1a3d.txt per IndexNow protocol specification.
   '''c7e4b2d9a1f83c5e6d0a7b4f2e9c1a3d''',
