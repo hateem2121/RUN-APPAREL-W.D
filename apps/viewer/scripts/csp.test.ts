@@ -150,6 +150,8 @@ describe('buildCsp — third-party allow-list (PF-15)', () => {
     'https://*.analytics.google.com',
     'https://*.google-analytics.com',
     'https://*.googletagmanager.com',
+    // Ahrefs Web Analytics, after Accept only (owner, 2026-11-26).
+    'https://analytics.ahrefs.com',
     'https://aplo-evnt.com',
     'https://assets.apollo.io',
     'https://us-assets.i.posthog.com',

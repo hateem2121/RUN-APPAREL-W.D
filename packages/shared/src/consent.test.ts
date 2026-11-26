@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  AHREFS_ANALYTICS_KEY,
   acceptTrackers,
   APOLLO_APP_ID,
   CONSENT_COPY,
@@ -43,11 +44,26 @@ function fakeStorage(seed: Record<string, string> = {}) {
 
 /** A window with only what `startTrackers` touches; records every script it is asked to load. */
 function fakeWindow() {
-  const scripts: { src: string; async: boolean; onload: (() => void) | null }[] = []
+  const scripts: {
+    src: string
+    async: boolean
+    onload: (() => void) | null
+    attributes: Record<string, string>
+    setAttribute(name: string, value: string): void
+  }[] = []
   const win: TrackerWindow = {
     document: {
       createElement: () => {
-        const script = { src: '', async: false, onload: null }
+        const attributes: Record<string, string> = {}
+        const script = {
+          src: '',
+          async: false,
+          onload: null,
+          attributes,
+          setAttribute: (name: string, value: string) => {
+            attributes[name] = value
+          },
+        }
         scripts.push(script)
         return script
       },
@@ -120,26 +136,37 @@ describe('reaching the browser storage', () => {
 })
 
 describe('the words on the choice', () => {
-  // The privacy page names all three; the short form must not say less than is true.
+  // The privacy page names all four; the short form must not say less than is true.
   it('names every company and says nothing is stored before choosing', () => {
     expect(CONSENT_COPY.text).toContain('Google Analytics')
     expect(CONSENT_COPY.text).toContain('Apollo')
     expect(CONSENT_COPY.text).toContain('PostHog')
+    expect(CONSENT_COPY.text).toContain('Ahrefs')
     expect(CONSENT_COPY.text).toMatch(/nothing is stored until you choose/i)
   })
 })
 
 describe('starting the trackers', () => {
-  it('loads exactly three scripts: Google Analytics, Apollo and PostHog', () => {
+  it('loads exactly four scripts: Google Analytics, Apollo, PostHog and Ahrefs', () => {
     const { win, scripts } = fakeWindow()
     startTrackers(win)
     expect(scripts.map((s) => s.src.split('?')[0])).toEqual([
       'https://www.googletagmanager.com/gtag/js',
       'https://assets.apollo.io/micro/website-tracker/tracker.iife.js',
       'https://us-assets.i.posthog.com/static/array.js',
+      'https://analytics.ahrefs.com/analytics.js',
     ])
     expect(scripts[0]?.src).toContain(`id=${GA_MEASUREMENT_ID}`)
     expect(scripts.every((s) => s.async)).toBe(true)
+  })
+
+  // Ahrefs' script finds its key on its own element (`document.currentScript`); without the
+  // attribute it logs "missing data-key" and counts nothing (analytics.js, read 2026-11-26).
+  it('puts the Ahrefs key on the Ahrefs script element, and on no other', () => {
+    const { win, scripts } = fakeWindow()
+    startTrackers(win)
+    expect(scripts[3]?.attributes).toEqual({ 'data-key': AHREFS_ANALYTICS_KEY })
+    expect(scripts.slice(0, 3).every((s) => Object.keys(s.attributes).length === 0)).toBe(true)
   })
 
   /*
@@ -222,7 +249,7 @@ describe('starting the trackers', () => {
     const { win, scripts } = fakeWindow()
     startTrackers(win)
     startTrackers(win)
-    expect(scripts).toHaveLength(3)
+    expect(scripts).toHaveLength(4)
   })
 })
 
@@ -376,12 +403,15 @@ describe('forgetting the trackers', () => {
 })
 
 describe('the hosts the security policy must admit', () => {
-  it('names Google, Apollo and PostHog, each host exactly', () => {
+  it('names Google, Apollo, PostHog and Ahrefs, each host exactly', () => {
     expect(TRACKER_CSP.script).toEqual([
       'https://www.googletagmanager.com',
       'https://assets.apollo.io',
       'https://us-assets.i.posthog.com',
+      'https://analytics.ahrefs.com',
     ])
+    expect(TRACKER_CSP.connect).toContain('https://analytics.ahrefs.com')
+    expect(TRACKER_CSP.connect).not.toContain('https://*.ahrefs.com')
     expect(TRACKER_CSP.connect).toContain('https://us.i.posthog.com')
     expect(TRACKER_CSP.connect).toContain('https://us-assets.i.posthog.com')
     expect(TRACKER_CSP.connect).toContain('https://aplo-evnt.com')
@@ -437,12 +467,12 @@ describe('the hosts the security policy must admit', () => {
 describe('the two buttons', () => {
   const jar = { hostname: 'wear-run.com', readCookies: () => '', writeCookie: () => {} }
 
-  it('Accept remembers the choice and starts the three trackers', () => {
+  it('Accept remembers the choice and starts the four trackers', () => {
     const { win, scripts } = fakeWindow()
     const storage = fakeStorage()
     acceptTrackers(win, storage)
     expect(readConsent(storage)).toBe('accepted')
-    expect(scripts).toHaveLength(3)
+    expect(scripts).toHaveLength(4)
   })
 
   it('a first Decline remembers the choice, starts nothing and needs no reload', () => {
@@ -480,11 +510,11 @@ describe('a page brought back by Back or Forward', () => {
     expect(scripts).toHaveLength(0)
   })
 
-  it('accepted on another page since: the three trackers start here, and the question closes', () => {
+  it('accepted on another page since: the four trackers start here, and the question closes', () => {
     const { win, scripts } = fakeWindow()
     const storage = fakeStorage({ [CONSENT_STORAGE_KEY]: 'accepted' })
     expect(restoreTrackers(win, storage, jar)).toEqual({ answered: true, reload: false })
-    expect(scripts).toHaveLength(3)
+    expect(scripts).toHaveLength(4)
   })
 
   it('accepted and already running: the restore is counted once, and nothing loads twice', () => {
@@ -494,7 +524,7 @@ describe('a page brought back by Back or Forward', () => {
     expect(pageViews(win)).toBe(0)
     restoreTrackers(win, storage, jar)
     expect(pageViews(win)).toBe(1)
-    expect(scripts).toHaveLength(3)
+    expect(scripts).toHaveLength(4)
     const last = win.dataLayer?.at(-1)
     expect(Object.prototype.toString.call(last)).toBe('[object Arguments]')
   })
@@ -523,14 +553,14 @@ describe('a choice made in another tab', () => {
   const jar = { hostname: 'wear-run.com', readCookies: () => '', writeCookie: () => {} }
   const asked = { key: CONSENT_STORAGE_KEY }
 
-  it('accepted there: the three trackers start here, once, and the question closes', () => {
+  it('accepted there: the four trackers start here, once, and the question closes', () => {
     const { win, scripts } = fakeWindow()
     const storage = fakeStorage({ [CONSENT_STORAGE_KEY]: 'accepted' })
     expect(followOtherTab(asked, win, storage, jar)).toEqual({ answered: true, reload: false })
-    expect(scripts).toHaveLength(3)
+    expect(scripts).toHaveLength(4)
     // A second event (or a tab that already ran them) loads nothing twice.
     followOtherTab(asked, win, storage, jar)
-    expect(scripts).toHaveLength(3)
+    expect(scripts).toHaveLength(4)
   })
 
   it('declined there, nothing running here: forgets what was stored, no reload', () => {
@@ -743,7 +773,7 @@ describe('starting the trackers 3 s after Accept, one per quiet moment', () => {
     expect(win.runTrackersStarted).toBeFalsy()
   })
 
-  it('then starts one tracker per quiet moment: Google, Apollo, PostHog', () => {
+  it('then starts one tracker per quiet moment: Google, Apollo, PostHog, Ahrefs', () => {
     const { win, scripts, goIdle } = idleWindow()
     startTrackers(win)
     vi.advanceTimersByTime(TRACKERS_DELAY_MS)
@@ -757,6 +787,9 @@ describe('starting the trackers 3 s after Accept, one per quiet moment', () => {
     goIdle()
     expect(hosts()).toHaveLength(3)
     expect(hosts()[2]).toMatch(/posthog/)
+    goIdle()
+    expect(hosts()).toHaveLength(4)
+    expect(hosts()[3]).toBe('analytics.ahrefs.com')
     expect(win.runTrackersPending).toBeUndefined()
   })
 
@@ -767,6 +800,8 @@ describe('starting the trackers 3 s after Accept, one per quiet moment', () => {
     expect(scripts).toHaveLength(0)
     vi.advanceTimersByTime(1 + 2 * TRACKERS_IDLE_TIMEOUT_MS)
     expect(scripts).toHaveLength(3)
+    vi.advanceTimersByTime(TRACKERS_IDLE_TIMEOUT_MS)
+    expect(scripts).toHaveLength(4)
   })
 
   it('asks the browser for the 2 s ceiling, after the 3 s', () => {
@@ -795,6 +830,8 @@ describe('starting the trackers 3 s after Accept, one per quiet moment', () => {
     expect(scripts).toHaveLength(2)
     vi.advanceTimersToNextTimer()
     expect(scripts).toHaveLength(3)
+    vi.advanceTimersToNextTimer()
+    expect(scripts).toHaveLength(4)
   })
 
   it('keeps the order: consent default is queued before config, after the wait too', () => {
@@ -806,7 +843,7 @@ describe('starting the trackers 3 s after Accept, one per quiet moment', () => {
     expect(names.indexOf('consent')).toBeLessThan(names.indexOf('config'))
   })
 
-  it('counts a second call while waiting as the same wait: three scripts, once', () => {
+  it('counts a second call while waiting as the same wait: four scripts, once', () => {
     const { win, scripts, settle } = idleWindow()
     startTrackers(win)
     startTrackers(win)
@@ -814,7 +851,7 @@ describe('starting the trackers 3 s after Accept, one per quiet moment', () => {
     startTrackers(win)
     settle()
     startTrackers(win)
-    expect(scripts).toHaveLength(3)
+    expect(scripts).toHaveLength(4)
   })
 
   it('Decline before the first start cancels it: nothing loads, no reload', () => {
@@ -845,7 +882,7 @@ describe('starting the trackers 3 s after Accept, one per quiet moment', () => {
     expect(scripts).toHaveLength(1)
   })
 
-  it('Decline after all three behaves as before: asks for a reload', () => {
+  it('Decline after all four behaves as before: asks for a reload', () => {
     const { win, settle } = idleWindow()
     const storage = fakeStorage()
     acceptTrackers(win, storage)
@@ -876,11 +913,11 @@ describe('starting the trackers 3 s after Accept, one per quiet moment', () => {
     expect(scripts).toHaveLength(0)
   })
 
-  it('a returning visitor who accepted still gets all three, the same way', () => {
+  it('a returning visitor who accepted still gets all four, the same way', () => {
     const { win, scripts, settle } = idleWindow()
     startTrackers(win) // what the banner does on load for a stored "accepted"
     settle()
-    expect(scripts).toHaveLength(3)
+    expect(scripts).toHaveLength(4)
   })
 
   it('a tap during the wait is sent after the consent default, and dropped by a Decline', () => {

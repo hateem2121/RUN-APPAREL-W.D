@@ -25,10 +25,12 @@ const TRACKER_HOSTS = [
   'region1.google-analytics.com',
   'us-assets.i.posthog.com',
   'us.i.posthog.com',
+  'analytics.ahrefs.com',
 ]
 const GA_SCRIPT = 'www.googletagmanager.com/gtag/js'
 const APOLLO_SCRIPT = 'assets.apollo.io/micro/website-tracker/tracker.iife.js'
 const POSTHOG_SCRIPT = 'us-assets.i.posthog.com/static/array.js'
+const AHREFS_SCRIPT = 'analytics.ahrefs.com/analytics.js'
 
 /** Playwright sets navigator.webdriver; the question honours it, as the cursor does. */
 const liftAutomationGate = (context: ReturnType<Page['context']>) =>
@@ -133,7 +135,7 @@ test.describe('the cookie choice', () => {
     expect(await context.cookies()).toEqual([])
   })
 
-  test('ACCEPT: all three trackers load, the choice is kept, and the next page starts them again', async ({
+  test('ACCEPT: all four trackers load, the choice is kept, and the next page starts them again', async ({
     page,
     context,
   }) => {
@@ -146,6 +148,7 @@ test.describe('the cookie choice', () => {
     await expect.poll(() => outside).toContain(GA_SCRIPT)
     await expect.poll(() => outside).toContain(APOLLO_SCRIPT)
     await expect.poll(() => outside).toContain(POSTHOG_SCRIPT)
+    await expect.poll(() => outside).toContain(AHREFS_SCRIPT)
     expect((await stored(page)).local['run-consent']).toBe('accepted')
 
     // Google's queue carries consent BEFORE config, with every advertising use denied.
@@ -188,9 +191,10 @@ test.describe('the cookie choice', () => {
     await expect.poll(() => outside).toContain(GA_SCRIPT)
     await expect.poll(() => outside).toContain(APOLLO_SCRIPT)
     await expect.poll(() => outside).toContain(POSTHOG_SCRIPT)
+    await expect.poll(() => outside).toContain(AHREFS_SCRIPT)
   })
 
-  test('only the three named companies are contacted after Accept', async ({ page, context }) => {
+  test('only the four named companies are contacted after Accept', async ({ page, context }) => {
     await liftAutomationGate(context)
     const outside = await watch(page)
     await page.goto('/')
@@ -198,6 +202,7 @@ test.describe('the cookie choice', () => {
     await banner(page).getByRole('button', { name: 'Accept' }).click()
     await expect.poll(() => outside).toContain(APOLLO_SCRIPT)
     await expect.poll(() => outside).toContain(POSTHOG_SCRIPT)
+    await expect.poll(() => outside).toContain(AHREFS_SCRIPT)
     await page.waitForLoadState('networkidle')
     const hosts = [...new Set(outside.map((entry) => entry.split('/')[0]))]
     for (const host of hosts) expect(TRACKER_HOSTS, `unexpected host ${host}`).toContain(host)
@@ -211,7 +216,7 @@ test.describe('the cookie choice', () => {
    * use to identify a person. If it ever stops firing, the privacy page's "companies, not
    * people" sentence has become untrue.
    */
-  test('the page policy admits Google, Apollo and PostHog, and refuses LiveIntent', async ({
+  test('the page policy admits Google, Apollo, PostHog and Ahrefs, and refuses LiveIntent', async ({
     page,
     context,
   }) => {
@@ -253,6 +258,7 @@ test.describe('the cookie choice', () => {
     await banner(page).getByRole('button', { name: 'Accept' }).click()
     await expect.poll(() => outside).toContain(APOLLO_SCRIPT)
     await expect.poll(() => outside).toContain(POSTHOG_SCRIPT)
+    await expect.poll(() => outside).toContain(AHREFS_SCRIPT)
     // What Apollo's and PostHog's real scripts would have stored (each response here is an
     // empty file). The token in PostHog's name does not matter: Decline clears by prefix.
     await page.evaluate(() => {
