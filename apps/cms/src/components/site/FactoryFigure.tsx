@@ -12,11 +12,23 @@ import type { FactoryPhoto } from '../../lib/factoryPhotos'
  * written as the order steps write it (`ORDER_STEP_SIZES`). It said `100vw` until polish X16
  * (2026-10-05), 86 px too wide at 834 px: a 2x tablet asked for 1,668 px to draw 748, more than
  * the widest file.
+ *
+ * FROM 1,280 PX THE WIDTHS ARE TIMES `PARALLAX_SCALE` (owner, 26 Nov 2026: "Use 1,200 px").
+ * `.photo-parallax` (site.css) scales the picture 1.12 inside its clipped frame, so it is DRAWN
+ * 1.12 times its layout width, and a browser picks a file from `sizes` alone (MDN `<img>`: sizes
+ * gives "the intended display size of the image"; it says nothing of transforms). Measured live on
+ * 25 Nov at 13 widths: on a 1x screen 1,280 to 1,919 px wide the 624 px slot took the 640 px file
+ * and drew it up to 697 px wide, 1.09 times stretched. 624 x 1.12 = 699 now asks for the 1,200 px
+ * file there (+25 to +55 KB a photo). Below 1,280 the drawn width stays under 640 px on 1x
+ * (544 x 1.12 = 609), so those entries are left as they were and phones and tablets load nothing
+ * more. `FactoryFigure.test.ts` holds these numbers to the scale in site.css.
  */
+export const PARALLAX_SCALE = 1.12
+
 export const HALF_COLUMN_SIZES =
   '(max-width: 399px) calc(100vw - 40px), (max-width: 899px) calc(90vw + 2px), ' +
-  '(max-width: 1279px) calc(45vw - 32px), (max-width: 1439px) calc(50vw - 96px), ' +
-  '(max-width: 1919px) 624px, 704px'
+  '(max-width: 1279px) calc(45vw - 32px), (max-width: 1439px) calc((50vw - 96px) * 1.12), ' +
+  '(max-width: 1919px) 699px, 789px'
 
 /**
  * How wide a photo draws across the whole column, in the same page widths: the column itself below
