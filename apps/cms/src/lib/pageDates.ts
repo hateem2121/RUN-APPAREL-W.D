@@ -132,7 +132,7 @@ export const PAGE_DATES: Readonly<Record<string, PageDate>> = {
   // number (2026-10-26T20:13:15+05:00).
   '/contact': page('2026-11-11T09:35:13+00:00', 'a3ccf58e950d'),
   // The language note's remembered answer named (owner, 2026-11-16); Turnstile before it (2026-11-11).
-  '/privacy': page('2026-11-16T14:00:22+00:00', 'cf4afdfb4bc6'),
+  '/privacy': page('2026-11-26T07:10:37+00:00', '41c09601c673'),
   '/terms': page(SITE_CHECK, '852a77676dab'),
 }
 
