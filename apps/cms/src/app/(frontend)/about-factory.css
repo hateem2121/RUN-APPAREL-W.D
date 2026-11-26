@@ -763,14 +763,21 @@
 
   /* A set may continue in the next column between its photos, never between its label and its
      first photo: whole sets left the right column 482px short (2026-10-26, 1440px). The last set
-     closes the gallery across both columns (`full` in lib/aboutPages.ts). */
+     closes the gallery across both columns (`full` in lib/aboutPages.ts).
+     ⚠️ NO GRID IN HERE FROM 900PX (26 Nov 2026): WebKit ignores `break-inside: avoid` on a grid,
+     or on its items, inside columns (closest report: bugs.webkit.org 266965), and cut Quality
+     Control's two tall photos at the column break, the last 66px of each atop the right column at
+     1440px. Blocks, and the pair as two inline-blocks on one line (a line is never split), break
+     only between photos in every engine. `aboutFactory.spec.ts` measures it. */
   .factory-gallery__set {
+    display: block;
     margin-block-start: 0;
     padding-block-start: 32px;
   }
 
   .factory-gallery__label {
     break-after: avoid;
+    margin-block-end: 12px;
   }
 
   .factory-gallery__open {
@@ -782,17 +789,27 @@
   }
 
   .factory-gallery__photos {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+    display: block;
   }
 
-  .factory-gallery__open {
-    grid-column: 1 / -1;
+  .factory-gallery__open + .factory-gallery__open {
+    margin-block-start: 16px;
   }
 
   .factory-gallery__open[data-shape="single"]:has(+ [data-shape="single"]),
   .factory-gallery__open[data-shape="single"] + [data-shape="single"] {
-    grid-column: auto;
+    display: inline-block;
+    width: calc(50% - 8px);
+    vertical-align: top;
+  }
+
+  .factory-gallery__open[data-shape="single"]:has(+ [data-shape="single"]) {
+    margin-inline-end: 16px;
+  }
+
+  /* The pair's second photo sits on the first one's line, not below it. */
+  .factory-gallery__open[data-shape="single"] + [data-shape="single"] {
+    margin-block-start: 0;
   }
 }
 

@@ -40,6 +40,39 @@ test.describe('the factory page', () => {
     expect(tops, 'stage 5 drew no photos, so nothing was measured').toHaveLength(4)
     expect(new Set(tops).size, `photo tops ${tops.join(', ')}`).toBeLessThan(4)
   })
+
+  /*
+   * ⚠️ NO GALLERY PHOTO IS CUT AT THE COLUMN BREAK (26 Nov 2026, found live in WebKit at 1440px).
+   * The gallery flows down two CSS columns, and WebKit ignores `break-inside: avoid` on a grid's
+   * items there (closest report: bugs.webkit.org 266965): Quality Control's pair of tall photos was
+   * split, 329px at the foot of the left column and the last 66px at the top of the right, while
+   * Chromium kept them whole. A piece is one of the box's fragments with a height; WebKit also
+   * reports empty 0px ones, which draw nothing.
+   */
+  for (const width of [1100, 1440, 1920]) {
+    test(`every gallery photo is drawn whole in its column at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/inside-the-factory')
+      const photos = await page.locator('.factory-gallery__open').evaluateAll((links) =>
+        links.map((link) => ({
+          shape: link.getAttribute('data-shape'),
+          pieces: [...link.getClientRects()].filter((rect) => rect.height > 0.5).length,
+          top: Math.round(link.getBoundingClientRect().top),
+        })),
+      )
+      expect(photos.length, 'the gallery drew no photos, so nothing was measured').toBeGreaterThan(
+        5,
+      )
+      expect(
+        photos.filter((photo) => photo.pieces !== 1),
+        'a gallery photo drawn in more than one piece',
+      ).toEqual([])
+      // Not vacuous: the pair of tall photos is still side by side (one top, two photos).
+      const singles = photos.filter((photo) => photo.shape === 'single')
+      const tops = singles.map((photo) => photo.top)
+      expect(tops.length - new Set(tops).size, `tall photo tops ${tops.join(', ')}`).toBe(1)
+    })
+  }
 })
 
 /**
