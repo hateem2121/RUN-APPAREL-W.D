@@ -31,6 +31,9 @@ const TRACKER_HOSTS = [
  * real site nothing answers `/rw`, so even an unanswered request could never reach PostHog.
  */
 const POSTHOG_PROXY = '/rw/'
+// LiveIntent's own host or a true subdomain of it, never a look-alike such as `evilliadm.com` (CodeQL
+// "incomplete URL substring sanitization", PR #492).
+const isLiveIntent = (host: string) => host === 'liadm.com' || host.endsWith('.liadm.com')
 const isTracker = (url: URL) =>
   TRACKER_HOSTS.includes(url.host) || url.pathname.startsWith(POSTHOG_PROXY)
 const GA_SCRIPT = 'www.googletagmanager.com/gtag/js'
@@ -52,7 +55,7 @@ async function watchTrackers(page: Page) {
   page.on('request', (request) => {
     const url = new URL(request.url())
     if (url.pathname.startsWith(POSTHOG_PROXY)) seen.push(url.pathname)
-    else if (TRACKER_HOSTS.includes(url.host) || url.host.endsWith('liadm.com')) {
+    else if (TRACKER_HOSTS.includes(url.host) || isLiveIntent(url.host)) {
       seen.push(`${url.host}${url.pathname}`)
     }
   })
