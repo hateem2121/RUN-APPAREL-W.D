@@ -94,6 +94,9 @@ export const PAGES = [
     name: VIEWER_NAME,
     url: `https://wear-run.com/products/${DEFAULT_PRODUCT.slug}/${DEFAULT_PRODUCT.colourway}`,
   },
+  // One buyer guide (owner, 26 Nov 2026): the robot had never scored a guide page. It is the guide
+  // PageSpeed Insights measured that day (phone 0.99, one run).
+  { name: 'guide-soccer-balls', url: 'https://wear-run.com/guides/how-soccer-balls-are-made' },
 ]
 
 /** Statuses that mean "ask again later" — Bot Fight Mode, rate limiting, a busy origin. */
@@ -270,6 +273,13 @@ export function readRun(lhr) {
     observedFcpMs: numberOrNull(observed?.observedFirstContentfulPaint),
     observedDclMs: numberOrNull(observed?.observedDomContentLoaded),
     observedLoadMs: numberOrNull(observed?.observedLoad),
+    // The lab timings behind the performance score, printed per page (owner's PageSpeed check of
+    // 26 Nov 2026: the log printed only the scores, so LCP, FCP, TBT and CLS had to be fetched
+    // from PageSpeed Insights instead). Lighthouse's own audit values, simulated as scored.
+    lcpMs: numberOrNull(lhr.audits?.['largest-contentful-paint']?.numericValue),
+    fcpMs: numberOrNull(lhr.audits?.['first-contentful-paint']?.numericValue),
+    tbtMs: numberOrNull(lhr.audits?.['total-blocking-time']?.numericValue),
+    cls: numberOrNull(lhr.audits?.['cumulative-layout-shift']?.numericValue),
   }
 }
 
@@ -367,6 +377,12 @@ export function judgePage({
   const rtt = median(valid.map((run) => run.rttMs))
   const ttfb = median(valid.map((run) => run.ttfbMs))
   const cpu = median(valid.map((run) => run.benchmarkIndex))
+  const timing = (field) => median(valid.map((run) => run[field]).filter((v) => v !== null))
+  const lcp = timing('lcpMs')
+  const fcp = timing('fcpMs')
+  const tbt = timing('tbtMs')
+  const cls = timing('cls')
+  const ms = (value) => (value === null ? '—' : `${Math.round(value)}ms`)
   const stalls = valid.filter(paintStall).length
   const line = (note) =>
     `  ${key.padEnd(26)} ${String(valid.length).padStart(1)}/${runs.length} runs  ` +
@@ -376,6 +392,7 @@ export function judgePage({
     `  ttfb ${ttfb === null ? '—' : `${Math.round(ttfb)}ms`}` +
     `  cpu ${cpu === null ? '—' : Math.round(cpu)}` +
     `  stalls ${stalls}/${valid.length}` +
+    `  lcp ${ms(lcp)}  fcp ${ms(fcp)}  tbt ${ms(tbt)}  cls ${cls === null ? '—' : cls.toFixed(3)}` +
     (note ? `  ${note}` : '')
 
   if (valid.length < MIN_VALID_RUNS) {
