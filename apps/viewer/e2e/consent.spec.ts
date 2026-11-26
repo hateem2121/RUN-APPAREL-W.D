@@ -25,10 +25,12 @@ const TRACKER_HOSTS = [
   'region1.google-analytics.com',
   'us-assets.i.posthog.com',
   'us.i.posthog.com',
+  'analytics.ahrefs.com',
 ]
 const GA_SCRIPT = 'www.googletagmanager.com/gtag/js'
 const APOLLO_SCRIPT = 'assets.apollo.io/micro/website-tracker/tracker.iife.js'
 const POSTHOG_SCRIPT = 'us-assets.i.posthog.com/static/array.js'
+const AHREFS_SCRIPT = 'analytics.ahrefs.com/analytics.js'
 
 const asAHuman = `Object.defineProperty(Navigator.prototype, 'webdriver', {
   get: () => false,
@@ -77,7 +79,11 @@ const SENDING_HOSTS = ['aplo-evnt.com', 'us.i.posthog.com']
 function assertNothingReal(seen: string[]) {
   const real = seen.filter(
     (entry) =>
-      entry.includes('/g/collect') || SENDING_HOSTS.includes(entry.slice(0, entry.indexOf('/'))),
+      entry.includes('/g/collect') ||
+      // Ahrefs loads and sends on ONE host, so it is told apart by path: a real script posts
+      // to `/api/event` (analytics.js, read 2026-11-26); the stand-in posts nothing.
+      entry.startsWith('analytics.ahrefs.com/api/') ||
+      SENDING_HOSTS.includes(entry.slice(0, entry.indexOf('/'))),
   )
   expect(real, 'a real tracker ran: the local stand-ins were bypassed').toEqual([])
 }
@@ -144,7 +150,7 @@ test.describe('the cookie choice on a garment page', () => {
     expect(seen, 'a tracker ran after Decline').toEqual([])
   })
 
-  test('ACCEPT: all three trackers load, and a returning visitor is not asked again', async ({
+  test('ACCEPT: all four trackers load, and a returning visitor is not asked again', async ({
     page,
     context,
   }) => {
@@ -156,6 +162,7 @@ test.describe('the cookie choice on a garment page', () => {
     await expect.poll(() => seen).toContain(GA_SCRIPT)
     await expect.poll(() => seen).toContain(APOLLO_SCRIPT)
     await expect.poll(() => seen).toContain(POSTHOG_SCRIPT)
+    await expect.poll(() => seen).toContain(AHREFS_SCRIPT)
     expect((await keys(page)).local['run-consent']).toBe('accepted')
 
     seen.length = 0
@@ -165,6 +172,7 @@ test.describe('the cookie choice on a garment page', () => {
     await expect.poll(() => seen).toContain(GA_SCRIPT)
     await expect.poll(() => seen).toContain(APOLLO_SCRIPT)
     await expect.poll(() => seen).toContain(POSTHOG_SCRIPT)
+    await expect.poll(() => seen).toContain(AHREFS_SCRIPT)
     // Long enough for a real script to have phoned home, had one slipped through.
     await page.waitForLoadState('networkidle')
     assertNothingReal(seen)
@@ -178,7 +186,7 @@ test.describe('the cookie choice on a garment page', () => {
    * half is the control for the first: the listener that stays silent for the three
    * trackers has to fire for LiveIntent, or its silence proves nothing.
    */
-  test('the shipped policy admits Google, Apollo and PostHog, and refuses LiveIntent', async ({
+  test('the shipped policy admits Google, Apollo, PostHog and Ahrefs, and refuses LiveIntent', async ({
     page,
     context,
   }) => {
@@ -200,7 +208,7 @@ test.describe('the cookie choice on a garment page', () => {
     const blockedBy = () =>
       page.evaluate(() => (window as unknown as { blockedByPolicy: string[] }).blockedByPolicy)
     const trackerBlocks = (await blockedBy()).filter((uri) =>
-      /google|apollo|aplo-evnt|posthog/.test(uri),
+      /google|apollo|aplo-evnt|posthog|ahrefs/.test(uri),
     )
     expect(trackerBlocks, 'the policy blocked a tracker it should admit').toEqual([])
 

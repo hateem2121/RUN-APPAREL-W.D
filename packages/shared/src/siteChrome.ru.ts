@@ -120,7 +120,7 @@ export const CHROME_RU: ChromeWords = {
   company: SITE_FOOTER_COMPANY.map(ruLink),
   learn: SITE_FOOTER_LEARN.map(ruLink),
   consent: {
-    text: 'Можно учесть ваш визит? Если вы согласитесь, Google Analytics, Apollo и PostHog покажут нам, какие страницы читают, какие компании заходят на сайт и как используют наш 3D-просмотр. Пока вы не выберете, ничего не сохраняется.',
+    text: 'Можно учесть ваш визит? Если вы согласитесь, Google Analytics, Apollo, PostHog и Ahrefs покажут нам, какие страницы читают, какие компании заходят на сайт и как используют наш 3D-просмотр. Пока вы не выберете, ничего не сохраняется.',
     accept: 'Принять',
     decline: 'Отклонить',
     more: 'Политика конфиденциальности',

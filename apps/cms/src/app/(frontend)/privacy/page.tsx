@@ -133,11 +133,11 @@ export default async function PrivacyPage() {
           <p className="site-lede">
             Nothing is stored on your device, and no tracker runs, unless you choose it. We ask
             once, on this site and on our 3D reference pages alike. If you accept, Google Analytics,
-            Apollo and PostHog count your visit; if you decline, or do not answer, none of them ever
-            loads. Your browser also keeps the light or dark setting, and only after you press that
-            switch. It keeps one more thing: that you closed the language note under the menu, or
-            chose a language. While the note is only shown, nothing is kept. Clearing this site’s
-            data in your browser removes both.
+            Apollo, PostHog and Ahrefs count your visit; if you decline, or do not answer, none of
+            them ever loads. Your browser also keeps the light or dark setting, and only after you
+            press that switch. It keeps one more thing: that you closed the language note under the
+            menu, or chose a language. While the note is only shown, nothing is kept. Clearing this
+            site’s data in your browser removes both.
           </p>
         </div>
       </section>
@@ -170,9 +170,9 @@ export default async function PrivacyPage() {
               .
             </p>
             <p id="cookies">
-              <strong>If you accept the cookie question.</strong> Three more services start, and
-              only then. Google Analytics, from Google, sets cookies named <code>_ga</code> so that
-              it can tell us how many people visit, which pages they read, whether they tap our
+              <strong>If you accept the cookie question.</strong> Four more services start, and only
+              then. Google Analytics, from Google, sets cookies named <code>_ga</code> so that it
+              can tell us how many people visit, which pages they read, whether they tap our
               WhatsApp, phone or email link, which country they are in and which website sent them.
               We have switched off its advertising features. Apollo, a service based in the United
               States, stores an identifier in your browser and tells us which companies visited, by
@@ -182,11 +182,13 @@ export default async function PrivacyPage() {
               use our pages (where you click, scroll and move the pointer) as a replay we can watch,
               so that we can see which parts of our pages are hard to use. Anything you type into a
               form is hidden in your browser before the recording leaves it, and we never tell
-              PostHog who you are. If you decline, or never answer, none of these services is loaded
-              and nothing is stored.
+              PostHog who you are. Ahrefs, a service based in Singapore, counts which pages are read
+              without cookies and without keeping your IP address, and stores nothing in your
+              browser. If you decline, or never answer, none of these services is loaded and nothing
+              is stored.
             </p>
             <p>
-              You can change your mind at any time. Declining after accepting removes what the three
+              You can change your mind at any time. Declining after accepting removes what these
               services stored in your browser.
             </p>
             <p>
@@ -376,8 +378,8 @@ export default async function PrivacyPage() {
             <p>
               To run and secure the website, to see how the documents we share are used, and to
               answer business inquiries — our legitimate interests — and to perform a contract where
-              one follows. Google Analytics, Apollo and PostHog run only with your consent, which
-              you can withdraw above.
+              one follows. Google Analytics, Apollo, PostHog and Ahrefs run only with your consent,
+              which you can withdraw above.
             </p>
 
             {heading('how-long-we-keep-it')}
@@ -394,9 +396,10 @@ export default async function PrivacyPage() {
             <p>
               Cloudflare, Sentry and Resend (which delivers our inquiry notifications to us) process
               data outside Pakistan, including in the United States and the European Union, under
-              their standard contractual protections. So do Google and PostHog if you accepted the
-              cookie question, and Apollo if you accepted it or booked a call through it. We do not
-              sell your data and we do not share it for advertising.
+              their standard contractual protections. So do Google, PostHog and Ahrefs (in
+              Singapore) if you accepted the cookie question, and Apollo if you accepted it or
+              booked a call through it. We do not sell your data and we do not share it for
+              advertising.
             </p>
 
             {heading('your-rights')}

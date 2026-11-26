@@ -1,6 +1,6 @@
 /**
- * The cookie choice and the three trackers it gates: Google Analytics, Apollo's website
- * visitor tracker and PostHog. Shared, because the website (apps/cms) and the garment pages
+ * The cookie choice and the four trackers it gates: Google Analytics, Apollo's website
+ * visitor tracker, PostHog and (since 2026-11-26) Ahrefs Web Analytics. Shared, because the website (apps/cms) and the garment pages
  * (apps/viewer) are one origin, `wear-run.com`, so one stored choice must cover both.
  *
  * PostHog joined on 2026-10-04 (owner decision) for ONE job the other two cannot do: session
@@ -41,10 +41,27 @@ export const APOLLO_APP_ID = '69ddf8fa0fd941000d64bc24'
 export const POSTHOG_PROJECT_TOKEN = 'phc_koNg9SmLSye49u8trEjUf9kd5cTYUveERNRDYKbW9p5y'
 export const POSTHOG_API_HOST = 'https://us.i.posthog.com'
 
+/**
+ * Ahrefs Web Analytics joined on 2026-11-26 (owner decision), under the same Accept as the
+ * other three, so Ahrefs' free plan shows visits beside its site audit. Its `data-key` is a
+ * public site tag like the ones above: it goes on the `<script>` element of every page that
+ * uses it (Ahrefs project settings → Web Analytics, read 2026-11-26).
+ *
+ * Read out of its script (analytics.js, 7,274 bytes, 2026-11-26): it sends to
+ * `<its own origin>/api/event` with `Content-Type: text/plain` (no CORS preflight), keeps no
+ * cookie and touches neither localStorage nor sessionStorage, and sends nothing on `localhost`
+ * or from an automated browser (`navigator.webdriver`). It finds its key through
+ * `document.currentScript`, so it must be a real `<script src>` carrying `data-key`, which is
+ * how `startAhrefs` adds it. Ahrefs' help (about-ahrefs-web-analytics, 12 Oct 2026): "uses no
+ * cookies", free up to 1M events a month per site.
+ */
+export const AHREFS_ANALYTICS_KEY = 'oY2SvYisD3eLxX6gb5IkrQ'
+
 const GA_SCRIPT = 'https://www.googletagmanager.com/gtag/js'
 const APOLLO_SCRIPT = 'https://assets.apollo.io/micro/website-tracker/tracker.iife.js'
 // The file PostHog's own snippet loads: its `api_host` with `.i.` turned into `-assets.i.`.
 const POSTHOG_SCRIPT = 'https://us-assets.i.posthog.com/static/array.js'
+const AHREFS_HOST = 'https://analytics.ahrefs.com'
 
 /**
  * The hosts each page's Content-Security-Policy must admit for the trackers to work. Both
@@ -77,12 +94,15 @@ const POSTHOG_SCRIPT = 'https://us-assets.i.posthog.com/static/array.js'
  *
  * Its recorder starts a worker from a `blob:` address; both pages' `worker-src 'self' blob:`
  * already allows that, for the 3D decoders.
+ *
+ * Ahrefs' is its one exact host, `analytics.ahrefs.com`: it loads from there and sends there.
  */
 export const TRACKER_CSP = {
   script: [
     'https://www.googletagmanager.com',
     'https://assets.apollo.io',
     'https://us-assets.i.posthog.com',
+    'https://analytics.ahrefs.com',
   ],
   connect: [
     'https://*.google-analytics.com',
@@ -92,6 +112,7 @@ export const TRACKER_CSP = {
     'https://aplo-evnt.com',
     'https://us.i.posthog.com',
     'https://us-assets.i.posthog.com',
+    'https://analytics.ahrefs.com',
   ],
   img: ['https://*.google-analytics.com', 'https://*.googletagmanager.com'],
 } as const
@@ -109,7 +130,7 @@ export const CONSENT_OPEN_EVENT = 'run:consent-open'
  * visitor chooses (`consent.test.ts`).
  */
 export const CONSENT_COPY = {
-  text: 'May we count your visit? If you accept, Google Analytics, Apollo and PostHog tell us which pages are read, which companies visit, and how our 3D viewer is used. Nothing is stored until you choose.',
+  text: 'May we count your visit? If you accept, Google Analytics, Apollo, PostHog and Ahrefs tell us which pages are read, which companies visit, and how our 3D viewer is used. Nothing is stored until you choose.',
   accept: 'Accept',
   decline: 'Decline',
   more: 'Privacy notice',
@@ -186,6 +207,8 @@ interface TrackerScript {
   src: string
   async: boolean
   onload: (() => void) | null
+  /** Only Ahrefs needs an attribute (`data-key`); a test's stand-in may leave it out. */
+  setAttribute?(name: string, value: string): void
 }
 
 /**
@@ -324,7 +347,7 @@ export function startTrackers(win: TrackerWindow): void {
   // cancelIdleCallback/clearTimeout put the viewer's scripts 103 B (gzip) over budget in CI.
   const pending: PendingTrackers = []
   win.runTrackersPending = pending
-  const steps = [startGoogle, startApollo, startPostHog]
+  const steps = [startGoogle, startApollo, startPostHog, startAhrefs]
   const next = (i: number) => {
     const run = () => {
       if (win.runTrackersPending !== pending) return
@@ -404,6 +427,15 @@ function startPostHog(win: TrackerWindow): void {
     people: [],
   })
   loadScript(win, POSTHOG_SCRIPT)
+}
+
+/** Ahrefs last: its script is the smallest of the four and it starts nothing else. */
+function startAhrefs(win: TrackerWindow): void {
+  const script = win.document.createElement('script')
+  script.src = `${AHREFS_HOST}/analytics.js`
+  script.async = true
+  script.setAttribute?.('data-key', AHREFS_ANALYTICS_KEY)
+  win.document.head.appendChild(script)
 }
 
 /**

@@ -45,11 +45,11 @@ test.describe('the privacy notice says what it does (SE-09, SE-10)', () => {
     expect(body).not.toContain('you are not being asked to accept anything')
   })
 
-  test('names the three consent-only services, what each learns, and that people are not identified', async ({
+  test('names the four consent-only services, what each learns, and that people are not identified', async ({
     request,
   }) => {
     const body = await (await request.get('/privacy')).text()
-    expect(body).toContain('Three more services start, and only then.')
+    expect(body).toContain('Four more services start, and only then.')
     expect(body).toContain('Google Analytics, from Google, sets cookies named')
     expect(body).toContain('We have switched off its advertising features.')
     expect(body).toContain(
@@ -65,7 +65,12 @@ test.describe('the privacy notice says what it does (SE-09, SE-10)', () => {
     // True only while consent.ts masks every input and never names a visitor.
     expect(body).toContain('Anything you type into a form is hidden in your browser')
     expect(body).toContain('we never tell PostHog who you are')
-    expect(body).toContain('Declining after accepting removes what the three services stored')
+    // True only while consent.ts adds Ahrefs' cookie-free script and nothing else of Ahrefs'.
+    expect(body).toContain(
+      'Ahrefs, a service based in Singapore, counts which pages are read without cookies and ' +
+        'without keeping your IP address, and stores nothing in your browser.',
+    )
+    expect(body).toContain('Declining after accepting removes what these services stored')
   })
 
   test('SE-10: names what is collected on a plain visit, and by whom', async ({ request }) => {

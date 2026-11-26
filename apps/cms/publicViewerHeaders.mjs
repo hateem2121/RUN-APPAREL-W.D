@@ -260,6 +260,8 @@ export const PUBLIC_PAGE_SOURCES = [
  * Apollo to identifying companies, never people. PostHog joined on 2026-10-04 under the same
  * Accept, by its two EXACT hosts, not the `*.posthog.com` its CSP guide suggests (consent.ts
  * has why); its replay recorder's `blob:` worker is already admitted by `worker-src`.
+ * Ahrefs Web Analytics joined on 2026-11-26 under the same Accept, by its one exact host,
+ * `analytics.ahrefs.com`, in script-src and connect-src.
  */
 /*
  * ⚠️ TURNSTILE JOINED ON 2026-11-11 (owner): `challenges.cloudflare.com` in script-src for its
@@ -268,12 +270,12 @@ export const PUBLIC_PAGE_SOURCES = [
  */
 export const PUBLIC_PAGE_CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com https://www.googletagmanager.com https://assets.apollo.io https://us-assets.i.posthog.com https://challenges.cloudflare.com",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com https://www.googletagmanager.com https://assets.apollo.io https://us-assets.i.posthog.com https://analytics.ahrefs.com https://challenges.cloudflare.com",
   'frame-src https://challenges.cloudflare.com',
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://media.wear-run.com https://media.wear-run.help https://*.google-analytics.com https://*.googletagmanager.com",
   "font-src 'self'",
-  "connect-src 'self' blob: https://media.wear-run.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.google.com https://aplo-evnt.com https://us.i.posthog.com https://us-assets.i.posthog.com",
+  "connect-src 'self' blob: https://media.wear-run.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.google.com https://aplo-evnt.com https://us.i.posthog.com https://us-assets.i.posthog.com https://analytics.ahrefs.com",
   "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",

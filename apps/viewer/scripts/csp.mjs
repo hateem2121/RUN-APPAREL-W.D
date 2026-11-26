@@ -57,11 +57,13 @@ const CF_CONNECT = 'https://cloudflareinsights.com https://static.cloudflareinsi
  * `*.posthog.com` its CSP guide suggests: as a script source that would admit code served for
  * any PostHog project (consent.ts has the account). Its replay recorder's `blob:` worker is
  * already admitted by `worker-src` below.
+ *
+ * Ahrefs Web Analytics joined on 2026-11-26 under the same Accept, by its one exact host.
  */
 const TRACKER_SCRIPT =
-  'https://www.googletagmanager.com https://assets.apollo.io https://us-assets.i.posthog.com'
+  'https://www.googletagmanager.com https://assets.apollo.io https://us-assets.i.posthog.com https://analytics.ahrefs.com'
 const TRACKER_CONNECT =
-  'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.google.com https://aplo-evnt.com https://us.i.posthog.com https://us-assets.i.posthog.com'
+  'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.google.com https://aplo-evnt.com https://us.i.posthog.com https://us-assets.i.posthog.com https://analytics.ahrefs.com'
 const TRACKER_IMG = 'https://*.google-analytics.com https://*.googletagmanager.com'
 
 /**
