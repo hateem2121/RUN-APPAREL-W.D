@@ -26,7 +26,7 @@ export const GARMENT_TYPE_RU: Readonly<Record<string, string>> = {
   "Men's Tracksuit": 'Мужской спортивный костюм',
   "Men's Training Pullover": 'Мужской тренировочный пуловер',
   'Neoprene Wetsuit': 'Неопреновый гидрокостюм',
-  'Oversized T-Shirt': 'Футболка оверсайз',
+  'Oversized T-Shirt': 'Футболка свободного кроя',
   'Polo-Collar Soccer Jersey': 'Футбольное джерси с воротником-поло',
   'Pro Match Soccer Ball': 'Профессиональный матчевый футбольный мяч',
   'Quarter-Zip Running Shirt': 'Беговая футболка с короткой молнией',

@@ -198,11 +198,11 @@ export const PRODUCT_DESCRIPTIONS_RU: Readonly<
   },
   'r-xmc': {
     en: 'An ultra-heavyweight tee with architectural vertical seaming and high-density X-Milo branding. Relaxed drop-shoulder construction, a ribbed mock neck and a structured boxy drape give it presence, finished with a soft-touch enzyme wash and a side-split hem. A premium statement piece for lifestyle collections and brand campaigns.',
-    ru: 'Ультраплотная футболка с архитектурными вертикальными швами и плотным брендингом X-Milo. Свободная конструкция со спущенным плечом, горловина-стойка в рубчик и структурированный объёмный силуэт придают ей характер, а завершают её энзимная стирка для мягкости на ощупь и боковые разрезы по низу. Премиальная акцентная вещь для лайфстайл-коллекций и брендовых кампаний.',
+    ru: 'Очень плотная футболка с архитектурными вертикальными швами и крупным логотипом X-Milo. Спущенное плечо, воротник-стойка в рубчик и свободный прямой силуэт придают ей характер, а энзимная стирка делает ткань мягкой на ощупь; по низу есть боковые разрезы. Премиальная акцентная вещь для повседневных коллекций и продвижения бренда.',
   },
   'r-cso': {
     en: 'A boxy, cropped long-sleeve tee in structured cotton jersey, carrying a full-front “ISOLATED” graphic: a halftone dove over a warped-line panel, framed by gothic lettering. Drop shoulders, a ribbed mock neck and a cropped hem give it a modern streetwear shape, and pre-shrunk fabric holds the fit. A statement piece for brand loyalists, urban lifestyle and casual layering.',
-    ru: 'Укороченный лонгслив свободного кроя из плотного хлопкового трикотажа с графикой «ISOLATED» во всю грудь: голубь, выполненный растровой точкой, на панели из изогнутых линий в обрамлении готических букв. Спущенное плечо, горловина-стойка в рубчик и укороченный низ создают современный уличный силуэт, а предварительно усаженная ткань сохраняет посадку. Акцентная вещь для поклонников бренда, городского стиля и многослойных образов.',
+    ru: 'Укороченный лонгслив свободного кроя из плотного хлопкового трикотажа с графикой «ISOLATED» во всю грудь: голубь, выполненный растровой точкой, на панели из изогнутых линий в обрамлении готических букв. Спущенное плечо, воротник-стойка в рубчик и укороченный низ создают современный уличный силуэт, а предварительно усаженная ткань сохраняет посадку. Акцентная вещь для поклонников бренда, городского стиля и многослойных образов.',
   },
   'r-cats': {
     en: 'A men’s full-zip tracksuit from the Core Align family: a hooded jacket with two flap chest pockets and a tonal RUN mark on the shoulder, over slim tapered trousers with side thigh pockets. Built for warm-ups, team travel and everyday training, it moves with you and holds its shape wash after wash.',
