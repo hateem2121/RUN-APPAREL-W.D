@@ -23,13 +23,22 @@ const TRACKER_HOSTS = [
   'aplo-evnt.com',
   'www.google-analytics.com',
   'region1.google-analytics.com',
-  'us-assets.i.posthog.com',
-  'us.i.posthog.com',
   'analytics.ahrefs.com',
 ]
+/*
+ * PostHog is reached through the site's own `/rw` since 26 Nov 2026 (consent.ts
+ * POSTHOG_PROXY_PATH), so it is recorded by path, on whatever host serves the page. Off the
+ * real site nothing answers `/rw`, so even an unanswered request could never reach PostHog.
+ */
+const POSTHOG_PROXY = '/rw/'
+// LiveIntent's own host or a true subdomain of it, never a look-alike such as `evilliadm.com` (CodeQL
+// "incomplete URL substring sanitization", PR #492).
+const isLiveIntent = (host: string) => host === 'liadm.com' || host.endsWith('.liadm.com')
+const isTracker = (url: URL) =>
+  TRACKER_HOSTS.includes(url.host) || url.pathname.startsWith(POSTHOG_PROXY)
 const GA_SCRIPT = 'www.googletagmanager.com/gtag/js'
 const APOLLO_SCRIPT = 'assets.apollo.io/micro/website-tracker/tracker.iife.js'
-const POSTHOG_SCRIPT = 'us-assets.i.posthog.com/static/array.js'
+const POSTHOG_SCRIPT = '/rw/static/array.js'
 const AHREFS_SCRIPT = 'analytics.ahrefs.com/analytics.js'
 
 const asAHuman = `Object.defineProperty(Navigator.prototype, 'webdriver', {
@@ -40,13 +49,13 @@ const asAHuman = `Object.defineProperty(Navigator.prototype, 'webdriver', {
 /** Answer the trackers locally and record each request made to them. */
 async function watchTrackers(page: Page) {
   const seen: string[] = []
-  await page.route(
-    (url) => TRACKER_HOSTS.includes(url.host),
-    (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }),
+  await page.route(isTracker, (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }),
   )
   page.on('request', (request) => {
     const url = new URL(request.url())
-    if (TRACKER_HOSTS.includes(url.host) || url.host.endsWith('liadm.com')) {
+    if (url.pathname.startsWith(POSTHOG_PROXY)) seen.push(url.pathname)
+    else if (TRACKER_HOSTS.includes(url.host) || isLiveIntent(url.host)) {
       seen.push(`${url.host}${url.pathname}`)
     }
   })
@@ -69,12 +78,16 @@ const banner = (page: Page) => page.getByRole('region', { name: 'Cookie choice' 
 /**
  * What a run looks like when the stand-ins are really in place: the SCRIPTS are asked for
  * and nothing else is. A real Google script sends `/g/collect`; a real Apollo script calls
- * `aplo-evnt.com`; a real PostHog sends to `us.i.posthog.com`. Any one in `seen` means a
+ * `aplo-evnt.com`; a real PostHog sends to `/rw/` outside its code (`/rw/static/`, `/rw/array/`).
+ * Any one in `seen` means a
  * stand-in was bypassed and this run has just appeared in the owner's reports.
  */
 // Hosts a real tracker SENDS to. Compared whole, never by prefix: `seen` holds `host` + path,
 // and a prefix match would also accept `aplo-evnt.com.example` (CodeQL, PR #127).
-const SENDING_HOSTS = ['aplo-evnt.com', 'us.i.posthog.com']
+const SENDING_HOSTS = ['aplo-evnt.com']
+const POSTHOG_CODE = ['/rw/static/', '/rw/array/']
+const postHogSends = (entry: string) =>
+  entry.startsWith(POSTHOG_PROXY) && !POSTHOG_CODE.some((code) => entry.startsWith(code))
 
 function assertNothingReal(seen: string[]) {
   const real = seen.filter(
@@ -83,6 +96,7 @@ function assertNothingReal(seen: string[]) {
       // Ahrefs loads and sends on ONE host, so it is told apart by path: a real script posts
       // to `/api/event` (analytics.js, read 2026-11-26); the stand-in posts nothing.
       entry.startsWith('analytics.ahrefs.com/api/') ||
+      postHogSends(entry) ||
       SENDING_HOSTS.includes(entry.slice(0, entry.indexOf('/'))),
   )
   expect(real, 'a real tracker ran: the local stand-ins were bypassed').toEqual([])
@@ -208,7 +222,7 @@ test.describe('the cookie choice on a garment page', () => {
     const blockedBy = () =>
       page.evaluate(() => (window as unknown as { blockedByPolicy: string[] }).blockedByPolicy)
     const trackerBlocks = (await blockedBy()).filter((uri) =>
-      /google|apollo|aplo-evnt|posthog|ahrefs/.test(uri),
+      /google|apollo|aplo-evnt|posthog|ahrefs|\/rw\//.test(uri),
     )
     expect(trackerBlocks, 'the policy blocked a tracker it should admit').toEqual([])
 

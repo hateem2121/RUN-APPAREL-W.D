@@ -22,9 +22,9 @@ const TRACKER_HOSTS = [
   'aplo-evnt.com',
   'www.google-analytics.com',
   'region1.google-analytics.com',
-  'us-assets.i.posthog.com',
-  'us.i.posthog.com',
 ]
+// PostHog goes through the site's own `/rw` since 26 Nov 2026 (consent.ts POSTHOG_PROXY_PATH).
+const isTracker = (url: URL) => TRACKER_HOSTS.includes(url.host) || url.pathname.startsWith('/rw/')
 
 const asAHuman = `Object.defineProperty(Navigator.prototype, 'webdriver', {
   get: () => false,
@@ -42,9 +42,8 @@ test.use({ serviceWorkers: 'block' })
 const banner = (page: Page) => page.getByRole('region', { name: 'Cookie choice' })
 
 async function openGarment(page: Page) {
-  await page.route(
-    (url) => TRACKER_HOSTS.includes(url.host),
-    (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }),
+  await page.route(isTracker, (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }),
   )
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/n001/wine')

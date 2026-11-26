@@ -42,6 +42,7 @@ import {
   wholePage,
 } from './pageCache.mjs'
 import { answerFromCopy, keepCopy, raceCopy } from './pageCopy.mjs'
+import { answerPosthog } from './posthogProxy.mjs'
 import { HEDGE_COPY_WAIT_MS } from './storeHedge.mjs'
 import { createSiteFetch } from './siteEdge.mjs'
 import { keepableTapAnswer, keptTapHeaders } from './tapStore.mjs'
@@ -178,7 +179,9 @@ export default {
       // whole file to every range request (filmRange.mjs has the measurements). Only `/film/*` reaches
       // this line before the assets do (`run_worker_first` in wrangler.jsonc).
       if (servesFilm(url)) return filmResponse(request, env)
-      return null
+      // PostHog, after Accept (posthogProxy.mjs). The door answers it first; this line keeps it
+      // working when the door's routes are deleted, which is the door's documented undo.
+      return answerPosthog(request)
     },
   }),
 }
