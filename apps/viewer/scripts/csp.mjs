@@ -53,17 +53,17 @@ const CF_CONNECT = 'https://cloudflareinsights.com https://static.cloudflareinsi
  * ⚠️ `d-code.liadm.com` MUST STAY OUT. Apollo's script tries to load it to identify a
  * visitor as a person; leaving it out is what holds Apollo to company-level tracking.
  *
- * PostHog joined on 2026-10-04, under the same Accept, by its two EXACT hosts, not the
- * `*.posthog.com` its CSP guide suggests: as a script source that would admit code served for
- * any PostHog project (consent.ts has the account). Its replay recorder's `blob:` worker is
- * already admitted by `worker-src` below.
+ * PostHog joined on 2026-10-04, under the same Accept. Since 26 Nov 2026 it needs no host here:
+ * it loads and sends through `/rw` on the page's own address, which `'self'` admits (consent.ts
+ * POSTHOG_PROXY_PATH has the account). Its replay recorder's `blob:` worker is already admitted
+ * by `worker-src` below.
  *
  * Ahrefs Web Analytics joined on 2026-11-26 under the same Accept, by its one exact host.
  */
 const TRACKER_SCRIPT =
-  'https://www.googletagmanager.com https://assets.apollo.io https://us-assets.i.posthog.com https://analytics.ahrefs.com'
+  'https://www.googletagmanager.com https://assets.apollo.io https://analytics.ahrefs.com'
 const TRACKER_CONNECT =
-  'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.google.com https://aplo-evnt.com https://us.i.posthog.com https://us-assets.i.posthog.com https://analytics.ahrefs.com'
+  'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.google.com https://aplo-evnt.com https://analytics.ahrefs.com'
 const TRACKER_IMG = 'https://*.google-analytics.com https://*.googletagmanager.com'
 
 /**

@@ -39,7 +39,21 @@ export const APOLLO_APP_ID = '69ddf8fa0fd941000d64bc24'
  * keep it there.
  */
 export const POSTHOG_PROJECT_TOKEN = 'phc_koNg9SmLSye49u8trEjUf9kd5cTYUveERNRDYKbW9p5y'
-export const POSTHOG_API_HOST = 'https://us.i.posthog.com'
+/**
+ * ⚠️ POSTHOG IS REACHED THROUGH THE SITE'S OWN ADDRESS, `/rw` (26 Nov 2026, owner's choice): ad
+ * blockers refuse PostHog's own hosts, and PostHog put the loss at 10-30% of events. Both Workers
+ * pass `/rw/*` on to PostHog's US hosts (apps/cms/posthogProxy.mjs, which must name the same
+ * path; its test pins the two). A RELATIVE address, as PostHog's proxy reference suggests: it is
+ * the page's own origin, so `'self'` in both policies admits it and PostHog's hosts leave them.
+ * Off the real site the request goes to that host's `/rw` and finds nothing, which is right: no
+ * one there should load PostHog.
+ *
+ * `ui_host` is PostHog's own app: without it, PostHog's docs say, the toolbar and the replay
+ * player break when `api_host` is a proxy. No visitor loads anything from it.
+ */
+const POSTHOG_PROXY_PATH = '/rw'
+export const POSTHOG_API_HOST = POSTHOG_PROXY_PATH
+export const POSTHOG_UI_HOST = 'https://us.posthog.com'
 
 /**
  * Ahrefs Web Analytics joined on 2026-11-26 (owner decision), under the same Accept as the
@@ -59,8 +73,9 @@ export const AHREFS_ANALYTICS_KEY = 'oY2SvYisD3eLxX6gb5IkrQ'
 
 const GA_SCRIPT = 'https://www.googletagmanager.com/gtag/js'
 const APOLLO_SCRIPT = 'https://assets.apollo.io/micro/website-tracker/tracker.iife.js'
-// The file PostHog's own snippet loads: its `api_host` with `.i.` turned into `-assets.i.`.
-const POSTHOG_SCRIPT = 'https://us-assets.i.posthog.com/static/array.js'
+// The file PostHog's own snippet loads, through the site's address (`/static/*` goes to its
+// asset host: posthogProxy.mjs).
+const POSTHOG_SCRIPT = `${POSTHOG_PROXY_PATH}/static/array.js`
 const AHREFS_HOST = 'https://analytics.ahrefs.com'
 
 /**
@@ -82,15 +97,12 @@ const AHREFS_HOST = 'https://analytics.ahrefs.com'
  * the host absent the browser refuses that script whatever the server answers; Apollo's
  * code catches the failure and still reports the visit. `consent.test.ts` pins the absence.
  *
- * PostHog's are its two exact hosts. Read in its script (array.js 1.435.8, 2026-10-04): every
- * piece of CODE it loads (itself, the replay recorder, the project's `/array/<token>/config.js`)
- * comes from `us-assets.i.posthog.com`, and it SENDS to `us.i.posthog.com`.
- *
- * ⚠️ NOT THE `*.posthog.com` ITS OWN CSP GUIDE SUGGESTS. A script source of every PostHog host
- * would admit code served for ANY PostHog project, an attacker's included, which turns an
- * injection on this site into a way round the policy. The commit review of 2026-10-04 flagged
- * it, and the hosts above are all the script uses. If PostHog ever moves them, replay stops (and
- * on the garment pages the policy reports the block to Sentry): a failure, never a silent widening.
+ * ⚠️ POSTHOG NEEDS NO HOST HERE SINCE 26 NOV 2026. Until then the policies named its two exact
+ * hosts (`us-assets.i.posthog.com` for code, `us.i.posthog.com` for sending; never the
+ * `*.posthog.com` its CSP guide suggests, which would admit code served for ANY PostHog project,
+ * as the commit review of 2026-10-04 said). Now it loads and sends through `/rw` on the page's own
+ * origin (POSTHOG_PROXY_PATH), which `'self'` admits, so both hosts are gone: a page can no longer
+ * reach PostHog any other way. `consent.test.ts` pins their absence.
  *
  * Its recorder starts a worker from a `blob:` address; both pages' `worker-src 'self' blob:`
  * already allows that, for the 3D decoders.
@@ -101,7 +113,6 @@ export const TRACKER_CSP = {
   script: [
     'https://www.googletagmanager.com',
     'https://assets.apollo.io',
-    'https://us-assets.i.posthog.com',
     'https://analytics.ahrefs.com',
   ],
   connect: [
@@ -110,8 +121,6 @@ export const TRACKER_CSP = {
     'https://*.googletagmanager.com',
     'https://www.google.com',
     'https://aplo-evnt.com',
-    'https://us.i.posthog.com',
-    'https://us-assets.i.posthog.com',
     'https://analytics.ahrefs.com',
   ],
   img: ['https://*.google-analytics.com', 'https://*.googletagmanager.com'],
@@ -298,6 +307,7 @@ function loadScript(win: TrackerWindow, src: string, onload: (() => void) | null
 export function posthogConfig(hostname: string | undefined): Record<string, unknown> {
   const config: Record<string, unknown> = {
     api_host: POSTHOG_API_HOST,
+    ui_host: POSTHOG_UI_HOST,
     defaults: '2026-05-30',
     person_profiles: 'identified_only',
     capture_exceptions: false,

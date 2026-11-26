@@ -23,13 +23,17 @@ const TRACKER_HOSTS = [
   'aplo-evnt.com',
   'www.google-analytics.com',
   'region1.google-analytics.com',
-  'us-assets.i.posthog.com',
-  'us.i.posthog.com',
   'analytics.ahrefs.com',
 ]
+/*
+ * PostHog is reached through the site's own `/rw` since 26 Nov 2026 (consent.ts
+ * POSTHOG_PROXY_PATH): answered here like the hosts above, and recorded by path (it is the
+ * site's own address, so `outside` would otherwise never see it).
+ */
+const POSTHOG_PROXY = '/rw/'
+const POSTHOG_SCRIPT = '/rw/static/array.js'
 const GA_SCRIPT = 'www.googletagmanager.com/gtag/js'
 const APOLLO_SCRIPT = 'assets.apollo.io/micro/website-tracker/tracker.iife.js'
-const POSTHOG_SCRIPT = 'us-assets.i.posthog.com/static/array.js'
 const AHREFS_SCRIPT = 'analytics.ahrefs.com/analytics.js'
 
 /** Playwright sets navigator.webdriver; the question honours it, as the cursor does. */
@@ -44,12 +48,16 @@ async function watch(page: Page) {
   const firstParty = [origin.host, 'media.wear-run.com', 'media.wear-run.help']
   const outside: string[] = []
   await page.route(
-    (url) => TRACKER_HOSTS.includes(url.host),
+    (url) => TRACKER_HOSTS.includes(url.host) || url.pathname.startsWith(POSTHOG_PROXY),
     (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }),
   )
   page.on('request', (request) => {
     const url = new URL(request.url())
     if (url.protocol === 'data:' || url.protocol === 'blob:') return
+    if (url.pathname.startsWith(POSTHOG_PROXY)) {
+      outside.push(url.pathname)
+      return
+    }
     if (firstParty.includes(url.host)) return
     outside.push(`${url.host}${url.pathname}`)
   })
@@ -179,7 +187,7 @@ test.describe('the cookie choice', () => {
     )
     expect(posthog?.[2]).toBe('posthog')
     expect(posthog?.[1]).toMatchObject({
-      api_host: 'https://us.i.posthog.com',
+      api_host: '/rw',
       opt_out_capturing_by_default: true,
       disable_session_recording: true,
       session_recording: { maskAllInputs: true },
@@ -204,7 +212,10 @@ test.describe('the cookie choice', () => {
     await expect.poll(() => outside).toContain(POSTHOG_SCRIPT)
     await expect.poll(() => outside).toContain(AHREFS_SCRIPT)
     await page.waitForLoadState('networkidle')
-    const hosts = [...new Set(outside.map((entry) => entry.split('/')[0]))]
+    // PostHog's entries are the site's own `/rw` paths (no host), so they are left out here.
+    const hosts = [
+      ...new Set(outside.filter((entry) => !entry.startsWith('/')).map((e) => e.split('/')[0])),
+    ]
     for (const host of hosts) expect(TRACKER_HOSTS, `unexpected host ${host}`).toContain(host)
   })
 

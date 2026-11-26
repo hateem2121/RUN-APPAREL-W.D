@@ -14,6 +14,7 @@ import {
   parseConsent,
   POSTHOG_API_HOST,
   POSTHOG_PROJECT_TOKEN,
+  POSTHOG_UI_HOST,
   posthogConfig,
   readConsent,
   restoreTrackers,
@@ -153,7 +154,7 @@ describe('starting the trackers', () => {
     expect(scripts.map((s) => s.src.split('?')[0])).toEqual([
       'https://www.googletagmanager.com/gtag/js',
       'https://assets.apollo.io/micro/website-tracker/tracker.iife.js',
-      'https://us-assets.i.posthog.com/static/array.js',
+      '/rw/static/array.js',
       'https://analytics.ahrefs.com/analytics.js',
     ])
     expect(scripts[0]?.src).toContain(`id=${GA_MEASUREMENT_ID}`)
@@ -275,15 +276,19 @@ describe('starting PostHog', () => {
     expect(typeof queue.init).not.toBe('function')
   })
 
-  it('sends to the US project the owner chose', () => {
-    expect(POSTHOG_API_HOST).toBe('https://us.i.posthog.com')
+  // Through the site's own address since 26 Nov 2026 (consent.ts POSTHOG_PROXY_PATH); the proxy
+  // passes it on to the US project (apps/cms/posthogProxy.mjs, whose test pins the same path).
+  it("sends to the US project the owner chose, through the site's own address", () => {
+    expect(POSTHOG_API_HOST).toBe('/rw')
+    expect(POSTHOG_UI_HOST).toBe('https://us.posthog.com')
     expect(POSTHOG_PROJECT_TOKEN).toMatch(/^phc_[A-Za-z0-9]+$/)
   })
 
   it('on wear-run.com it records, with typing hidden and no errors, surveys or profiles', () => {
     expect(posthogConfig('wear-run.com')).toEqual({
       capture_performance: { web_vitals: true, web_vitals_attribution: true },
-      api_host: 'https://us.i.posthog.com',
+      api_host: '/rw',
+      ui_host: 'https://us.posthog.com',
       defaults: '2026-05-30',
       person_profiles: 'identified_only',
       capture_exceptions: false,
@@ -403,17 +408,14 @@ describe('forgetting the trackers', () => {
 })
 
 describe('the hosts the security policy must admit', () => {
-  it('names Google, Apollo, PostHog and Ahrefs, each host exactly', () => {
+  it('names Google, Apollo and Ahrefs, each host exactly (PostHog needs none)', () => {
     expect(TRACKER_CSP.script).toEqual([
       'https://www.googletagmanager.com',
       'https://assets.apollo.io',
-      'https://us-assets.i.posthog.com',
       'https://analytics.ahrefs.com',
     ])
     expect(TRACKER_CSP.connect).toContain('https://analytics.ahrefs.com')
     expect(TRACKER_CSP.connect).not.toContain('https://*.ahrefs.com')
-    expect(TRACKER_CSP.connect).toContain('https://us.i.posthog.com')
-    expect(TRACKER_CSP.connect).toContain('https://us-assets.i.posthog.com')
     expect(TRACKER_CSP.connect).toContain('https://aplo-evnt.com')
   })
 
@@ -429,16 +431,14 @@ describe('the hosts the security policy must admit', () => {
   })
 
   /*
-   * PostHog's own guide suggests `*.posthog.com`. As a SCRIPT source that admits code served
-   * for any PostHog project, an attacker's included (commit review, 2026-10-04). Its script
-   * loads code from one host only, so the policy names that host and nothing wider.
+   * PostHog's own guide suggests `*.posthog.com`, which as a SCRIPT source admits code served
+   * for any PostHog project, an attacker's included (commit review, 2026-10-04). Since 26 Nov
+   * 2026 PostHog loads and sends through `/rw` on the page's own origin, so the policies need
+   * no PostHog host at all, and naming one again would only open a second way out.
    */
-  it('admits PostHog by its exact hosts, never by a wildcard', () => {
+  it('admits no PostHog host: it is reached through the site itself', () => {
     const all = [...TRACKER_CSP.script, ...TRACKER_CSP.connect, ...TRACKER_CSP.img].join(' ')
-    expect(all).not.toMatch(/\*\.(i\.)?posthog\.com/)
-    expect(TRACKER_CSP.script.filter((host) => host.includes('posthog'))).toEqual([
-      'https://us-assets.i.posthog.com',
-    ])
+    expect(all).not.toMatch(/posthog/)
   })
 
   /*
@@ -786,7 +786,7 @@ describe('starting the trackers 3 s after Accept, one per quiet moment', () => {
     expect(hosts()).toEqual(['www.googletagmanager.com', 'assets.apollo.io'])
     goIdle()
     expect(hosts()).toHaveLength(3)
-    expect(hosts()[2]).toMatch(/posthog/)
+    expect(scripts[2]?.src).toBe('/rw/static/array.js')
     goIdle()
     expect(hosts()).toHaveLength(4)
     expect(hosts()[3]).toBe('analytics.ahrefs.com')

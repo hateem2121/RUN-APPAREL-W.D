@@ -57,6 +57,7 @@ import {
   STORE_BUILD_KEY,
   STORE_MODE_KEY,
 } from './pageCache.mjs'
+import { answerPosthog } from './posthogProxy.mjs'
 import { createSiteFetch } from './siteEdge.mjs'
 import { RSC_STORE_KEY } from './tapStore.mjs'
 import { forwardsToViewer } from './viewerForward.mjs'
@@ -571,6 +572,10 @@ export default {
       const url = new URL(request.url)
       const version = doorVersionResponse(url, env.CF_VERSION_METADATA)
       if (version) return version
+      // PostHog, after Accept (posthogProxy.mjs): answered here so it never starts the site's
+      // Worker, and before the switch and the store, which have nothing to do with it.
+      const posthog = await answerPosthog(request)
+      if (posthog) return posthog
       // ⚠️ A DEPLOY'S PRE-LIVE CHECK ASKS FOR A NEW VERSION BY HEADER, and must reach it. The
       // deploy tests each new version at 0% through `Cloudflare-Workers-Version-Overrides`
       // (scripts/version-overrides.mjs, owner decision 7 Nov 2026). A kept answer from the store,
