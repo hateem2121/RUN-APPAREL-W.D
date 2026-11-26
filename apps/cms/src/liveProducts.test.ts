@@ -72,6 +72,10 @@ describe('live products', () => {
         'r-cvn',
         // 40 -> 41 on 2026-10-08: Structure Polo Set, live as "3D coming soon".
         'r-sps',
+        // 45 -> 48 on 2026-11-26: X-Milo Core Oversize, Core Slogan Oversize, Core Align Tracksuit.
+        'r-xmc',
+        'r-cso',
+        'r-cats',
       ].sort(),
     )
   })

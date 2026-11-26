@@ -48,7 +48,9 @@ export const GARMENT_TYPES = {
   'r-au': "Men's American Football Uniform",
   'r-bcd': 'Tennis Bra and Skirt Set',
   'r-cat': "Women's Compression Yoga Tights",
+  'r-cats': "Men's Full-Zip Tracksuit",
   'r-cch': "Women's Crop Hoodie",
+  'r-cso': 'Cropped Long-Sleeve Tee',
   'r-csp': "Men's Half-Zip Fleece Pullover",
   'r-css': 'Polo-Collar Soccer Jersey',
   'r-cvn': 'V-Neck Soccer Jersey',
@@ -76,6 +78,8 @@ export const GARMENT_TYPES = {
   'r-wct': 'Cropped Training Top',
   'r-wsa': "Women's Tennis Dress",
   'r-wzu': "Women's Zip-Up Sports Vest",
+  // Owner-approved 2026-11-26, with the two garments going live.
+  'r-xmc': 'Oversized T-Shirt',
   'r-xmp': "Men's Cycling Bib Shorts",
   'r-xmt': "Men's Sleeveless Training Vest",
   'r-zt': "Women's Yoga Tights",
