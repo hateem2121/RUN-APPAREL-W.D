@@ -2185,6 +2185,126 @@
           "needsOwnerEye": false
         }
       ]
+    },
+    "r-xmc": {
+      "productName": "X-MILO CORE OVERSIZE",
+      "colours": [
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Lavender",
+          "slug": "lilac",
+          "hex": "#A8A8C8",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Rose Petal",
+          "slug": "blush",
+          "hex": "#F8B8C8",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Pool Aqua",
+          "slug": "aqua",
+          "hex": "#98D8D8",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Pine",
+          "slug": "green",
+          "hex": "#485848",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 5",
+          "displayName": "Grapefruit",
+          "slug": "coral",
+          "hex": "#F88868",
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-cso": {
+      "productName": "CORE SLOGAN OVERSIZE",
+      "colours": [
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Blossom",
+          "slug": "blush",
+          "hex": "#FFC2D4",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Default Colorway",
+          "displayName": "Espresso",
+          "slug": "brown",
+          "hex": "#2D1C1C",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Night Navy",
+          "slug": "navy",
+          "hex": "#263453",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Summit Sky",
+          "slug": "sky",
+          "hex": "#C1DBF2",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Lap Green",
+          "slug": "green",
+          "hex": "#567251",
+          "needsOwnerEye": false
+        }
+      ]
+    },
+    "r-cats": {
+      "productName": "CORE ALIGN TRACKSUIT",
+      "colours": [
+        {
+          "variantId": "Colorway 3",
+          "displayName": "Night Navy",
+          "slug": "navy",
+          "hex": "#2B3545",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Default Colorway",
+          "displayName": "Steady Blue",
+          "slug": "denim",
+          "hex": "#025C8D",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 1",
+          "displayName": "Trail Olive",
+          "slug": "olive",
+          "hex": "#515E3E",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 2",
+          "displayName": "Red Zone",
+          "slug": "crimson",
+          "hex": "#9D3737",
+          "needsOwnerEye": false
+        },
+        {
+          "variantId": "Colorway 4",
+          "displayName": "Stride Tan",
+          "slug": "tan",
+          "hex": "#A4876B",
+          "needsOwnerEye": false
+        }
+      ]
     }
   }
 }

@@ -5,11 +5,13 @@
  * American football «американский футбол»; «джерси» is neuter, as the other Russian files use it.
  */
 export const GARMENT_TYPE_RU: Readonly<Record<string, string>> = {
+  'Cropped Long-Sleeve Tee': 'Укороченный лонгслив',
   'Cropped Training Top': 'Укороченный тренировочный топ',
   'High-Support Sports Bra': 'Спортивный бюстгальтер с высокой поддержкой',
   "Men's American Football Jersey": 'Мужское джерси для американского футбола',
   "Men's American Football Uniform": 'Мужская форма для американского футбола',
   "Men's Cycling Bib Shorts": 'Мужские велотрусы с лямками',
+  "Men's Full-Zip Tracksuit": 'Мужской спортивный костюм на молнии',
   "Men's Full-Zip Training Top": 'Мужская тренировочная кофта на молнии',
   "Men's Half-Zip Fleece Pullover": 'Мужской флисовый пуловер с молнией до груди',
   "Men's Half-Zip Polo Shirt": 'Мужское поло с молнией до груди',
@@ -24,6 +26,7 @@ export const GARMENT_TYPE_RU: Readonly<Record<string, string>> = {
   "Men's Tracksuit": 'Мужской спортивный костюм',
   "Men's Training Pullover": 'Мужской тренировочный пуловер',
   'Neoprene Wetsuit': 'Неопреновый гидрокостюм',
+  'Oversized T-Shirt': 'Футболка оверсайз',
   'Polo-Collar Soccer Jersey': 'Футбольное джерси с воротником-поло',
   'Pro Match Soccer Ball': 'Профессиональный матчевый футбольный мяч',
   'Quarter-Zip Running Shirt': 'Беговая футболка с короткой молнией',

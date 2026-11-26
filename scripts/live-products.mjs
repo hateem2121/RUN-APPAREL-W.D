@@ -357,6 +357,27 @@ export const LIVE_PRODUCTS = [
     ],
     productCode: 'R-ORB',
   },
+  // The two oversize tees and the Core Align Tracksuit, added 2026-11-26 (owner). Names and order chosen by the owner that day;
+  // Core Slogan's default is its pink, not the file's first colour.
+  {
+    slug: 'r-xmc',
+    colourway: 'lilac',
+    colourways: ['lilac', 'blush', 'aqua', 'green', 'coral'],
+    productCode: 'R-XMC',
+  },
+  {
+    slug: 'r-cso',
+    colourway: 'blush',
+    colourways: ['blush', 'brown', 'navy', 'sky', 'green'],
+    productCode: 'R-CSO',
+  },
+  // Added the same day; navy first by the owner's choice (the file's first colour is the blue).
+  {
+    slug: 'r-cats',
+    colourway: 'navy',
+    colourways: ['navy', 'denim', 'olive', 'crimson', 'tan'],
+    productCode: 'R-CATS',
+  },
 ]
 
 /**

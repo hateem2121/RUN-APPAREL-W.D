@@ -196,6 +196,18 @@ export const PRODUCT_DESCRIPTIONS_RU: Readonly<
     en: 'A 32-panel training soccer ball in size 5, built with Trinity Technology: panels thermobonded, then machine stitched, the last panel closed by hand, then the seams sealed. The 1.3 mm PU cover is laminated to a 2.5 mm foam lining over a thread-wound butyl bladder. Lab tested according to FIFA Quality Pro limits. This model is not FIFA licensed and does not carry a FIFA mark. Competitions that require a FIFA mark need a licensed ball.',
     ru: 'Тренировочный футбольный мяч из 32 панелей, размер 5, по технологии Trinity Technology: панели термосклеиваются, затем сшиваются на машине, последнюю панель зашивают вручную, после чего швы герметизируют. Покрышка из PU толщиной 1,3 мм ламинирована на подложку из пены 2,5 мм поверх бутиловой камеры с нитяной намоткой. Мяч прошёл лабораторные испытания в соответствии с нормами FIFA Quality Pro. Модель не лицензирована FIFA и не несёт знака FIFA. Для соревнований, где знак обязателен, нужен лицензированный мяч.',
   },
+  'r-xmc': {
+    en: 'An ultra-heavyweight tee with architectural vertical seaming and high-density X-Milo branding. Relaxed drop-shoulder construction, a ribbed mock neck and a structured boxy drape give it presence, finished with a soft-touch enzyme wash and a side-split hem. A premium statement piece for lifestyle collections and brand campaigns.',
+    ru: 'Ультраплотная футболка с архитектурными вертикальными швами и плотным брендингом X-Milo. Свободная конструкция со спущенным плечом, горловина-стойка в рубчик и структурированный объёмный силуэт придают ей характер, а завершают её энзимная стирка для мягкости на ощупь и боковые разрезы по низу. Премиальная акцентная вещь для лайфстайл-коллекций и брендовых кампаний.',
+  },
+  'r-cso': {
+    en: 'A boxy, cropped long-sleeve tee in structured cotton jersey, carrying a full-front “ISOLATED” graphic: a halftone dove over a warped-line panel, framed by gothic lettering. Drop shoulders, a ribbed mock neck and a cropped hem give it a modern streetwear shape, and pre-shrunk fabric holds the fit. A statement piece for brand loyalists, urban lifestyle and casual layering.',
+    ru: 'Укороченный лонгслив свободного кроя из плотного хлопкового трикотажа с графикой «ISOLATED» во всю грудь: голубь, выполненный растровой точкой, на панели из изогнутых линий в обрамлении готических букв. Спущенное плечо, горловина-стойка в рубчик и укороченный низ создают современный уличный силуэт, а предварительно усаженная ткань сохраняет посадку. Акцентная вещь для поклонников бренда, городского стиля и многослойных образов.',
+  },
+  'r-cats': {
+    en: 'A men’s full-zip tracksuit from the Core Align family: a hooded jacket with two flap chest pockets and a tonal RUN mark on the shoulder, over slim tapered trousers with side thigh pockets. Built for warm-ups, team travel and everyday training, it moves with you and holds its shape wash after wash.',
+    ru: 'Мужской спортивный костюм на молнии из линейки Core Align: куртка с капюшоном, двумя нагрудными карманами с клапанами и тоновым знаком RUN на плече, и зауженные брюки с боковыми карманами на бёдрах. Создан для разминки, командных поездок и повседневных тренировок: не стесняет движений и сохраняет форму стирка за стиркой.',
+  },
 }
 
 /** The Russian description of `slug`, or "" when there is none for exactly this English text. */
