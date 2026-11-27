@@ -50,20 +50,22 @@ curl -s https://cms.wear-run.help/api/public/viewer/rxps/wine \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['product']['glbUrl'])"
 ```
 
-Cache it locally for repeated use — one 27 MB GET is nothing, but the uptime job (every
+Cache it locally for repeated use — one GET is nothing (3.8 MB for `rxps`, measured 2026-11-27), but the uptime job (every
 15 minutes until 2026-08-18, every 6 hours now) is why `.github/CLAUDE.md` has CI check models with `HEAD` (weight, not an
 R2 bill — R2 egress is free).
 
 🟡 **For a material/alphaMode census you do not need the file — range-fetch the header.**
 A GLB's JSON chunk is at the front and is length-prefixed, so two range requests read
-every material, texture and variant mapping in it. Measured 2026-08-27 on the live
-model: **445,064 bytes instead of 28,271,780** — 1.6% of the egress, and R2 answers
-`206` with `cf-cache-status: HIT`.
+every material, texture and variant mapping in it. Measured 2026-11-27 on the live
+`rxps` model: **409,224 bytes instead of 3,839,756** — 11% of the egress, and R2 answers
+`206` with `cf-cache-status: HIT`. The address and the length below are that day's: take
+the address from the API command above, and the end of the second range is 19 plus the
+length the first request prints.
 
 ```bash
-URL=https://media.wear-run.help/cycling-all-colours-optimized-4.glb
+URL=https://media.wear-run.com/rxps-2026-09-28-optimized.glb
 curl -s -r 0-19 "$URL" | xxd -s 12 -l 4 -e -g4      # JSON chunk length, little-endian
-curl -s -r 20-445083 "$URL" | python3 -m json.tool | head
+curl -s -r 20-409223 "$URL" | python3 -m json.tool | head
 ```
 
 ## Before you change the pipeline
@@ -95,8 +97,8 @@ anywhere a GitHub runner can reach (see below). It needs
 
 🟡 **The raw export is not a durable artifact and may already be gone.** The
 ingest bucket carries an `expire-raw-uploads` lifecycle rule — 14 days, **all
-prefixes** — so the N001 export (uploaded on/before 2026-08-05) expires around
-🟡 **2026-08-19**. `scripts/backup-r2.mjs` mirrors the *media* bucket and the two
+prefixes** — so the N001 export (uploaded on/before 2026-08-05) was due to expire around
+🟡 **2026-08-19** (not re-checked since). `scripts/backup-r2.mjs` mirrors the *media* bucket and the two
 apex PDFs, never *ingest*, so the ingest bucket is in no backup. The canonical copy is therefore a **local** one,
 described by `raw/CANONICAL.json`, which records the byte count and SHA-256 so a
 re-downloaded or re-exported file can be proven to be the file the ceiling was
@@ -190,7 +192,8 @@ flags are literals from `shrinkFlagsFor` (`packages/shared/src/shrink.ts`).
 | `pipeline-evals.md` | 7 | `eval:artwork`, rendering and cameras, the review server |
 
 The npm lockfile beside this file is in `.claude/rules/shrink-container.md`. **Working
-through Bash? `cat` the rule before changing anything it covers** — rules load on the Read
-tool only (`docs/CLAUDE-MD-MAINTENANCE.md`). 🟢 After `/compact` only the root `CLAUDE.md`
+through Bash? `cat` the rule before changing anything it covers** — a rule loads by itself
+only when a file it governs is opened with the Read, Write or Edit tool, or a plain `cat`,
+`head`, `tail`, `sed -n` or `grep` of one file (root `CLAUDE.md`). 🟢 After `/compact` only the root `CLAUDE.md`
 comes back; `recall-nested-instructions.mjs` names this file and every rule, but loads none
 of them, so reopen the rule for what you are changing.

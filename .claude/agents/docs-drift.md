@@ -18,7 +18,7 @@ You do not fix anything and you do not edit files. You report.
 
 ## Why this exists
 
-The five CLAUDE.md files are about 160,000 characters of load-bearing claims, and they cite file
+The five CLAUDE.md files and the path rules in `.claude/rules/` are load-bearing claims, and they cite file
 paths, script names, npm scripts, constants and test files by name. Every one of
 those is a claim that goes stale silently when code moves — nothing fails, nothing
 warns, and the next session follows a dead pointer and wastes the exact hour the
@@ -37,7 +37,7 @@ This has already happened twice:
 
 ## What to check
 
-Read all five, in this order:
+Read all five, in this order, then every `.claude/rules/*.md`:
 
 1. `CLAUDE.md` (repo root)
 2. `tools/asset-pipeline/CLAUDE.md`
@@ -82,7 +82,7 @@ say you are unsure rather than asserting it is broken.
 Report only what you verified, and show the evidence.
 
 ```
-CHECKED   <n> references across 5 files
+CHECKED   <n> references across <n> files
 BROKEN    <n>
   CLAUDE.md:214  "packages/shared/src/importColours.test.ts"
                  -> no such file; nearest match packages/shared/src/…

@@ -1295,3 +1295,74 @@ or refused in the test browser:
 | Sentry blocked | 415, 408, 387 ms | 275, 277, 274 ms (attributed to `model-viewer-*.js`) |
 
 Sentry costs nothing here: its wrapper only changes whose name the browser writes on the frame.
+
+## CI history moved out of `.github/CLAUDE.md`, not deleted (2026-11-27)
+
+A prompt audit found two traps there that described steps no workflow runs any more (`apt` and
+`playwright install-deps`). Each trap keeps a short rule in `.github/CLAUDE.md`; the full text it
+replaced is recorded here, word for word.
+
+**The `playwright install-deps` trap**
+
+- **🟢 No workflow runs `playwright install-deps` any more — and while one did, it was
+  bounded at 8 minutes and non-fatal on purpose: it is preparation, not a gate.**
+  `ci.yml`'s `artwork` and `e2e` moved into the `mcr.microsoft.com/playwright` image (its
+  tag must equal `@playwright/test`'s version; `workflowHardening.test.ts` enforces it)
+  on 2026-08-20 and `deploy-shrink.yml` on 2026-08-30; the image ships the browsers and
+  their system libraries. Below is the history that produced that decision.
+  Measured normal cost 24 seconds. On 2026-08-18 a degraded Azure Ubuntu
+  mirror — the log repeats `Ign: http://azure.archive.ubuntu.com/ubuntu noble
+  InRelease` before falling back to the far slower `archive.ubuntu.com` — made it
+  consume entire job budgets three times with nothing in the repo changed: `artwork`
+  cancelled at 20m20s twice, then `verify` at 30m21s. **Raising a ceiling is the
+  wrong fix**: `artwork` was raised 20→30, went green, and `verify` died at 30
+  instead, because both jobs share one external dependency and lifting one ceiling
+  only moves which job absorbs the outage. `e2e` and the artwork eval are the gates.
+  A failed install emits a named `::warning::` so a browser that cannot **launch** is
+  not debugged as a flaky test — that warning fired four minutes before the
+  `browserType.launch` failure it predicted.
+
+**The `timeout-minutes` and `apt-get` trap**
+
+- **🟡 `timeout-minutes` kills the step's shell, not the `apt-get` that step started.**
+  The child survives as an orphan, keeps installing, and keeps holding
+  `/var/lib/dpkg/lock-frontend` — so the bound does not stop apt, it only stops
+  waiting for apt, and the next step then runs against a half-unpacked system. On run
+  32248711203 (`main`, b5621aa) `libevent-2.1-7t64` had been downloaded and not yet
+  unpacked when e2e began: all 23 viewer-webkit tests died on
+  `libevent-2.1.so.7: cannot open shared object file` while all 119 chromium/firefox
+  tests passed. That reads as a WebKit regression and is not one.
+  🟡 **Retrying is the wrong fix and was tried first** (run 32290202909): a second
+  `install-deps` races the orphan, loses the lock immediately and exits 100 in five
+  seconds — `dpkg frontend lock was locked by another process with pid 4625`. Five
+  seconds reads like "nothing left to do" and is the opposite. Wait for the orphan; it
+  is the thing doing the real work.
+  🟡 **Waiting longer is also wrong** (run 32294473409): at a 10-minute wait apt still
+  had not finished — 18+ minutes across both steps — and the `ldd` check then named
+  thirty-three missing libraries, i.e. essentially the whole WebKit stack rather than
+  one straggler. Waiting does not rescue a mirror that degraded; it only costs the job
+  its headroom, taking `verify` to ~26 minutes against 30 and close to a `cancelled`
+  conclusion, which reads as a failed gate and is not one. The wait loop's budget must
+  stay strictly below the step's own `timeout-minutes` (18×10s = 3m inside a 4m step),
+  or the step is killed before `dpkg --configure -a` and the final install can run —
+  which is why 32294473409 ended on a lock error instead of finishing.
+  ✅ **All of `ci.yml` stopped depending on apt on 2026-08-20** — `artwork` first, then
+  `e2e` when it was split out of `verify`, both running in
+  the `mcr.microsoft.com/playwright` image. Measured: `artwork` 142s against a
+  107s baseline (+35s per run), and `e2e` 417s while `verify` fell 470s -> 159s by
+  shedding it, so the run's long pole went 470s -> 417s — billed minutes up,
+  wall-clock down. The image pull is 36-40s with a 60s tail (seven pulls).
+  ✅ **And `deploy-shrink.yml` followed on 2026-08-30 — no workflow in this repo
+  runs `apt` any more.** It was the last one, and it had kept both apt paths
+  (`playwright install --with-deps` on a cache miss, `install-deps` on a hit) at a
+  🟢 **20-minute** ceiling while ci.yml had already been raised to 30 *and* then moved
+  to the container — so the file most exposed to the mirror outage was the one with
+  the least headroom. It now uses the same `mcr.microsoft.com/playwright`
+  image and installs no browser at all.
+  🟢 **Keep this trap anyway.** Everything above is the reasoning, not the residue:
+  it is why raising a ceiling is the wrong fix, why a retry races an orphan holding
+  the dpkg lock, and why the wait loop's budget must stay strictly below the step's
+  own `timeout-minutes`. The next person tempted to add an `apt-get` to a workflow
+  needs all of it. **This is also the second half of the "two workflows duplicate the
+  same gates" rule at the top of this file** — the container fix sat in ci.yml for ten
+  days before anyone checked the other copy, exactly as gitleaks did for three months.

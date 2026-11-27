@@ -25,15 +25,15 @@ files. You report.
   which had been fixed long before. A session read that line and skipped a check that
   worked. **A stale trap does not merely fail to help; it argues you out of a working
   check.**
-- The `pnpm`-not-on-PATH claim has now measured BOTH ways on the same machine. The
-  file says "assume neither" precisely because nobody re-measured between the two
-  observations.
+- The `pnpm`-not-on-PATH claim has measured three ways on the same machine: absent,
+  present and present-but-broken (root `CLAUDE.md`, "The pnpm note"), because nobody
+  re-measured between observations.
 
 ## Method
 
 For each claim you check:
 
-1. **Find the claim.** Grep the `CLAUDE.md` files for a statement that names a
+1. **Find the claim.** Grep the `CLAUDE.md` files and `.claude/rules/*.md` for a statement that names a
    command, a version, an exit code, a byte count, or a timing.
 2. **Run the smallest thing that tests it.** Never infer from a neighbouring fact.
 3. **Compare to what the file says**, quoting both.

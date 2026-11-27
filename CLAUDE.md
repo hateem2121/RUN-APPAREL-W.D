@@ -111,7 +111,7 @@ One unit test: `pnpm --filter @run-apparel/<pkg> exec vitest run <file>`; one e2
 - **Look for the decision before re-deciding.** Settled calls live in `docs/DECISION-*.md`,
   `docs/DECISIONS-BETA-WEBSITE.md` and `.agents/skills/`. On 2026-08-15 a session
   re-researched Tailwind while `.agents/skills/pick-ui-library/SKILL.md` had already
-  picked `base-ui`. Two of the eight `.agents` skills are `disable-model-invocation:
+  picked `base-ui`. Two of the seven `.agents` skills are `disable-model-invocation:
   true` and never appear in the skill list, so grep `.agents/` too.
 - **Cloudflare API writes:** put the JSON body in a file and `curl … -d @file`; the
   auto-mode classifier refuses the same request with inline JSON.

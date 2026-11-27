@@ -39,23 +39,13 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `needs:` ci.yml's own `verify`, `artwork`, `audit` and `secrets`, and
   `deploy-shrink.yml` was deleted. If a second copy of a gate ever appears again, the
   lesson holds: grep the other.
-- **🟢 No workflow runs `playwright install-deps` any more — and while one did, it was
-  bounded at 8 minutes and non-fatal on purpose: it is preparation, not a gate.**
-  `ci.yml`'s `artwork` and `e2e` moved into the `mcr.microsoft.com/playwright` image (its
-  tag must equal `@playwright/test`'s version; `workflowHardening.test.ts` enforces it)
-  on 2026-08-20 and `deploy-shrink.yml` on 2026-08-30; the image ships the browsers and
-  their system libraries. Below is the history that produced that decision.
-  Measured normal cost 24 seconds. On 2026-08-18 a degraded Azure Ubuntu
-  mirror — the log repeats `Ign: http://azure.archive.ubuntu.com/ubuntu noble
-  InRelease` before falling back to the far slower `archive.ubuntu.com` — made it
-  consume entire job budgets three times with nothing in the repo changed: `artwork`
-  cancelled at 20m20s twice, then `verify` at 30m21s. **Raising a ceiling is the
-  wrong fix**: `artwork` was raised 20→30, went green, and `verify` died at 30
-  instead, because both jobs share one external dependency and lifting one ceiling
-  only moves which job absorbs the outage. `e2e` and the artwork eval are the gates.
-  A failed install emits a named `::warning::` so a browser that cannot **launch** is
-  not debugged as a flaky test — that warning fired four minutes before the
-  `browserType.launch` failure it predicted.
+- **🟢 No workflow runs `apt` or `playwright install-deps`: the browser jobs run in the
+  `mcr.microsoft.com/playwright` image** (its tag must equal `@playwright/test`'s version;
+  `workflowHardening.test.ts` enforces it), which ships the browsers and their system
+  libraries. Do not add an `apt-get` or an `install-deps` step to a workflow: on 2026-08-18 a
+  degraded Ubuntu mirror made a normally 24-second install consume whole job budgets, and
+  raising one job's ceiling only moved which job absorbed the outage. The runs and timings are
+  in `docs/HARDENING-LOG.md` ("CI history moved out of `.github/CLAUDE.md`").
 - **🟡 `main` is guarded by ruleset `22763709` — read 2026-09-11: no deletion or
   force-push, a PR with 0 approvals, `code_scanning`, no bypass actors, and six
   required checks (listed below).** 🟡 **A PR no longer has to be up to date with `main`
@@ -256,46 +246,13 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   scanned ... ~60 bytes" and "0 commits scanned".
 - **🟡 `timeout-minutes` kills the step's shell, not the `apt-get` that step started.**
   The child survives as an orphan, keeps installing, and keeps holding
-  `/var/lib/dpkg/lock-frontend` — so the bound does not stop apt, it only stops
-  waiting for apt, and the next step then runs against a half-unpacked system. On run
-  32248711203 (`main`, b5621aa) `libevent-2.1-7t64` had been downloaded and not yet
-  unpacked when e2e began: all 23 viewer-webkit tests died on
-  `libevent-2.1.so.7: cannot open shared object file` while all 119 chromium/firefox
-  tests passed. That reads as a WebKit regression and is not one.
-  🟡 **Retrying is the wrong fix and was tried first** (run 32290202909): a second
-  `install-deps` races the orphan, loses the lock immediately and exits 100 in five
-  seconds — `dpkg frontend lock was locked by another process with pid 4625`. Five
-  seconds reads like "nothing left to do" and is the opposite. Wait for the orphan; it
-  is the thing doing the real work.
-  🟡 **Waiting longer is also wrong** (run 32294473409): at a 10-minute wait apt still
-  had not finished — 18+ minutes across both steps — and the `ldd` check then named
-  thirty-three missing libraries, i.e. essentially the whole WebKit stack rather than
-  one straggler. Waiting does not rescue a mirror that degraded; it only costs the job
-  its headroom, taking `verify` to ~26 minutes against 30 and close to a `cancelled`
-  conclusion, which reads as a failed gate and is not one. The wait loop's budget must
-  stay strictly below the step's own `timeout-minutes` (18×10s = 3m inside a 4m step),
-  or the step is killed before `dpkg --configure -a` and the final install can run —
-  which is why 32294473409 ended on a lock error instead of finishing.
-  ✅ **All of `ci.yml` stopped depending on apt on 2026-08-20** — `artwork` first, then
-  `e2e` when it was split out of `verify`, both running in
-  the `mcr.microsoft.com/playwright` image. Measured: `artwork` 142s against a
-  107s baseline (+35s per run), and `e2e` 417s while `verify` fell 470s -> 159s by
-  shedding it, so the run's long pole went 470s -> 417s — billed minutes up,
-  wall-clock down. The image pull is 36-40s with a 60s tail (seven pulls).
-  ✅ **And `deploy-shrink.yml` followed on 2026-08-30 — no workflow in this repo
-  runs `apt` any more.** It was the last one, and it had kept both apt paths
-  (`playwright install --with-deps` on a cache miss, `install-deps` on a hit) at a
-  🟢 **20-minute** ceiling while ci.yml had already been raised to 30 *and* then moved
-  to the container — so the file most exposed to the mirror outage was the one with
-  the least headroom. It now uses the same `mcr.microsoft.com/playwright`
-  image and installs no browser at all.
-  🟢 **Keep this trap anyway.** Everything above is the reasoning, not the residue:
-  it is why raising a ceiling is the wrong fix, why a retry races an orphan holding
-  the dpkg lock, and why the wait loop's budget must stay strictly below the step's
-  own `timeout-minutes`. The next person tempted to add an `apt-get` to a workflow
-  needs all of it. **This is also the second half of the "two workflows duplicate the
-  same gates" rule at the top of this file** — the container fix sat in ci.yml for ten
-  days before anyone checked the other copy, exactly as gitleaks did for three months.
+  `/var/lib/dpkg/lock-frontend`, so the next step runs against a half-unpacked system: all 23
+  viewer-webkit tests died on `libevent-2.1.so.7: cannot open shared object file` while all
+  119 chromium/firefox tests passed,
+  which reads as a WebKit regression and is not one. A retry races the orphan and exits 100 in
+  five seconds; waiting longer does not rescue a degraded mirror; and a wait loop's budget must
+  stay strictly below the step's own `timeout-minutes`. No workflow runs `apt` since
+  2026-08-30; the runs and timings are in `docs/HARDENING-LOG.md` (same section).
 
 - **🟡 An unparseable workflow is not a failed check — CI goes green.** Found 2026-08-30
   in PR #50. Scoping two secrets out of a job-level `env:` deleted the `env:` key and
@@ -439,7 +396,8 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   and no monitoring — measured 2026-09-10, after the
   switch had been off since the public re-creation. Re-count with
   `grep -l 'vars.DEPLOY_ENABLED' .github/workflows/*.yml` — and discount
-  `required-checks.yml`, which names it only in a comment saying it is not gated by it.
+  `required-checks.yml`, `security-scans.yml` and `refresh-skills.yml`, which name it only
+  in a comment saying they are not gated by it.
 
 - **🔴 On a public repo every Actions log is public, and `wrangler d1 export` prints a
   one-hour download link to the whole database.** 2026-09-11, the first nightly-backup

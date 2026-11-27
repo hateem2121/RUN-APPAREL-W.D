@@ -9,7 +9,7 @@ edit files. You report.
 
 ## Why this exists
 
-This is the single most expensive recurring bug class in this repo. `CLAUDE.md` calls
+This is the single most expensive recurring bug class in this repo. `.claude/rules/tests-and-fixtures.md` calls
 it "the one pattern that keeps causing incidents", and it has now happened **four**
 times, each time with a green suite:
 
