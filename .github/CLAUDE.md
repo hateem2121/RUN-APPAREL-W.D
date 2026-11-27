@@ -58,11 +58,16 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `browserType.launch` failure it predicted.
 - **🟡 `main` is guarded by ruleset `22763709` — read 2026-09-11: no deletion or
   force-push, a PR with 0 approvals, `code_scanning`, no bypass actors, and six
-  required checks (listed below).** 🟡 **Since 2026-10-25 a PR must also be up to date
-  with `main` before it merges** (the ruleset's strict status-check policy, switched on by
-  owner decision after a CI audit): two PRs that each pass alone can clash together — #252 made
-  knip blocking while #256 added a script, and only a hand-run trial merge proved them
-  safe. The price is one more CI run when another PR lands first. The same day GitHub
+  required checks (listed below).** 🟡 **A PR no longer has to be up to date with `main`
+  before it merges (owner, 2026-11-27).** The ruleset's strict status-check policy was on from
+  2026-10-25, because two PRs that each pass alone can clash together (#252 made knip blocking
+  while #256 added a script). It cost a second CI run whenever another PR landed first (#497 and
+  #501 that day), and a merge queue, the tool for this, is for organization-owned repositories
+  only (GitHub's page, read that day; this one is a user's). So a behind PR merges untested
+  against the newest `main`: `main` then runs the browser tests itself, because
+  `scripts/ci-already-tested.mjs` finds the files differ, and a clash shows there, before the
+  deploy. To put it back, set the ruleset's `strict_required_status_checks_policy` to true
+  again. On 2026-10-25 GitHub
   accepted a PATCH turning on secret-scanning validity checks and generic patterns, answered
   200 and stored `disabled` for both: not on this plan. The rules below carry its history. It first existed as org ruleset
   `21016174` (applied 2026-08-19, while the repo sat in the RUN-APPAREL org on GitHub
