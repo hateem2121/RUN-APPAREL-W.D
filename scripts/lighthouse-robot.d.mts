@@ -25,6 +25,8 @@ export declare function launcherDisabledFeatures(): string[]
 
 export type MeasuringMachine = 'local' | 'github-runner'
 export declare const PERFORMANCE_FLOORS: Record<MeasuringMachine, Record<string, number>>
+/** Page/device pairs with no `local` floor yet, each with the reason it could not be measured. */
+export declare const LOCAL_NOT_MEASURED: Record<string, string>
 export declare function measuringMachine(env?: Record<string, string | undefined>): MeasuringMachine
 
 export declare function median(values: unknown[]): number | null
