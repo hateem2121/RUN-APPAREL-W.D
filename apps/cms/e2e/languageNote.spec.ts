@@ -335,7 +335,21 @@ test.describe('a browser that asks for Russian first, on an English page', () =>
        * when the first reading was taken, which skipped PR #413's deploy
        * (apps/viewer/e2e/languageNote.spec.ts has the account). So the page is read once it holds
        * still, with the note showing, and again straight after the × takes the note away (below).
+       *
+       * ⚠️ AND IT WAITS FOR THE FOOTER'S NAME TO BE FITTED, BY NAME (27 Nov 2026), as the garment
+       * pages' copy does. On this page at 320px `.footer-mark` is 22.73px tall unfitted and
+       * 21.77px fitted, so the fit shortens the page by 1px. In CI's image (v1.64.1-noble, 4
+       * CPUs) WebKit's fit landed about 300 ms AFTER "held still for 250 ms" had passed in 2 of
+       * 50 probe runs, and this loop failed 2 of 80 times with "the note moved the page" (16,185
+       * against 16,184; 14,499 against 14,498), at 320 and 375px. `watchWordmarkFit` marks a fit
+       * by writing the size inline, so the test waits for that, not for the clock.
        */
+      await expect
+        .poll(() => page.locator('.footer-mark').evaluate((el: HTMLElement) => el.style.fontSize), {
+          message: "the footer's name was never fitted",
+          timeout: 15_000,
+        })
+        .not.toBe('')
       await expect
         .poll(
           async () => {
