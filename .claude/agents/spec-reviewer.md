@@ -39,4 +39,5 @@ file and line. Report only gaps that affect whether the change does what the bri
 asked. Skip style, naming and formatting: Biome owns those, and a reviewer asked to find
 problems will always find something.
 
-End with one line: `GAPS: <n>` — `GAPS: 0` if the change meets the brief.
+End with one line giving the count, written as the word GAPS, a colon and the number.
+If the change meets the brief, that line reads GAPS: 0.
