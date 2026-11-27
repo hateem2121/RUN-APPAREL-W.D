@@ -147,14 +147,14 @@ const flakyFile = (suite, title, status = 'flaky') => ({
 test('planted: a test that needed its retry in two runs is a finding; once is only listed', () => {
   const once = week(quietWeek(), echOff, [flakyFile('site', 'moves nothing')])
   assert.match(once, /## Nothing needs attention/)
-  assert.match(once, /site · webkit · languageNote\.spec\.ts › moves nothing \| 1 \| 0 \|/)
+  assert.match(once, /`site · webkit · languageNote\.spec\.ts › moves nothing` \| 1 \| 0 \|/)
   const twice = week(quietWeek(), echOff, [
     flakyFile('site', 'moves nothing'),
     flakyFile('site', 'moves nothing', 'unexpected'),
     flakyFile('viewer', 'moves nothing'),
   ])
   assert.match(twice, /\*\*1 browser test failed or needed a retry in two or more runs/)
-  assert.match(twice, /site · webkit · languageNote\.spec\.ts › moves nothing \| 1 \| 1 \|/)
+  assert.match(twice, /`site · webkit · languageNote\.spec\.ts › moves nothing` \| 1 \| 1 \|/)
 })
 
 test('no report at all is "not checked", never "none"', () => {
@@ -162,14 +162,28 @@ test('no report at all is "not checked", never "none"', () => {
   assert.match(week(quietWeek(), echOff, [{ suite: 'site', tests: [] }]), /None, in 1 reports/)
 })
 
-test('a test name cannot break the table or carry markup into the issue', () => {
-  const body = week(quietWeek(), echOff, [
-    flakyFile('site', 'a | b <img src=x> [x](http://e) `c`\nnew'),
-  ])
-  const row = body.split('\n').find((line) => line.includes('languageNote.spec.ts'))
-  assert.ok(row)
+test('planted: a hostile test name reaches the issue as inert code text', () => {
+  const hostile =
+    'x | y <img src=x onerror=1> [click](https://evil.example) @someone #1 `tick` **bold** _it_ ![i](u)\n## Heading\n- [ ] task'
+  const body = week(quietWeek(), echOff, [flakyFile('site', hostile)])
+  const rows = body.split('\n').filter((line) => line.includes('languageNote.spec.ts'))
+  // One row: a line break in a name cannot start a heading or a task list of its own.
+  assert.equal(rows.length, 1)
+  assert.doesNotMatch(body, /^## Heading/m)
+  const [row] = rows
+  // Four pipes: the table's own. One code span: the name cannot close it and start another.
   assert.equal(row.split('|').length, 5)
-  assert.doesNotMatch(row, /[<>`[\]]/)
+  assert.equal(row.split('`').length, 3)
+  const name = row.split('`')[1]
+  assert.doesNotMatch(name, /[<>[\]@#*_!|`\n]/)
+  assert.match(name, /evil\.example/) // kept as plain words inside the code span, not a link
+})
+
+test('a name made only of marks still fills its cell', () => {
+  const body = week(quietWeek(), echOff, [
+    { suite: '@@', tests: [{ status: 'flaky', project: '##', file: '**', title: '__' }] },
+  ])
+  assert.match(body, /\| `· · ›` \| 1 \| 0 \|/)
 })
 
 /** scripts/e2e-outcomes.mjs: Playwright's JSON report down to the tests that did not simply pass. */

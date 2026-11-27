@@ -47,9 +47,14 @@ jobs:
           node-version: 26
           cache: ''
           package-manager-cache: false
-      # The lists ci.yml's `e2e` job kept in the last 7 days. An artifact's name comes from this
-      # repository's own workflow, and it is still passed only as a quoted argument. A list that
-      # cannot be downloaded is left out; the issue says how many reports it read.
+      # The lists ci.yml's `e2e` job kept in the last 7 days, from this repository's own runs
+      # only. A pull request from a fork runs the fork's ci.yml and the fork's tests, so it can
+      # upload a list under this name with any test titles it likes, and those titles would be
+      # copied into an issue this job opens (security review, 2026-11-27). So a list counts
+      # only when its run's head repository IS this repository, and its name is exactly
+      # `e2e-outcomes-<digits>`; scripts/gate-health.mjs prints every title as inert code
+      # text besides. A list that cannot be downloaded is left out; the issue says how many
+      # reports it read.
       - name: Fetch the week's lists of tests that failed or needed a retry
         env:
           GH_TOKEN: ${{ github.token }}
@@ -59,11 +64,12 @@ jobs:
           mkdir -p "$RUNNER_TEMP/outcomes"
           since="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
           gh api --paginate "repos/${GH_REPO}/actions/artifacts?per_page=100" \
-            --jq ".artifacts[] | select(.name | startswith(\"e2e-outcomes-\")) | select(.expired | not) | select(.created_at >= \"${since}\") | [.workflow_run.id, .name] | @tsv" \
+            --jq ".artifacts[] | select(.name | test(\"^e2e-outcomes-[0-9]+$\")) | select(.workflow_run.head_repository_id == .workflow_run.repository_id) | select(.expired | not) | select(.created_at >= \"${since}\") | [.workflow_run.id, .name] | @tsv" \
             > "$RUNNER_TEMP/outcomes.tsv"
           echo "lists found: $(wc -l < "$RUNNER_TEMP/outcomes.tsv")"
           while IFS=$'\t' read -r run name; do
             case "$run" in ''|*[!0-9]*) continue ;; esac
+            case "$name" in e2e-outcomes-*[!0-9]*|e2e-outcomes-) continue ;; e2e-outcomes-*) ;; *) continue ;; esac
             gh run download "$run" --name "$name" --dir "$RUNNER_TEMP/outcomes/$run" || echo "::warning::could not download $run"
           done < "$RUNNER_TEMP/outcomes.tsv"
       - name: This week's numbers, as an issue

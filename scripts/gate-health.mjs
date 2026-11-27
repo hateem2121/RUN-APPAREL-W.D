@@ -153,14 +153,20 @@ export function summariseOutcomes(files) {
   }
 }
 
-/** Test names come from the repository, but a file can be planted in an artifact: one line, bounded. */
+/**
+ * A test's name, as inert text for the issue. The names are the repository's own, and the
+ * workflow takes lists only from this repository's runs; this is the second lock. Everything
+ * but letters, digits, spaces and a few plain marks becomes a space, so a name cannot hold a
+ * backtick, a pipe, a bracket, an `@`, a `#` or a line break, and `code()` wraps it in a code
+ * span, where GitHub turns nothing into a mention, a link or markup.
+ */
 const clean = (text) =>
-  [...String(text)]
-    // Control characters by code point: a regex class of them trips the linter.
-    .map((ch) => ((ch.codePointAt(0) ?? 0) < 32 || ch === '\u007f' ? ' ' : ch))
-    .join('')
-    .replace(/[`<>[\]|]/g, ' ')
+  String(text)
+    .replace(/[^\p{L}\p{N} .,:;·›—–'"/+=%()-]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
     .slice(0, 220)
+const code = (text) => `\`${clean(text) || 'unnamed'}\``
 
 /**
  * @param {{ runs: ReturnType<typeof summariseRuns>, outcomes: ReturnType<typeof summariseOutcomes>, ech: { host: string, resolver: string, offers: boolean | null }[], from: string, to: string }} week
@@ -206,7 +212,7 @@ export function render({ runs, outcomes, ech, from, to }) {
   const failed = Object.entries(runs.pulls.failedBy).sort((a, b) => b[1] - a[1])
   if (failed.length > 0) {
     lines.push('', '## What failed pull requests', '', '| Gate | Runs it failed |', '|---|---|')
-    for (const [name, count] of failed) lines.push(`| ${clean(name)} | ${count} |`)
+    for (const [name, count] of failed) lines.push(`| ${code(name)} | ${count} |`)
   }
   lines.push('', '## Browser tests that did not simply pass', '')
   if (outcomes.reports === 0) {
@@ -221,7 +227,7 @@ export function render({ runs, outcomes, ech, from, to }) {
       '|---|---|---|',
     )
     for (const test of outcomes.tests.slice(0, 25)) {
-      lines.push(`| ${clean(test.name)} | ${test.flaky} | ${test.failed} |`)
+      lines.push(`| ${code(test.name)} | ${test.flaky} | ${test.failed} |`)
     }
     if (outcomes.tests.length > 25) lines.push('', `…and ${outcomes.tests.length - 25} more.`)
   }
