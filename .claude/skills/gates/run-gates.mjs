@@ -220,6 +220,7 @@ const HOOK_TESTS = [
   'guard-main-branch',
   'guard-coverage-floor',
   'guard-live-form',
+  'note-piped-test',
   'log-instructions-loaded',
   'explain-failure',
   'recall-nested-instructions',
