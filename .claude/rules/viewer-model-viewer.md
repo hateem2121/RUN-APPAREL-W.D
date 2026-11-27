@@ -14,8 +14,8 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
 
 ## Traps
 
-- **🟡 model-viewer BAKES the draco and ktx2 decoder locations at MODULE-EVALUATION
-  time, and there is NO equivalent line for meshopt — which is why meshopt always
+- **🟡 model-viewer bakes the draco and ktx2 decoder locations at module-evaluation
+  time, and there is no equivalent line for meshopt — which is why meshopt always
   worked here and draco rendered nothing until `Stage.tsx` seeded the global.** `lib/features/loading.js` runs, at
   import:
 
@@ -26,7 +26,7 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   CachingGLTFLoader.setDRACODecoderLocation(dracoDecoderLocation)
   ```
 
-  So it reads a GLOBAL that must exist 🟡 **before** the import; meshopt has no default
+  So it reads a global that must exist 🟡 **before** the import; meshopt has no default
   and is set only by the post-import setter. `Stage.tsx` set all four the same way
   after the import, and the two that look identical behaved oppositely. Measured on
   a cold load of the live site 2026-08-21: `dracoDecoderLocation` =
@@ -46,12 +46,12 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   chunk contains it), "the setter throws" (none of them do). **`git log` proves
   nothing here** — the old line was committed, deployed, error-free and inert.
 
-- **THE BACKING MATERIAL IS THE FIRST OF A SET; A COLOURWAY SWITCH DRAWS ANOTHER
+- **The backing material is the first of a set; a colourway switch draws another
   (DV-01, fixed 2026-09-03).** Biasing entry one of `$correlatedObjects` reported 26/26
   while the live skinsuit drew 1 of 6 and the bib 0 of 5. `correlatedThreeMaterials()`
-  writes every entry; `webgl.spec.ts` counts the SCENE's drawn cut-outs on all five tabs.
+  writes every entry; `webgl.spec.ts` counts the scene's drawn cut-outs on all five tabs.
 
-- **model-viewer BUILDS ONLY THE ARRIVING COLOURWAY'S MATERIALS, so anything done
+- **model-viewer builds only the arriving colourway's materials, so anything done
   to `model.materials` on `load` reaches a fraction of them.** Measured on the live
   garment 2026-08-27: **200 materials, 44 built, 156 lazy**; of 26 printed cut-outs,
   🟡 **6 biased and 20 never**. Variant-only materials are constructed with an empty
@@ -62,7 +62,7 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   model[$switchVariant]()` resolves**, which is when the rest become reachable;
   `Stage.tsx` re-applies there. Verified in a browser: 11/11 biased on load, then
   16/16, 21/21, 26/26 as each colourway was visited.
-  🟡 **`isLoaded` is PUBLIC and is what separates the two silences** — "this
+  🟡 **`isLoaded` is public and is what separates the two silences** — "this
   colourway is not open yet" (normal, quiet) from "the internal symbol is gone"
   (report it). The first version collapsed both into one counter that nothing read,
   which is how 156 misses stayed invisible.
@@ -70,26 +70,26 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   artwork materials, so `dedup()` merged them into one always-eager material: 6 MASK,
   6 eager, **0 lazy** against production's 26/6/20. `PlaceholderColourway.ink` now
   tints each colourway's print as a real CLO export does. A test here must assert the
-  swap loaded NEW cut-outs before asserting they are biased, or an inadequate fixture
+  swap loaded new cut-outs before asserting they are biased, or an inadequate fixture
   passes it silently.
 
-- **🟡 THE SOFT SHADOW COSTS NOTHING PER FRAME — do not "optimise" it.** Measured
+- **🟡 The soft shadow costs nothing per frame — do not "optimise" it.** Measured
   2026-08-21 at 1440x900, DPR 2, 4x CPU throttle, over 2.5s of continuous orbiting:
   `shadow-intensity 0.6 / softness 0.8` (shipped) **33.4ms** median frame,
   `shadow-intensity 0` **33.3ms**, `softness 0` **33.4ms**. Identical, zero long
   tasks in all three. `shadow-softness` reads like an obvious per-frame blur cost
   and is not one — model-viewer regenerates the shadow map when the light or model
-  moves, not when the camera does. The 33.4ms floor is the GEOMETRY: 2,419,902
+  moves, not when the camera does. The 33.4ms floor is the geometry: 2,419,902
   triangles, of which **98.9% is decorative topstitch** (`Cloth_mesh` is 10,234).
   Turning the shadow off buys nothing and loses the grounding. The same run measured
   a colourway swap blocking the main thread for **121-131ms** on three of five
   swaps — one rebinding of 200 materials, not addressable from the viewer.
 
-- **model-viewer treats a 2px tap as a COMMAND, and the miss branch zooms right
+- **model-viewer treats a 2px tap as a command, and the miss branch zooms right
   out.** `disable-tap` is set since 2026-08-19; the reasoning, including why
-  `disable-pan` is deliberately NOT used, is on `DISABLE_TAP` in `stageConfig.ts`.
+  `disable-pan` is deliberately not used, is on `DISABLE_TAP` in `stageConfig.ts`.
 
-- **model-viewer's CAMERA reads the ATTRIBUTE, and setting the property silently did
+- **model-viewer's camera reads the attribute, and setting the property silently did
   nothing.** Measured 2026-08-27 while framing a decal: `mv.cameraOrbit = '68deg 90deg
   auto'` followed by `jumpCameraToGoal()` left `getCameraOrbit()` at the old value, so
   a "grazing angle" comparison was really two head-on frames. It is a lit element —
@@ -98,7 +98,7 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   here: **verify a camera move by reading `getCameraOrbit()` back** before trusting
   any frame it produced.
 
-- **🟡 React sets `src` on a custom element as a PROPERTY, never an attribute.**
+- **🟡 React sets `src` on a custom element as a property, never an attribute.**
   `el.getAttribute('src')` on `<model-viewer>` is always `null` — its attribute
   list carries `camera-orbit`, `tone-mapping` and a dozen others and no `src`.
   Code that keyed off it silently compared empty strings forever.
@@ -114,7 +114,7 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   would throw at runtime with every unit test green.** Found 2026-08-13 while adding
   byte-accurate load progress. The component declared
   `const performance = product.performanceFeatures.join(' / ')`, which shadows the
-  global for the WHOLE function body — including effects declared above it, because
+  global for the whole function body — including effects declared above it, because
   they close over the same scope. `performance.now()` there calls `.now()` on a
   string: `TypeError`, at runtime, in the browser only. Nothing in the unit suite
   touches the clock, so it stayed green; it was caught by biome's
@@ -127,36 +127,36 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
 
 - **A rendering fix here must be ported to `tools/asset-pipeline/src/review-server.ts`,
   or the owner judges a good garment as broken.** Three times now: the decal bias
-  (2026-08-27, cost a day), then the adaptive near plane AND production lighting (both
+  (2026-08-27, cost a day), then the adaptive near plane and production lighting (both
   2026-08-29, reported as "sparkle" and "metallic/shiny feel" on files measured to have
-  `metallicFactor` 0 on every material). Drift tests pin the shared CONSTANTS; they
+  `metallicFactor` 0 on every material). Drift tests pin the shared constants; they
   cannot see a whole new mechanism, which is exactly how the near plane slipped.
 
 ## Found 2026-08-28 — two defects in one lever, four lying instruments
 
-**The decal bias shipped EIGHT TIMES TOO WEAK and every test stayed green.** `-1/-1`
-left p001's print eaten through WITH the bias on; `-8/-8` closes it. n001 — tightest
-cloth, and LIVE — is **0.000%** changed at `-8` and `-64`.
+**The decal bias shipped eight times too weak and every test stayed green.** `-1/-1`
+left p001's print eaten through with the bias on; `-8/-8` closes it. n001 — tightest
+cloth, and live — is **0.000%** changed at `-8` and `-64`.
 
-🟢 **AND IT DID NOT FIX THE OWNER'S DEFECT — the NEAR PLANE did, 2026-08-29.**
+🟢 **And it did not fix the owner's defect — the near plane did, 2026-08-29.**
 model-viewer pins `camera.near` at 0.00436 m and the depth step grows with **z²**, so
-zooming OUT cut the margin over CLO's 0.100 mm print offset to **1.5×** (5.1× in —
+zooming out cut the margin over CLO's 0.100 mm print offset to **1.5×** (5.1× in —
 "perfect zoomed in, blinks out"). `camera-near-plane.ts` fixes it, as a property
-OVERRIDE since model-viewer rewrites `near` every camera change. KEEP the pipeline
+override since model-viewer rewrites `near` every camera change. Keep the pipeline
 `depthBias` path: p001 at 0.001 mm still lands ~4×. Logos never fought — BLEND never
 writes depth.
 
-🟡 **`-8/-8` IS HISTORY FOR SOLID LAYERS SINCE 2026-09-27.** Its slope term grows with
+🟡 **`-8/-8` is history for solid layers since 2026-09-27.** Its slope term grows with
 the surface's tilt, so on a zoomed-out camera it pulled Minecut's print through the white
-waistband 2.5 mm IN FRONT of it and pierced the Soccer collar — damage 100% at the band,
-0.0–0.1% after. A SOLID (OPAQUE) printed layer now carries factor **0**, units **−64**;
+waistband 2.5 mm in front of it and pierced the Soccer collar — damage 100% at the band,
+0.0–0.1% after. A solid (OPAQUE) printed layer now carries factor **0**, units **−64**;
 `readOverlayBias` accepts factor −64…0 and units −64…−8, never positive, so old −8/−8
 files keep working until they are re-processed. **Cut-outs (MASK/BLEND) keep −8/−8**
 (`CUTOUT_OVERLAY_BIAS_*` in `tools/asset-pipeline/src/overlay-depth.ts`): the new value
 was measured on solid layers only, and re-processing the Bib would have moved 7 cut-outs
 nobody measured. `apps/viewer/e2e/covered-print-webgl.spec.ts` renders the covered print
 with both records in one run — the old one must punch through, the new one must not.
-🟢 **The viewer applied the nudge on `load` and scheduled NO redraw until 31 Oct 2026**, so the
+🟢 **The viewer applied the nudge on `load` and scheduled no redraw until 31 Oct 2026**, so the
 first frame stood un-nudged until anything moved (live r-vpj: "SPONSOR" cut up, no "17"). Writing a
 three.js property never schedules a frame; `askForFrame` (`decal-depth-bias.ts`) now does, and
 that spec no longer asks for one itself, so it fails if the page stops asking.

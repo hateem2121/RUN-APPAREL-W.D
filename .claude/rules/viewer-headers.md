@@ -11,16 +11,16 @@ Moved here from `apps/viewer/CLAUDE.md` on 2026-09-26, word for word.
 
 ## Traps
 
-- **🟡 The inline-script CSP violation is Cloudflare PRECURSOR, and it is NOT fixed.**
-  Called Web Analytics (wrong), then JavaScript Detections and "RESOLVED 2026-08-06"
-  (also wrong — `enable_js:false` is Precursor's FINGERPRINT; Cloudflare disables JSD
+- **🟡 The inline-script CSP violation is Cloudflare Precursor, and it is not fixed.**
+  Called Web Analytics (wrong), then JavaScript Detections and "resolved 2026-08-06"
+  (also wrong — `enable_js:false` is Precursor's fingerprint; Cloudflare disables JSD
   when Precursor is on). Root-caused 2026-09-04, live as Sentry VIEWER-8, **archived not
   resolved** because it still fires. No hash can cover it (per-request ray id) and
   nonces are impossible from a static `_headers`; never widen to `'unsafe-inline'`.
   🟡 **Only `sec-fetch-mode: navigate` reproduces it — plain `curl` reports it fixed.**
   Nothing visitor-facing is broken. `docs/VIEWER-CSP-BOT-FIGHT-MODE.md`.
 
-- **`_headers` rules that both match are COMBINED, not overridden — duplicate
+- **`_headers` rules that both match are combined, not overridden — duplicate
   headers are joined with a comma.** There is no "most specific wins" here, and
   assuming otherwise corrupts `Cache-Control`: putting one on `/*` appends it to
   the `/assets/*` rule and ships
@@ -28,7 +28,7 @@ Moved here from `apps/viewer/CLAUDE.md` on 2026-09-26, word for word.
   every hashed bundle. Placeholders are no escape — `/:product/:colourway` also
   matches `/assets/index-abc.js`. Consequence: there is **no `_headers` pattern
   that reaches the SPA routes without also hitting the assets**, because matching
-  is on the REQUEST path and the SPA fallback keeps the visitor's URL.
+  is on the request path and the SPA fallback keeps the visitor's URL.
   A rule on `/index.html` reaches *only* a literal `/index.html`. Workers Static
   Assets serves SPA-fallback HTML with its own default of
   `public, max-age=0, must-revalidate` — **byte-identical to what that rule sets
@@ -36,7 +36,7 @@ Moved here from `apps/viewer/CLAUDE.md` on 2026-09-26, word for word.
   as confirmation that the rule applied. It did not. Verify a header rule by
   changing it to something the default is not.
 
-- **Per-garment link previews are CRAWLER-ONLY, and the number is why.** Measured
+- **Per-garment link previews are crawler-only, and the number is why.** Measured
   2026-08-08, warm connection, five requests each: the viewer's static HTML is
   🟢 **0.106–0.155 s** to first byte, `cms /api/health` is **0.428–0.657 s**, and
   `cms /api/public/viewer/n001/wine` is **1.77–2.27 s**. The payload endpoint is
@@ -45,13 +45,13 @@ Moved here from `apps/viewer/CLAUDE.md` on 2026-09-26, word for word.
   the edge cache, so its `s-maxage=60` buys nothing). Rewriting for everyone would
   make every QR scan ~20x slower to first byte to fix something no visitor can
   see, so `worker/index.ts` returns `env.ASSETS.fetch(request)` untouched unless
-  the user-agent matches a crawler. A crawler that is NOT matched falls through to
+  the user-agent matches a crawler. A crawler that is not matched falls through to
   index.html's generic card, i.e. exactly what shipped the day before — the
   failure mode of a miss is "no worse than yesterday". `scripts/smoke-viewer-preview.mjs`
   carries the negative control that a plain browser is *not* rewritten; without it,
   someone "simplifying" the check would ship the 2 s regression and it would be
   diagnosed as "the site got slow", somewhere else entirely.
-  🟡 **Since 2026-11-15 a PERSON's garment page carries its data too, bounded at 300 ms**
+  🟡 **Since 2026-11-15 a person's garment page carries its data too, bounded at 300 ms**
   (`apps/viewer/worker/personPayload.ts`): the numbers above predate the CMS keeping these answers
   at the edge (2026-10-07), and that day a robot's page came back as fast as a person's. The head is
   still rewritten for crawlers only. The person's copy is marked `data-for="person"`, because a
@@ -80,16 +80,16 @@ Moved here from `apps/viewer/CLAUDE.md` on 2026-09-26, word for word.
   must take `workerResponseHeaders()` too, and not re-learn this in production.
   `apps/viewer/scripts/csp.test.ts` pins its values
   against `buildHeadersFile()`'s `/*` rule so the two copies cannot drift, and fails
-  if a SIXTH header is added to `_headers` and not to it.
+  if a sixth header is added to `_headers` and not to it.
   🟡 **Two things made that measurement trustworthy, and both are easy to omit.** The
-  probe header carried a deliberately NON-DEFAULT value (a default-shaped one proves
+  probe header carried a deliberately non-default value (a default-shaped one proves
   nothing — see the `_headers` combining trap above), and a `/__worker-marker` route
   returning `X-Worker-Ran: yes` proved the Worker was in the path at all; without it
   the result is indistinguishable from the Worker never running.
   🟡 **The e2e fixture could never have caught the Worker-built half, because the
-  fixture was too GOOD:** `e2e/serve.mjs` sets `GLOBAL_HEADERS` on every response, so
+  fixture was too good:** `e2e/serve.mjs` sets `GLOBAL_HEADERS` on every response, so
   its 400 was always correct while production's was not. That is the root
-  `CLAUDE.md`'s fixtures-cannot-exhibit-the-failure pattern INVERTED — the usual
+  `CLAUDE.md`'s fixtures-cannot-exhibit-the-failure pattern inverted — the usual
   instinct is to make a fixture more faithful, and here it was already ahead of
   production.
 
@@ -102,7 +102,7 @@ Moved here from `apps/viewer/CLAUDE.md` on 2026-09-26, word for word.
   draws `apps/viewer/public/og/<product>/<colour>.jpg` from each live colour's uploaded render
   (else its poster; `pnpm og:cards <slug>` uses local posters for a garment not yet live) and
   regenerates the manifest the Worker reads. 🟡 Since 2026-10-25 a card is 1200x630 with the
-  WHOLE garment on paper (11–38 KB): the tall 1200x1500 card was cut to a band of torso by wide
+  whole garment on paper (11–38 KB): the tall 1200x1500 card was cut to a band of torso by wide
   apps. Its address carries `?v=<hash of its bytes>`, because apps keep a picture by address.
   The Worker still falls back to the poster when no card exists — the right
   garment on some platforms beats a polished card of a different garment on all of
@@ -131,7 +131,7 @@ Moved here from `apps/viewer/CLAUDE.md` on 2026-09-26, word for word.
 The headers/CSP/edge traps do not cleave along directory lines. `_headers` is
 *generated* — it exists only at `apps/viewer/dist/_headers`, written by
 `apps/viewer/scripts/gen-headers.mjs` — while the half that answers for it lives in
-`apps/viewer/worker/securityHeaders.ts`. A nested CLAUDE.md keys on ONE directory,
+`apps/viewer/worker/securityHeaders.ts`. A nested CLAUDE.md keys on one directory,
 so whichever directory it sat in, it would stay silent while you edited the other
 half. A `paths:` glob is the only mechanism here that covers both, and it fires for a
 rule present at session start (measured 2026-09-05; the record is in

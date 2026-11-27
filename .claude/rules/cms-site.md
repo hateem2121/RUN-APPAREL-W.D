@@ -21,7 +21,7 @@ which `apps/viewer/src/styles/tokens.test.ts` scans. Use only the colours, type,
 durations those files define. No Tailwind, shadcn/ui or MUI; behaviour a screen needs
 (dialogs, popovers, menus) comes from `base-ui`, which ships no CSS
 (`docs/DECISION-UI-LIBRARIES.md`). The paper ground, the one italic serif word per headline
-and the mono labels ARE the brand, so an instruction to "avoid a generic AI look" must not
+and the mono labels are the brand, so an instruction to "avoid a generic AI look" must not
 remove them.
 
 ## The scripted pieces: complete without them (2026-09-29)
@@ -31,7 +31,7 @@ form became one step on 2026-10-01), phone code, file picker and globe are clien
 server markup that is already the whole page: the final figure, the poster, a link to the large
 photo, one form with every field and one Send, the address with a directions link. Each starts from that state and enhances only after it mounts, and does nothing when the visitor asks
 for reduced motion, or under `navigator.webdriver` unless a test lifts the flag. One
-motion duration is new, `--showpiece` (D26). Inquiry files go to the PRIVATE R2 bucket
+motion duration is new, `--showpiece` (D26). Inquiry files go to the private R2 bucket
 `run-apparel-inquiry-files` through `inquiry-files` (`collections/InquiryFiles.ts`), checked
 byte by byte first (`lib/inquiryFiles.ts`). Never give that storage a `generateFileURL` or
 `disablePayloadAccessControl`; `Media` has both on purpose, and copying them publishes buyers'
@@ -47,30 +47,30 @@ It is still gated through the one `e2e` check: that job passes only when every s
 so neither `deploy.needs` nor the required-checks list changed — `.github/CLAUDE.md`
 records that splitting those silently stops a red gate blocking.
 
-🟡 **A TEST ACTS ONLY ONCE THE PAGE'S SCRIPTS HAVE RUN: `await scriptsHaveRun(page)`
+🟡 **A test acts only once the page's scripts have run: `await scriptsHaveRun(page)`
 (`e2e/pageReady.ts`, 2026-11-22).** `page.goto` returns at `load`, and on a busy machine that is
 before React has run. Until then a key press or a menu's script is not heard, and when it runs
 React wipes whatever the test added to the page (copied cards, an injected link). That one cause
 was 245 of the 259 flaky WebKit results in 55 CI runs and held back a deploy (#451). Prove a new
 wait with `holdThePageBusy`, as `languageNote.spec.ts` and `productsDrawing.spec.ts` do.
 
-🟡 **`e2e/prepare.mjs` SKIPS THE REBUILD LOCALLY**, so a source edit does not reach
+🟡 **`e2e/prepare.mjs` skips the rebuild locally**, so a source edit does not reach
 `next start` and a negative control passes without testing anything. Use `CI=1` when
 breaking something on purpose.
 
-🟢 The port is owned by `playwright.config.ts` (4174) and `e2e/serve.mjs` THROWS if it is
+🟢 The port is owned by `playwright.config.ts` (4174) and `e2e/serve.mjs` throws if it is
 unset.
 
-🟢 **FIREFOX RUNS WITH `Cross-Origin-Opener-Policy` SWITCHED OFF, ON PURPOSE (2026-09-18).**
+🟢 **Firefox runs with `Cross-Origin-Opener-Policy` switched off, on purpose (2026-09-18).**
 Every page sends that header, and it makes Playwright's Firefox driver lose a navigation
 (microsoft/playwright#42731): `page.goto` times out waiting for "load" on a page that has
 finished loading. That hit 25 of 40 CI runs; the retry hid it until PR #17 failed on it.
 `e2e/firefoxPrefs.mjs` has the mechanism and the numbers, and `src/firefoxPrefs.test.ts`
 pins it. 🟡 **Playwright 1.64.0 fixed the hang (0 of 800 stuck, 2026-10-12), and the
-workaround is STILL needed:** with COOP on, Firefox drops a test's dark scheme and 2x screen on
+workaround is still needed:** with COOP on, Firefox drops a test's dark scheme and 2x screen on
 every COOP page (400 of 400), and four Firefox tests failed on it (reported as
 microsoft/playwright#43287). Keep it until
-`node e2e/firefox-coop-hang.mjs --prefs=none` shows 0 stuck AND 0 emulation lost.
+`node e2e/firefox-coop-hang.mjs --prefs=none` shows 0 stuck and 0 emulation lost.
 
 🟡 **`next start` never runs `worker.mjs`, the script guard (SE-04, 2026-09-18).** This suite
 therefore tests the fallback policy (`PUBLIC_PAGE_CSP`, still with `'unsafe-inline'`) and never
@@ -86,12 +86,12 @@ the nonce. To see the guard:
 4. Run `node e2e/csp-nonce-edge.mjs --origin=http://localhost:4174`: 3 engines × 6 page types.
 
 After a deploy, run it with `--origin=https://wear-run.com`. 🟡 A control that skips the nonce
-on an EXTERNAL script proves nothing: `'self'` still admits it, correctly. Only a missing nonce
-on an INLINE script breaks a page, so plant the fault there. 🟡 A local `curl` without
-`--compressed` counts ZERO scripts: the local runtime gzips a page the way Cloudflare's edge
-does, AFTER the guard (measured 2026-09-22). OpenNext hands the guard plain text.
+on an external script proves nothing: `'self'` still admits it, correctly. Only a missing nonce
+on an inline script breaks a page, so plant the fault there. 🟡 A local `curl` without
+`--compressed` counts zero scripts: the local runtime gzips a page the way Cloudflare's edge
+does, after the guard (measured 2026-09-22). OpenNext hands the guard plain text.
 
-🟡 **CI's `e2e` job has NO `PAYLOAD_SECRET`, and local runs always do** (`.env`). So a
+🟡 **CI's `e2e` job has no `PAYLOAD_SECRET`, and local runs always do** (`.env`). So a
 "passes locally" run proves nothing about the CI step: measured 2026-09-06 with `.env`
 moved aside, Payload never initialised, `/admin` and `/api/*` answered 500, and four tests
 failed while every page test stayed green. `e2e/serve.mjs` now supplies a throwaway
@@ -99,11 +99,11 @@ secret when the environment has none. To reproduce CI here, move `.env` and `.de
 aside and run with `CI=1`. And `/api/media` answers **403** to anonymous requests since
 main narrowed `Media.read` — the catch-all test expects that, not 200.
 
-🟡 **MEASURE A LOADING CHANGE OVER HTTP/2, AND REPORT THE LARGEST PAINT TOO (2026-10-08).**
+🟡 **Measure a loading change over HTTP/2, and report the largest paint too (2026-10-08).**
 `next start` speaks HTTP/1.1, so Chrome caps it at 6 connections and slow-3G emulation queues
 the scripts behind extra stylesheets. Splitting the site's CSS into 9 files measured home first
 paint 3.50 → 1.93 s that way. Behind a local HTTP/2 front (as Cloudflare serves the site) it was
-3.83 → 3.40 s, and the hero picture, the home page's largest paint, came 0.84 s LATER: Chrome's
+3.83 → 3.40 s, and the hero picture, the home page's largest paint, came 0.84 s later: Chrome's
 emulation shares bandwidth evenly per request, so more files take bandwidth from the picture.
 Not shipped (owner, 2026-10-08).
 
@@ -124,7 +124,7 @@ their own "Ask about this garment" (`siteFooterAriaSnapshot(…, { prompt: false
 
 Four things that bit while building it:
 
-- **The CTA tab sits ON the slab's top edge, OUTSIDE the clipped box.** `<footer>` is
+- **The CTA tab sits on the slab's top edge, outside the clipped box.** `<footer>` is
   unclipped; the inner slab carries `overflow: hidden` for the cropped wordmark. Put the
   tab inside the clipped element and it is invisible — the first draft did, and the fillets
   curved into an edge that was already behind them.
@@ -134,14 +134,14 @@ Four things that bit while building it:
 - **🟡 The cursor honours `navigator.webdriver`** (as the viewer's does), so Playwright never
   sees it unless the test lifts the flag with `addInitScript`. `apps/cms/e2e/footer.spec.ts`
   does, and also asserts the honest default — absent under automation.
-- **🟡 The footer's light is positioned from the cursor ring's TRAILED point** (`packages/shared/src/cursorBus.ts`),
+- **🟡 The footer's light is positioned from the cursor ring's trailed point** (`packages/shared/src/cursorBus.ts`),
   never the raw pointer, and its linger (300ms since 2026-10-05, 180ms before; counted from the
   first frame seen off content, not the last seen on it) needs its own timer tick: the bus
   publishes only while the ring moves, so without one a hand-off caught inside the window stayed
   lit over empty ground for good. The browser suite found that on its first run. Why 300 and why
   that start: the comments in `apps/cms/src/components/site/FooterGlow.tsx`.
 
-🟡 Two gates to know about here: `navbar.spec.ts` measures EVERY link on every page against
+🟡 Two gates to know about here: `navbar.spec.ts` measures every link on every page against
 the 44px touch floor (the first footer shipped 16px rows — real 44px rows, never a
 padding/negative-margin trick, which overlaps neighbours and hides the miss); and
 `publicSite.test.ts` forbids `data-open` anywhere in the site's CSS, so the clock's light

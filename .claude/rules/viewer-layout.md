@@ -15,17 +15,17 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
 
 ## Traps
 
-- **🟡 THE LAYOUT QUERY AND THE CONTENT QUERY ARE NOT THE SAME QUERY, and building
+- **🟡 The layout query and the content query are not the same query, and building
   them as one broke a landscape phone.** Found 2026-08-21, before shipping, by
   measurement rather than by review. `<ProductIdentity>` moves the product's name
   and description into `.stage__aside` on wide screens; keyed off
   `TWO_COLUMN_QUERY` alone, at **844x390 the band grew to 726px in a 390px
   viewport** — garment cut off at the fold, colourway rail and both enquiry buttons
   underneath it. The two-column query deliberately includes a landscape phone, so
-  that the CONTROLS can sit beside the garment in a ~320px band; a 312-character
+  that the controls can sit beside the garment in a ~320px band; a 312-character
   paragraph is a different question and needs its own, narrower query.
   🟡 **The second attempt was worse, because it looked measured and was not.** A
-  `min-height: 700px` floor extrapolated from ONE sample at 1024x768 broke 900x700
+  `min-height: 700px` floor extrapolated from one sample at 1024x768 broke 900x700
   (band 729px). The requirement is not width-independent: below a ~300px column the
   colourway rail's container query wraps five swatches onto two rows, costing 60px
   at exactly the width where the narrower column is already making the paragraph
@@ -33,7 +33,7 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   1280+: **664**. The floor became 1100 x 720, and 1024x768 is excluded on purpose: it
   fits by 10px, and a ten-pixel margin on a layout whose inputs are a CMS textarea and
   a font is a coincidence, not an invariant.
-  🟡 **The third floor was measured — against the FIXTURE's 145-character description.**
+  🟡 **The third floor was measured — against the fixture's 145-character description.**
   Live descriptions run to 454 characters, and on 2026-10-02 (VA-60) those garments put
   Email and WhatsApp below the screen from 1100 to 1280px wide and 720 to 800px tall.
   Re-measured with copy longer than any live garment's, in all three engines (Firefox
@@ -48,28 +48,28 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   WebKit set the name on the extra line. Each colour's name under its dot needs more room
   again, so it shows from 656px. `motion-and-layout.spec.ts` walks both floors and the
   pixel under each. A planted fault proved the floor test bites (an unclamped description
-  failed every 620px row); undoing the column's compaction did NOT fail it, because the
+  failed every 620px row); undoing the column's compaction did not fail it, because the
   floor keeps an 18px margin, which is the point of a margin.
   `useIdentityInAside.ts` carries the tables; `useIdentityInAside.test.tsx`
   pins the identity query as a strict subset of the CSS one, because outside that
   block `.product-info--aside` has no styles at all — a 69px viewport-sized heading
   in a 260px column.
 
-- **🟢 `data-reveal` ON A COMPONENT THAT CHANGES PARENTS IS A PERMANENTLY INVISIBLE
-  COMPONENT.** `startReveals()` (`polish/reveal.ts`) queries `[data-reveal]` ONCE,
+- **🟢 `data-reveal` on a component that changes parents is a permanently invisible
+  component.** `startReveals()` (`polish/reveal.ts`) queries `[data-reveal]` once,
   at startup, and observes what it finds; it has no MutationObserver. An element
   that React re-parents on a resize — which is exactly what `<ProductIdentity>`
-  does when the viewport crosses `IDENTITY_IN_ASIDE_QUERY` — is a NEW element
+  does when the viewport crosses `IDENTITY_IN_ASIDE_QUERY` — is a new element
   created after that scan, so it is never observed, never gets `.is-inview`, and
   stays at `opacity: 0` (`packages/ui/src/base.css`) for the rest of the
   session. The page would simply lose its
   own product name and description after one window resize, with no error anywhere.
-  The product panel therefore carries NO `data-reveal` in either position; the fix
+  The product panel therefore carries no `data-reveal` in either position; the fix
   is removing the attribute, not making the observer smarter, because reveal is the
   wrong effect for the page's primary content anyway. `.customise` and `.contact`
   keep theirs — neither moves.
 
-- **A desktop browser at a phone's width MEASURES THE STAGE WRONG, because it has
+- **A desktop browser at a phone's width measures the stage wrong, because it has
   no URL bar.** `.stage__canvas`'s binding term was `calc(100dvh - Npx)`, and `dvh`
   excludes the browser chrome that is currently showing. Measured 2026-08-19 in the
   iOS 26.5 simulator on a real iPhone 17: `100svh` **714**, `100lvh` **754**,
@@ -86,7 +86,7 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   (`packages/ui/src/tokens.css`) while un-revealed, with a computed `margin-top` of **0** — so the offset presents as a
   24px gap "from nowhere" between two elements that have no margin between them.
   Sweeping candidate stage heights on the live site this way produced a subtrahend
-  that then FAILED e2e on all three engines with 4-6px of clearance. **Tune layout
+  that then failed e2e on all three engines with 4-6px of clearance. **Tune layout
   against `test:e2e`, not against an injected style on the live page** — it measures
   Chromium, WebKit, Firefox and mobile Safari at once.
 
@@ -102,7 +102,7 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   ```
 
   So every `.colourways` measurement this suite ever took carried the reveal's own
-  `matrix(1, 0, 0, 1, 0, 24)`, and the number depended on WHEN the assertion ran
+  `matrix(1, 0, 0, 1, 0, 24)`, and the number depended on when the assertion ran
   inside an 800ms transition — caught mid-flight in one run, Firefox reported
   6.03px of translate where WebKit reported 24px. **Layout assertions were racing an
   animation**, which is the same defect the live-page sweep above was condemned for,
@@ -113,7 +113,7 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   the same — **do not assume the config option applies.** Verify with
   `matchMedia('(prefers-reduced-motion: reduce)').matches` before trusting a number.
 
-- **🟡 The stage band's height budget has been wrong THREE TIMES, always by
+- **🟡 The stage band's height budget has been wrong three times, always by
   reasoning instead of measuring.** `.stage__canvas`'s third term
   (`calc(100dvh - Npx)`) is the chrome around the garment. On 2026-08-17 it went
   208 → 280 (adding up: 225px measured chrome + a 54px control row) → **overflowed
@@ -132,18 +132,18 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   reported as "the model gets cut off" and diagnosed as a stage-height problem.
   `focus({ preventScroll: true })`. There is no `scrollTo` anywhere in this app;
   if the page is not at the top, this is the first thing to check.
-  🟡 **An e2e test for it is flaky in the direction that PASSES** unless it waits
+  🟡 **An e2e test for it is flaky in the direction that passes** unless it waits
   for the hand-off — assert straight after the `<h1>` appears and the focus effect
   has usually not committed yet, so it measures `scrollY: 0` against unfixed code.
 
-- **🟡 model-viewer 4.x DELETED `--poster-color` and `--progress-mask`, and CSS says
+- **🟡 model-viewer 4.x deleted `--poster-color` and `--progress-mask`, and CSS says
   nothing when you set a property nobody reads.** `page.css` used both to
   suppress the built-in loading poster; verified against the installed 4.3.1,
   `lib/template.js` contains only `--progress-bar-color` and `#default-poster`
   hardcodes `background-color: #fff0` with the `poster` attribute painted into its
   `background-image`. So the snapshot went on showing for an entire major version
   while the source read as though it were off. The fix is to stop passing
-  `poster` at all. Assert the PROPERTY in a test, never the attribute — React
+  `poster` at all. Assert the property in a test, never the attribute — React
   sets these as properties and never reflects them, so `getAttribute('poster')`
   is null either way and passes vacuously.
 
@@ -157,31 +157,31 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   enough to fill a phone screen, put `pan-y` back** — otherwise the visitor is
   trapped on the model with no way to scroll past it.
 
-- **`flex-shrink: 0` does not stop a flex CHILD wrapping to a new ROW — it is
+- **`flex-shrink: 0` does not stop a flex child wrapping to a new row — it is
   what causes it.** The header was 117px tall on a 375px phone (14% of the
   viewport, above the garment) because its children needed 351px of 343px and
   therefore wrapped, while `page.css`'s own comment recorded the height as
   "69px to 81px". That comment was about a different bug: the label wrapping to
-  two LINE-BOXES inside the button, which `flex-shrink: 0` did fix. Two bugs, one
+  two line-boxes inside the button, which `flex-shrink: 0` did fix. Two bugs, one
   symptom, one stale number. 10px of column-gap and a 16px wordmark bought 30px
   and took it back to 69px at 360 and 375.
 
-- **`.contact-rail` and `.action-bar` breakpoints must stay EQUAL.** They were
+- **`.contact-rail` and `.action-bar` breakpoints must stay equal.** They were
   1100px and 900px, so between 900 and 1099px the page carried no persistent
   contact control at all — on the only conversion path in the product. Nothing
   reported it because the e2e matrix runs 320/375/768/1280 and both 768 and 1280
   sit on working sides of the gap. Verified in a browser at 950px: zero controls
   with the old rule, two with the new one. There is now a test at 950.
 
-- **🟢 `translate` / `scale` / `transform` compose in a FIXED ORDER, and that half of
+- **🟢 `translate` / `scale` / `transform` compose in a fixed order, and that half of
   the lesson cost a second bug.** `base.css` has warned since 2026-08-14 that the
   three are independent properties which cannot overwrite each other — true, and
   the fix for the magnet silently killing `.btn--primary:hover`'s lift. What it did
   not say is that the browser always applies them **translate → rotate → scale →
-  transform**, and you do not get to choose. `transform` is applied INNERMOST, so
+  transform**, and you do not get to choose. `transform` is applied innermost, so
   anything scaling above it scales that transform's translation too.
   `.cursor-ring[data-pointer="true"]` set `scale: 1.53` while Motion wrote the
-  ring's POSITION into `transform`. Measured 2026-08-15 with the pointer at
+  ring's position into `transform`. Measured 2026-08-15 with the pointer at
   (800, 400): the ring's centre landed at **(1224, 612)** — 1.53× the coordinates.
   So the custom cursor flew off-target the instant it crossed any button, link or
   colourway tab (`data-pointer` is exactly the over-a-control state) and sprang
@@ -192,7 +192,7 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   with `scale` — a sound instinct (animating width/height on the most
   frequently-updated element on the page is layout + paint + composite) that
   changed the *matrix* while only meaning to change the *size*. Fixed by passing
-  `scale` through Motion so it lands in the SAME transform string as `x`/`y`:
+  `scale` through Motion so it lands in the same transform string as `x`/`y`:
   Motion's `transformPropOrder` lists x and y before scale, emitting
   `translateX(…) translateY(…) scale(…)`, which scales about the element's own
   centre and then moves it. **A paint-only change on that element is safe in CSS; a
@@ -209,15 +209,15 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   left it at 623px. `min-height: 0` is the line that actually fixes it. Same trap
   as the familiar `min-width: 0` on flex children.
 
-- **A reserve adding `env(safe-area-inset-bottom)` counts the notch TWICE**
+- **A reserve adding `env(safe-area-inset-bottom)` counts the notch twice**
   (`.action-bar`'s height already holds it — ~34px dead on every iPhone page, reading as
   generous spacing), **and a layout assertion that scrolls first measures the scroll**:
   a 203px shortfall read as "the footer is 202px under the bar", and three scroll loops
-  all lose that race. Measure reachability in DOCUMENT space,
+  all lose that race. Measure reachability in document space,
   `el.bottom + scrollY <= docH - barH`.
 
-- **The e2e fixture must serve the SAME colourway count production ships — it
-  serves FIVE today (since 2026-08-30)**, and one tab is the difference between a
+- **The e2e fixture must serve the same colourway count production ships — it
+  serves five today (since 2026-08-30)**, and one tab is the difference between a
   clean row and a stranded remainder. Measured 2026-08-20, while the fixture still
   served four: a 68px grid floor gave one row of four against the fixture and
   🟡 **4 + 1** against the real five — a lone tab beside three empty cells, which
@@ -231,30 +231,30 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
   five single-word labels hid a two-word wrap defect the same test could not see.
 
 - **🟡 The colourway rail's width rule is a `@container` query, not a media query — do
-  not convert it back.** The rail asked the SCREEN's width (767px) until 2026-08-20,
+  not convert it back.** The rail asked the screen's width (767px) until 2026-08-20,
   which predicted the rail's own width only while the rail spanned the page. The moment
   it moved into the two-column layout's 260px aside, an 844px-wide screen took the
-  DESKTOP pill treatment — pills needing 606px — inside a 217px box and stacked
-  into FOUR rows: the aside grew to 396px inside a 321px band and pushed the
+  desktop pill treatment — pills needing 606px — inside a 217px box and stacked
+  into four rows: the aside grew to 396px inside a 321px band and pushed the
   contact buttons to y=448 on a 390px screen. Since VA-32 (2026-10-02) the colours are
   44px dots at every width, and the one width query left lays a side column narrower
-  than five dots (252px) out 3 + 2 rather than 4 + 1. The tall-column LIST is a media
-  query on purpose: it asks for the window's HEIGHT, which a container cannot know.
+  than five dots (252px) out 3 + 2 rather than 4 + 1. The tall-column list is a media
+  query on purpose: it asks for the window's height, which a container cannot know.
   `.colourways` carries `container-type: inline-size` — **never `size`**, which would
   make the block axis a containment root too, and this element is a flex item inside a
   band whose whole job is dividing height.
 
-- **🟡 Removing an element breaks the WORDS describing it and the TESTS keyed on it.**
+- **🟡 Removing an element breaks the words describing it and the tests keyed on it.**
   The stage stopped painting a poster 2026-08-21. `LOAD_NOTICE` and `aria-label` both
   still claimed a photograph — through every gate, because the e2e asserting that
-  sentence checked `.stage img` one line ABOVE and died there. **Negative assertion
+  sentence checked `.stage img` one line above and died there. **Negative assertion
   before the copy assertion.** Separately 15 tests keyed "stage in fallback?" on
-  `.stage__poster-fallback` / `.stage img`; 9 were Firefox — which HAS WebGL
-  here and NOT on a runner, so **that branch is CI-only**. Now
+  `.stage__poster-fallback` / `.stage img`; 9 were Firefox — which has WebGL
+  here and not on a runner, so **that branch is CI-only**. Now
   `.stage__error:not([hidden])` — `:not` is load-bearing, that `<p>` is always
-    mounted so its live region can announce. **Key a test on what the VISITOR gets.**
-  Since 2026-09-03 (fix plan Rank 6) the stage paints the colourway's photo DURING THE
-  DOWNLOAD — `.stage__placeholder`, blurred, cross-fading into the 3D — and since
+    mounted so its live region can announce. **Key a test on what the visitor gets.**
+  Since 2026-09-03 (fix plan Rank 6) the stage paints the colourway's photo during the
+  download — `.stage__placeholder`, blurred, cross-fading into the 3D — and since
   2026-10-02 (VA-03, owner-approved) every failure state draws it sharp as
   `.stage__picture`, inside the note's box and above it. The notice's words never claimed a
   picture, so they stay true either way; a test of "no image in a failure state" is now wrong.

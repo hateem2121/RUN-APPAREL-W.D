@@ -19,7 +19,7 @@
  * comparison itself is pure and tested offline in apps/cms/src/requiredChecks.test.ts.
  *
  * WHY ON `main` AND NOT ON PULL REQUESTS. A check may join the ruleset only AFTER a
- * workflow on `main` produces it (.github/CLAUDE.md: "ORDER MATTERS HERE TOO"), so a PR
+ * workflow on `main` produces it (.github/CLAUDE.md: "Order matters here too"), so a PR
  * that adds a gating job disagrees with the ruleset until it merges — by design. Gating
  * PRs on this would block exactly the change it exists to follow. On `main`, a
  * disagreement means the ruleset needs updating, which the owner does in Settings.

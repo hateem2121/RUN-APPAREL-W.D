@@ -10,7 +10,7 @@ disable-model-invocation: true
 **The owner starts this.** It loads the live site many times; on a phone hotspot that is
 mobile data, so say how many page loads before starting.
 
-The report is a PRIVATE claude.ai artifact, never a file in this repo: the repo is public
+The report is a private claude.ai artifact, never a file in this repo: the repo is public
 and the root `CLAUDE.md` bans committing audits. Measurement scripts and their output stay
 in the session's scratchpad for the same reason.
 
@@ -38,7 +38,7 @@ Several "findings" of the 2026-10-01 audit were decided long before it. Grep fir
   replaced SZ-06's soft hyphens on 2026-10-02, owner decision.
 - `docs/DESIGN.md` — page widths, breakpoints, the type scale, reduced motion as a hard stop.
 - `packages/shared/src/pageTitle.ts` — the tab-title format, brand dropped past 60 characters.
-- The contact form marks OPTIONAL fields, never required ones (the UK government pattern).
+- The contact form marks optional fields, never required ones (the UK government pattern).
 
 ## What to measure
 
@@ -46,7 +46,7 @@ Several "findings" of the 2026-10-01 audit were decided long before it. Grep fir
    844×390 sideways; 768, 1024, 1280, 1440, 1920, 2560. Overflow, tap targets, what the
    first screen shows.
 2. **axe-core** on every page at 390 and 1440, light and dark.
-3. **A Tab walk with the cookie card open**: for each stop, is the focused item ENTIRELY
+3. **A Tab walk with the cookie card open**: for each stop, is the focused item entirely
    under the card (WCAG 2.2, 2.4.11)? Partly covered passes.
 4. **Font-swap layout shift** on the text-heavy pages (privacy, terms, guides) at 360–430
    and 768, with web fonts allowed and then blocked.
@@ -55,21 +55,21 @@ Several "findings" of the 2026-10-01 audit were decided long before it. Grep fir
 
 ## Traps that produced wrong numbers last time
 
-- **The cookie card and the cursor are ABSENT under automation** (`navigator.webdriver`).
+- **The cookie card and the cursor are absent under automation** (`navigator.webdriver`).
   Lift it in an init script, or every layout number is of a page no visitor sees — and a
   side effect of the card (it once threw every garment visit to the footer) is invisible
   to every suite except the two `consent.spec.ts` files.
-- **Reduced motion ON for layout**, or the entrance reveals move elements mid-measurement.
+- **Reduced motion on for layout**, or the entrance reveals move elements mid-measurement.
   Assert `matchMedia('(prefers-reduced-motion: reduce)').matches` — a config option alone
   has failed to reach the page before.
-- **Headless Chromium draws 3D in SOFTWARE by default.** A profile measured a 1,789 ms
+- **Headless Chromium draws 3D in software by default.** A profile measured a 1,789 ms
   "freeze" that was 258 ms on the real chip. Launch with
   `--use-angle=metal --ignore-gpu-blocklist --enable-gpu` before believing any WebGL time.
 - **`locator.click()` scrolls its target into view first.** To test what a click does to
   the page's scroll, use `page.mouse.click(x, y)` on something already on screen; a test
   once measured Playwright's own 621px scroll.
 - **A full-page screenshot over 65,535px tall is an empty JPEG** (/products at 390 ×3).
-- **A focus ring is drawn OUTSIDE the element** (`outline-offset`), so contrast sampled
+- **A focus ring is drawn outside the element** (`outline-offset`), so contrast sampled
   inside the element's box is the wrong pixels.
 - **WebKit skips links and buttons on Tab** unless the key is `Alt+Tab`.
 - **The website's e2e reuses an old build locally** — rebuild before trusting a run.

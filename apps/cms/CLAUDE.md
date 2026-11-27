@@ -18,7 +18,7 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
 
 ## Traps
 
-- **🟡 Running the CMS dev server DIRTIES the working tree and then `pnpm lint` fails.**
+- **🟡 Running the CMS dev server dirties the working tree and then `pnpm lint` fails.**
   Found 2026-08-09. `next dev` rewrites two committed generated files —
   `apps/cms/src/app/(payload)/admin/importMap.js` (Payload regenerates it, in its
   own formatting, not Biome's) and `apps/cms/next-env.d.ts` (`./.next/types/…` →
@@ -28,7 +28,7 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   first, then `git checkout --` both files**; restoring while it is still running
   just loses the race, which is how this cost a cycle. Do not "fix" it by
   reformatting the generated file into the repo. *(Moved from the root 2026-09-26.)*
-- **🟢 `admin.hidden` on a collection gates the admin ROUTES, not just the sidebar
+- **🟢 `admin.hidden` on a collection gates the admin routes, not just the sidebar
   entry.** Measured 2026-08-09 on payload 3.86.0: with `hidden: true`,
   `/admin/collections/raw-uploads` renders the "Nothing found" page; with the
   admin-only function it renders the normal list — same URL, same user. The REST
@@ -45,8 +45,8 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   treats each as a migration. A test file added there on 2026-07-31 was imported
   during `migrate:remote`, ran `describe()` with no vitest runner, and stopped
   the production deploy. `src/migrationReplay/migrations.test.ts` now guards it.
-- **🟡 `withPayload` appends its OWN `headers()` rule after yours, and Next lets the
-  LAST matching rule win** — so a header set on a route handler's `Response`, or
+- **🟡 `withPayload` appends its own `headers()` rule after yours, and Next lets the
+  last matching rule win** — so a header set on a route handler's `Response`, or
   added to `SECURITY_HEADERS`, can be silently overridden. Measured 2026-08-18: L1
   set `Vary: Origin, Sec-CH-Prefers-Color-Scheme` in `src/endpoints/publicViewer.ts`,
   its test asserted the returned `Response` carried it and passed, the change merged
@@ -54,33 +54,33 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   whole time it was believed fixed. Ordering inside `nextConfig.headers()` cannot win
   either; that array is spread first by construction. The rule must be appended to
   the config `withPayload` **returns** — `publicViewerHeaders.mjs`, pinned by
-  `src/publicViewerHeaders.test.ts`, which asserts which rule WINS and carries a
+  `src/publicViewerHeaders.test.ts`, which asserts which rule wins and carries a
   negative control reproducing the inert state. **Verify a header change in
   `.next/routes-manifest.json`, never in a handler.**
   The public pages' Content-Security-Policy uses the same wrapper for the same reason
   (`publicPageCspRules`), scoped to `/`, `/products`, `/contact` — an explicit list, not a
-  negative lookahead, because a wrong lookahead fails OPEN onto `/admin` and the symptom
+  negative lookahead, because a wrong lookahead fails open onto `/admin` and the symptom
   is a broken Payload login rather than an error.
 
-- **🟡 Error reporting is `src/instrumentation.ts` + a hand-rolled envelope, and BOTH
+- **🟡 Error reporting is `src/instrumentation.ts` + a hand-rolled envelope, and both
   halves are load-bearing.** 🟡 Next resolves `instrumentation.ts` from the project
-  root or `src/` and NOWHERE ELSE — move it into `src/lib/` for tidiness and the hook
+  root or `src/` and nowhere else — move it into `src/lib/` for tidiness and the hook
   simply stops firing, with no warning and no error. `src/instrumentation.test.ts`
-  pins the path for that reason. 🟡 **Do NOT "upgrade" this to `@sentry/nextjs`.**
+  pins the path for that reason. 🟡 **Do not "upgrade" this to `@sentry/nextjs`.**
   It was rejected on measured evidence, not preference: `Sentry.captureRequestError`
   inside `onRequestError` throws AsyncLocalStorage errors on Workers
   (sentry-javascript#18842), OpenTelemetry does not bundle on Next 16 + OpenNext
   (opennextjs-cloudflare#969), and `withSentryConfig` would have to join the
   next.config wrapper chain that `publicViewerHeaders.mjs` documents as having
   already shipped one green-but-inert fix. 🟡 A missing `SENTRY_DSN` is a deliberate
-  NO-OP — it has to be, since every build, test and Payload CLI run has none — so a
+  no-op — it has to be, since every build, test and Payload CLI run has none — so a
   secret that fails to apply yields a silent, green, blind deploy. `ci.yml` asserts
   the Worker holds it; keep that step. And when changing the event shape, verify the
-  INGESTED event in Sentry, not the payload: the first version passed every unit
+  ingested event in Sentry, not the payload: the first version passed every unit
   test, got a 200, and displayed "No stacktrace available" because an empty `frames`
   array is valid and `raw` is not a field Sentry knows.
 
-- **🟡 The publish gate and the public API are DIFFERENT gates, and relaxing one
+- **🟡 The publish gate and the public API are different gates, and relaxing one
   without the other saved a product the API then refused to serve.** A poster
   requirement lived in three places — `publishGating.ts` (may I save it?),
   `Stage.tsx` (do I draw it?), `projectViewer.ts` (may I serve it?). PR #39 relaxed
@@ -90,30 +90,30 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   requirement, grep all three. 🟡 `uptime.yml` cannot catch this — it probes an SPA
   that returns 200 HTML for any path, so it stayed green throughout.
 
-- **🟡 A PATCH NAMING A PROJECTED FIELD RETURNS 200 AND STORES NOTHING.** 2026-09-04: a
+- **🟡 A PATCH naming a projected field returns 200 and stores nothing.** 2026-09-04: a
   script wrote `customisationIntroHtml` on all eleven live products, printed `✓ written`
   eleven times and stored ten of eleven intros nowhere — while the `customisationSteps`
   in the same body landed, which is what hid it. That field does not exist on the
-  collection; `endpoints/publicViewer.ts` COMPUTES it at read time from the real column,
+  collection; `endpoints/publicViewer.ts` computes it at read time from the real column,
   `customisationIntro` (Lexical). Payload drops an unknown key and answers 200. **Verify
-  a write by READING IT BACK** (`?depth=0`, compare), never by the status code —
+  a write by reading it back** (`?depth=0`, compare), never by the status code —
   `scripts/apply-customisation-copy.mjs` now does. And **do not escape text bound for a
   Lexical field**: `convertLexicalToHTML` escapes text nodes itself (measured,
   `Teamwear & Uniforms` → `Teamwear &amp; Uniforms`), so escaping first ships a literal
   `&amp;`.
 
-- **🟡 The `build-process` global is RETIRED — do not reconnect it.** It held one "How we
+- **🟡 The `build-process` global is retired — do not reconnect it.** It held one "How we
   build your product" text for the whole catalogue and won over a product's own copy the
   moment it was saved, the discriminator being `id` ("has anyone opened this screen"),
   not content — so one save replaced the copy on all eleven live garments, and saving it
-  EMPTY served zero steps everywhere (`Array.isArray([])` is true). Once the owner chose
+  empty served zero steps everywhere (`Array.isArray([])` is true). Once the owner chose
   per-garment copy on 2026-09-04 its only available effect was destroying that work in a
   click. `buildViewerResponse` no longer takes it as a parameter, so passing one is a
-  TYPE error rather than a silently-ignored argument; the global is `admin.hidden`; the
+  type error rather than a silently-ignored argument; the global is `admin.hidden`; the
   per-product tab is visible again. The table stays — D1 rebuild hazard,
   `presentation_mode` precedent.
 
-- **`pnpm build` PASSING DOES NOT MEAN THE APP CAN BE DEPLOYED.** `opennextjs-cloudflare
+- **`pnpm build` passing does not mean the app can be deployed.** `opennextjs-cloudflare
   build` is a second, stricter build and nothing in `pnpm test` runs it. Measured
   2026-09-05: a `proxy.ts` (Next 16's renamed middleware) compiled fine under `next build`,
   `tsc --noEmit` and 2,000 tests, and failed the Cloudflare build outright — *"Node.js
@@ -129,7 +129,7 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   and since 2026-10-24 the sitemap, llms.txt and robots.txt, in Workers Cache in front of its
   `SitePages` entrypoint (`wrangler.jsonc` `exports`), shared across data centres; the default
   entrypoint stamps each answer with its own nonce. 🟡 Never switch caching on for `default` (it
-  would hand one visitor's nonce to the next, and it serves the admin) and keep the HOST in the
+  would hand one visitor's nonce to the next, and it serves the admin) and keep the host in the
   key (`sharedCacheKey`: Workers Cache ignores hosts). A local preview keeps nothing (measured
   2026-10-24); only the live site shows `page-cache;desc="hit"`. The key holds the website build's fingerprint (`SITE_BUILD`, from `siteBuild.mjs`; since
   2026-11-04), or the deploy (`CF_VERSION_METADATA`) when there is none or KV `page-store-build` =
@@ -141,67 +141,67 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   version back in the key without a deploy (the off switch; saves still write it). Taps between
   pages have their own (since 2026-10-27, `apps/cms/tapStore.mjs`): KV `rsc-store` = `off` draws
   every tap again, as before the store, within 30 seconds (`VERSION_CACHE_SECONDS`). 🟡 A hovered
-  link's fetch-ahead sends a DIFFERENT router tree from a tap (`intentTreeFor`, checked live
+  link's fetch-ahead sends a different router tree from a tap (`intentTreeFor`, checked live
   27 Oct: every hover was drawn while the taps were kept), so the warm-ups keep both. 🟡 In
-  practice each REGION keeps its own copy (25 Oct: Marseille and Muscat each drew the sitemap the
+  practice each region keeps its own copy (25 Oct: Marseille and Muscat each drew the sitemap the
   US already held), and a fresh Worker copy's first request costs ~8x a warm one (local profile,
   208 vs 24 ms; live `/privacy` 34 ms warm, up to 1,157 ms cold). Behind it, `src/lib/content.ts` keeps content in
   memory for 60 seconds per isolate; a page drawn to be kept skips that memory, and a page drawn
   from the fallbacks is never kept. A CMS edit reaches the site within about a minute.
-  🟡 Do NOT switch on OpenNext's incremental cache instead: Next pre-builds `/sitemap.xml`
+  🟡 Do not switch on OpenNext's incremental cache instead: Next pre-builds `/sitemap.xml`
   without the database, and that cache would serve it with none of the 200 garment pages.
-  🟡 A page that will be kept is drawn from a CLEAN request (`keptRenderRequest`): none of the
+  🟡 A page that will be kept is drawn from a clean request (`keptRenderRequest`): none of the
   visitor's headers reach Next, because one visitor's `x-middleware-prefetch: 1` drew an empty
   200 (probe, 2026-10-04). Do not pass the visitor's request through "for the logs".
-  🟡 It DOES carry the site's host (`host: SITE_HOST` in `apps/cms/pageCache.mjs`): the site's forwards are matched
+  🟡 It does carry the site's host (`host: SITE_HOST` in `apps/cms/pageCache.mjs`): the site's forwards are matched
   on the Host header, a Request made in code has none, and plain `/factory` answered 404 live
   until that was added (2026-10-10). In `opennextjs-cloudflare preview` a page drawn this way
   names `page-cache` in its Server-Timing header.
   🟡 Since 2026-10-07 the garment data (`GET /api/public/viewer/*` on `cms.wear-run.help`) is
   kept the same way (`viewerApiCache.mjs`; 4.0–4.5 s uncached that day). Its CORS headers are
-  NEVER kept and are worked out for each request, because the Cache API ignores `Vary`.
+  never kept and are worked out for each request, because the Cache API ignores `Vary`.
 
-- **🟡 A SMALL WORKER RUNS IN FRONT OF THIS ONE (the front door, 20 Nov 2026).** `door.mjs` +
-  `wrangler.door.jsonc` deploy `run-apparel-site-door` on ROUTES (all of `wear-run.com` since
+- **🟡 A small Worker runs in front of this one (the front door, 20 Nov 2026).** `door.mjs` +
+  `wrangler.door.jsonc` deploy `run-apparel-site-door` on routes (all of `wear-run.com` since
   21 Nov, and the garment data on the admin host), and Cloudflare runs a route's Worker before the
   Worker that holds the address as a Custom Domain. Why: a fresh copy of this Worker takes 1.2 to
-  2.0 s to start, and a kept page waited for it; its start-up CODE runs for about 31 ms
+  2.0 s to start, and a kept page waited for it; its start-up code runs for about 31 ms
   (`wrangler check startup`, 21 Nov), so the wait is the script being loaded, which is why
   `wrangler.jsonc` sets `minify`. The door asks the store over a service binding (a kept copy
-  comes back without this Worker running) and hands everything else on. Both Workers apply ONE
+  comes back without this Worker running) and hands everything else on. Both Workers apply one
   set of steps, `siteEdge.mjs`: change a step there, never in `worker.mjs` or `door.mjs` alone.
-  🟡 A binding ignores routes: the viewer Worker's `CMS` binding names the DOOR (22 Nov; until
+  🟡 A binding ignores routes: the viewer Worker's `CMS` binding names the door (22 Nov; until
   then it named this Worker, and 57 garment pages took over 500 ms in a crawl with a full store).
   🟡 The door reads the live build's name from the static file `/__site-build.txt`, which
   `node siteBuild.mjs` writes at upload; never bake a build name into it. It asks over the
-  `SITE_FILES` binding, NEVER a public fetch: on 21 Nov that address sat on the door's own route,
+  `SITE_FILES` binding, never a public fetch: on 21 Nov that address sat on the door's own route,
   the read failed from `cms.wear-run.help`, and all garment data was handed on (p90 1,163 ms).
   🟡 `pnpm build` ends with `apps/cms/scripts/one-copy-of-each-chunk.mjs`: Turbopack wrote one 2.3 MB
   chunk 5 times (21 Nov), so identical chunks become stubs (30,436 → 22,033 KiB).
-  🟡 Page copies live in THREE R2 buckets (APAC, ENAM, EEUR), read at once; SitePages waits 1.5 s, not
-  400 ms (it gave up 80 of 84 times, 21 Nov). 🟡 The door is IN FRONT OF `public/` too: a file is handed on (`isStaticFile`), or the page
+  🟡 Page copies live in three R2 buckets (APAC, ENAM, EEUR), read at once; SitePages waits 1.5 s, not
+  400 ms (it gave up 80 of 84 times, 21 Nov). 🟡 The door is in front of `public/` too: a file is handed on (`isStaticFile`), or the page
   store draws it as a page and its 404 replaces the photo (live 73 minutes, 21 Nov).
   🟡 A request carrying
   `Cloudflare-Workers-Version-Overrides` is handed on whole, or a deploy's pre-live check would
   pass on a kept page without the new version running; so those checks prove the door does no
   harm, never that its fast path works (`door.test.ts` and `scripts/first-visit-burst.mjs` do
-  that). 🟡 The door is STAGED AT 0% WITH THE OTHER TWO since 21 Nov: deployed after the checks,
+  that). 🟡 The door is staged at 0% with the other two since 21 Nov: deployed after the checks,
   a faulty door failed every deploy, its own fix included (runs 44767665680, 44781104367).
   🟡 Never route it on `wear-run.help` or `www.wear-run.help`: this Worker holds those as routes,
   not Custom Domains. Undo: delete the door's routes, or KV `front-door` = `off`
   (`docs/RUNBOOK.md`, "The front door").
 
-- **🟡 THIS APP IS BUILT TWICE AND RUNS AS TWO WORKERS (the admin split, 22 Nov 2026).** The whole
+- **🟡 This app is built twice and runs as two Workers (the admin split, 22 Nov 2026).** The whole
   app is the CMS Worker (`wrangler.jsonc`: admin, API, garment data, forms, and the whole website
   as a fallback). `SITE_ONLY=1` builds the same code without the admin and the CMS API for
   `run-apparel-site-only` (`wrangler.site.jsonc`, 16,182 KiB against 22,035), which draws and keeps
-  the pages of wear-run.com and has NO address: only the door reaches it, over bindings.
+  the pages of wear-run.com and has no address: only the door reaches it, over bindings.
   🟡 The five route files under `src/app/(payload)` end `.cms.tsx` / `.cms.ts`, and only the whole
   build reads those endings (`pageExtensions` in `next.config.mjs`). A new route file there named
-  plain `page.tsx` or `route.ts` lands in BOTH builds; `scripts/check-site-only-build.mjs` fails.
+  plain `page.tsx` or `route.ts` lands in both builds; `scripts/check-site-only-build.mjs` fails.
   🟡 Both builds write the same `.next` and `.open-next`, one after the other: whatever reads them
-  reads the LAST build. After `build:site-only`, rebuild before `test:routes` or a preview of the
-  CMS. 🟡 A save must tell BOTH page stores (`src/lib/contentVersion.ts`, `SITE_ONLY_PAGES`):
+  reads the last build. After `build:site-only`, rebuild before `test:routes` or a preview of the
+  CMS. 🟡 A save must tell both page stores (`src/lib/contentVersion.ts`, `SITE_ONLY_PAGES`):
   Workers Cache lets a store be marked stale only from inside its own Worker. 🟡 The two builds
   do not share all their script files, so the door asks the site-only Worker for `/_next/static`
   first and the CMS Worker on a 404. 🟡 `worker.mjs` is shared: branch on `workerName(env)`, never
@@ -213,25 +213,25 @@ anything in the CMS"** (`.claude/rules/cms-media-deletion.md`), which also gover
   `style={{ padding: '20px' }}` in a `.tsx` fails the build — three had walked past a
   CSS-only scan. A `var()` or computed value is fine.
 
-- **🟡 THE SITE ANSWERS ON FIVE HOSTNAMES AND ONLY `has: host` RULES TELL THEM APART.**
+- **🟡 The site answers on five hostnames and only `has: host` rules tell them apart.**
   `wear-run.com` is the site (since the domain move of 2026-09-28); `www.wear-run.com`,
   `wear-run.help` and `www.wear-run.help` 308 every path to it, except the four paths
-  wear-run.com hands BACK to `.help` (`/map`, `/meeting`, `/catalogue*`, `/profile*`, which
+  wear-run.com hands back to `.help` (`/map`, `/meeting`, `/catalogue*`, `/profile*`, which
   live on that zone — `HANDED_BACK_TO_HELP`); `cms.wear-run.help` is the admin and the API
   and 308s its four public paths to the site; `/admin` and `/api` on the site rewrite to the
-  branded 404 so the login has ONE hostname. `worker.mjs` hands `/products/<p>[/<c>]` and
-  the viewer's files to the viewer Worker BEFORE Next (`viewerForward.mjs`), and gives every
+  branded 404 so the login has one hostname. `worker.mjs` hands `/products/<p>[/<c>]` and
+  the viewer's files to the viewer Worker before Next (`viewerForward.mjs`), and gives every
   redirect its security headers (`redirectHeaders.mjs`; OpenNext sends redirects bare). The rules live in
   `siteHostRules.mjs` and are proven in `.next/routes-manifest.json` by
   `src/hostRulesManifest.test.ts`, never in a handler. 🟡 OpenNext tests a host value
-  UNANCHORED — a bare `wear-run.help` also matches `cms.wear-run.help` and the admin
+  unanchored — a bare `wear-run.help` also matches `cms.wear-run.help` and the admin
   rewrite takes the admin down — so every pattern is `^…$` with escaped dots.
-  🟡 **`opennextjs-cloudflare preview` REWRITES THE HOST AND IGNORES YOUR `-H Host:`.**
-  Measured 2026-09-07 on wrangler 4.122.0: with no flag, all three hostnames AND
-  `localhost` behaved as `cms.wear-run.help` — the FIRST route in `wrangler.jsonc` —
+  🟡 **`opennextjs-cloudflare preview` rewrites the host and ignores your `-H Host:`.**
+  Measured 2026-09-07 on wrangler 4.122.0: with no flag, all three hostnames and
+  `localhost` behaved as `cms.wear-run.help` — the first route in `wrangler.jsonc` —
   so `/admin` answered 200 and `/products` 308'd, whatever Host was sent. A preview
   read that way tells you nothing about the apex. `--infer-origin-from-routes=false`
-  does NOT exist on this wrangler (`Unknown arguments: infer-origin-from-routes`);
+  does not exist on this wrangler (`Unknown arguments: infer-origin-from-routes`);
   **`--local-upstream <host>` is the one that works**, and it pins every request to
   that host, so proving all three takes three previews, one per hostname.
 

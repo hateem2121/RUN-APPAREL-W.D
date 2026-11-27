@@ -36,7 +36,7 @@ chest wordmark illegible while **passing all three blocking gates** — and `see
 at 0.004`.
 
 Why it would have voided the whole measurement rather than merely skewing it: the
-acceptance test was *"can a buyer still bring the chest print to centre and READ
+acceptance test was *"can a buyer still bring the chest print to centre and read
 it"*, which is unanswerable on a file whose lettering is already gone.
 
 `output/` is gitignored and no current tooling maintains it — `pnpm seed:assets`
@@ -54,7 +54,7 @@ Cache it locally for repeated use — one 27 MB GET is nothing, but the uptime j
 15 minutes until 2026-08-18, every 6 hours now) is why `.github/CLAUDE.md` has CI check models with `HEAD` (weight, not an
 R2 bill — R2 egress is free).
 
-🟡 **For a material/alphaMode census you do NOT need the file — RANGE-FETCH the header.**
+🟡 **For a material/alphaMode census you do not need the file — range-fetch the header.**
 A GLB's JSON chunk is at the front and is length-prefixed, so two range requests read
 every material, texture and variant mapping in it. Measured 2026-08-27 on the live
 model: **445,064 bytes instead of 28,271,780** — 1.6% of the egress, and R2 answers
@@ -87,13 +87,13 @@ places, because the eval diffs two renders from the same browser in the same run
 so the rasteriser cancels).
 
 `pnpm eval:artwork:real` is the same method on the actual 382 MB export. **It is a
-MANUAL, LOCAL check** — run it before shipping any preset or pipeline change. It
+manual, local check** — run it before shipping any preset or pipeline change. It
 does not gate the deploy and is not scheduled; the monthly workflow that used to
 run it was deleted on 2026-08-07, because the file it needs no longer exists
 anywhere a GitHub runner can reach (see below). It needs
 `raw/cycling-all-colours.glb`, which is gitignored.
 
-🟡 **THE RAW EXPORT IS NOT A DURABLE ARTIFACT AND MAY ALREADY BE GONE.** The
+🟡 **The raw export is not a durable artifact and may already be gone.** The
 ingest bucket carries an `expire-raw-uploads` lifecycle rule — 14 days, **all
 prefixes** — so the N001 export (uploaded on/before 2026-08-05) expires around
 🟡 **2026-08-19**. `scripts/backup-r2.mjs` mirrors the *media* bucket and the two
@@ -111,7 +111,7 @@ wrangler r2 object get "run-apparel-viewer-ingest/cycling all colours.glb" \
   --file raw/cycling-all-colours.glb --remote
 ```
 
-🟡 **The R2 key contains SPACES.** It is `cycling all colours.glb`, not the
+🟡 **The R2 key contains spaces.** It is `cycling all colours.glb`, not the
 hyphenated `cycling-all-colours.glb` that everyone types from memory. The hyphenated form is the *local*
 filename, deliberately renamed on download so nothing downstream deals with spaces
 in a path; it is not the key. Quote it, or an unquoted expansion splits it into
@@ -139,19 +139,19 @@ what has been ruled in and out. Despite the filename it is **closed** (2026-08-0
 it is kept as the case file because the hypotheses it numbers (H3, H4, H6) are cited
 by name from six source comments and one test. See the note at the top of it.
 
-**The pipeline can now REFUSE a job.** Since 2026-08-03 three structural findings
+**The pipeline can now refuse a job.** Since 2026-08-03 three structural findings
 make the shrink worker throw `PermanentJobError` and save nothing:
 
 | Finding | Where it is decided |
 |---|---|
 | 🟡 A print piece was decimated — never, since 2026-09-02; the assertion names any that moved | `simplify-textured.ts` → `artworkAtRisk` |
-| A hard-edged, opaque print is STILL `BLEND` (the opaque step would have changed it) | `texture-artwork.ts` → `auditArtworkAlpha` |
+| A hard-edged, opaque print is still `BLEND` (the opaque step would have changed it) | `texture-artwork.ts` → `auditArtworkAlpha` |
 | An artwork `MASK` has an `alphaCutoff` other than 0.5 | same |
 
 🟡 All three are *structural* — a stated fact about the output file, with no
 false-positive case — which is why they block. 🟡 **Until 2026-09-02 the second row
-refused two finished garments over THREAD**: the generous classifier read CLO's 236x39
-topstitch strip as a wordmark by SHAPE, before its soft alpha (F2-01, B-03, CT-06). The
+refused two finished garments over thread**: the generous classifier read CLO's 236x39
+topstitch strip as a wordmark by shape, before its soft alpha (F2-01, B-03, CT-06). The
 gate now has its own strict classifier (`classifyArtworkForGate`: material name or
 binary alpha, never a `NOT_ARTWORK_NAME`, shape alone never) and asks
 `resolveBlendAlpha` — solidify's own decision — whether a BLEND material should have

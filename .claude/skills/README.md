@@ -38,7 +38,7 @@ points for which, and why that distinction is smaller than it looks.
    repo is visible to everyone and dies with the branch if it turns out to be
    useless.
 
-⚠️ **The 2026-08-13 rows below WERE added with `npx skills add`, and that is not a
+⚠️ **The 2026-08-13 rows below were added with `npx skills add`, and that is not a
 reversal of the four points — it is the flags.** `--agent claude-code --copy`
 installs project-scoped, for one agent, as real files rather than symlinks, which
 satisfies 1, 3 and 4 directly. Measured after the run: `~/.claude/skills` still held
@@ -47,7 +47,7 @@ directory was created. Point 2 is the one the installer does **not** give you �
 "What the lockfile does not pin" below. Use these flags or vendor by hand; a bare
 `npx skills add` is still the thing this section is against.
 
-⚠️ **Seven entries ARE symlinks (counted 2026-10-25; `fc16d6e`, 2026-08-15, installed
+⚠️ **Seven entries are symlinks (counted 2026-10-25; `fc16d6e`, 2026-08-15, installed
 eight skills, and the eighth, `ask-sonner`, never had a link and was removed on
 2026-10-25 because nothing here uses Sonner), which the paragraph
 above says never happens.** `npx skills add emilkowalski/skill` — run without
@@ -93,7 +93,7 @@ the keystroke point 4 is about.
 | `copy-editing` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
 | `cro` | `coreyhaines31/marketingskills` @ `1f837447b20b` | MIT |
 
-⚠️ **THE THREE "UNSTATED" ROWS ARE NOT IN THE PUBLIC REPOSITORY — since 2026-09-10.**
+⚠️ **The three "UNSTATED" rows are not in the public repository — since 2026-09-10.**
 The repository went public on 2026-09-09, and a file with no licence carries no
 permission to republish it. They were taken out of git and out of its history and are
 gitignored, so a session on the owner's machine still loads them while nobody else
@@ -285,7 +285,7 @@ app stores) or ads and outreach this project does not run.
 
 **`product-marketing` is left out on purpose.** It is the set's foundation card, and it
 writes a positioning document (audience, competitors, messaging) to
-`.agents/product-marketing.md`. In a PUBLIC repository that would publish a business
+`.agents/product-marketing.md`. In a public repository that would publish a business
 document by accident. The nine cards only read that file when it exists, so they work
 without it.
 
@@ -346,7 +346,7 @@ page's robots headers, in one `ai-seo` reference file.
 **"Every file is `.md` or `.json`" does not mean nothing runs.** Found 2026-10-03 on
 [Claude Code's skills page](https://code.claude.com/docs/en/skills): Claude Code runs a
 `SKILL.md` line that starts with `!` and a backtick, and a block fenced with three
-backticks and `!`, BEFORE the model reads the skill; `allowed-tools` in the header lets
+backticks and `!`, before the model reads the skill; `allowed-tools` in the header lets
 those tools run without asking, and `hooks` keeps commands running for the rest of the
 session. Measured the same day on every vendored skill: **no such line and no such
 field.** The only characters that show as nothing are four zero-width spaces in one
@@ -360,7 +360,7 @@ The owner asked on 2026-10-03 for every skill to stay at its latest version. Eve
 - takes every vendored skill in git: the table above (not its three local-only rows,
   which git does not have) and `skills-lock.json` — 24 skills on 2026-10-03;
 - compares each folder, file by file, with its upstream's newest commit;
-- scans what changed LINE BY LINE with the checks in "Scanned before committing"
+- scans what changed line by line with the checks in "Scanned before committing"
   (credential access, instruction-override wording, secret-shaped strings), plus the four
   that exist because a skill is not only text: a line that runs a command when the skill
   loads (every line of a command block, not only its first), a `SKILL.md` header line
@@ -369,7 +369,7 @@ The owner asked on 2026-10-03 for every skill to stay at its latest version. Eve
   reading (`@~/.aws/credentials`, or Antigravity's `@[label](path)`), and characters that
   show as nothing (zero-width, direction marks, the invisible "tag" letters that can spell
   a whole instruction). The header check fails closed because YAML can spell
-  `allowed-tools` in ways no pattern for the name sees (second commit review, 2026-10-03). Only NEW lines count, so a
+  `allowed-tools` in ways no pattern for the name sees (second commit review, 2026-10-03). Only new lines count, so a
   skill whose prose already mentions `localStorage` is not blocked for it, and deleting
   one old line does not let a different new one through (a per-file count did, until the
   commit review of 2026-10-03);
@@ -383,7 +383,7 @@ The owner asked on 2026-10-03 for every skill to stay at its latest version. Eve
   already follow;
 - applies the clean updates, moves the SHA in the table and recomputes the lockfile hash
   exactly as the `skills` installer does (verified against the `animate` entry);
-- opens ONE pull request, closing last week's if it is still open. A blocked update is
+- opens one pull request, closing last week's if it is still open. A blocked update is
   left out and the run ends red, naming the reason; the pull request quotes each flagged
   line with its number (never a line shaped like a key). GitHub holds a robot pull
   request's checks until a person presses **Approve workflows to run** in its merge box,
@@ -395,7 +395,7 @@ writes nothing: `node scripts/refresh-vendored-skills.mjs`.
 
 ## Not here: Impeccable
 
-On 2026-10-03 the owner chose the FULL Impeccable plugin (its engine and hooks) over a
+On 2026-10-03 the owner chose the full Impeccable plugin (its engine and hooks) over a
 vendored copy of its instructions, so it is enabled in `.claude/settings.json` rather
 than copied into this folder, and it auto-updates, also the owner's choice. What it
 runs, what it writes and how to switch it off are in `docs/AI-TOOLING.md`, under "The
@@ -410,7 +410,7 @@ edit that upstream does not have is indistinguishable from drift, and the robot 
 overwrite it.
 
 **When the robot blocks a skill only for lines it flagged**, run the dry run
-(`node scripts/refresh-vendored-skills.mjs --only <name>`): it prints EVERY flagged line,
+(`node scripts/refresh-vendored-skills.mjs --only <name>`): it prints every flagged line,
 where a reason quotes three, and the full upstream commit they are at. Read them all. If
 they are harmless, `node scripts/refresh-vendored-skills.mjs --write --only <name> --accept
 <name>@<commit>` copies that one skill in and records what was let through. The accept
