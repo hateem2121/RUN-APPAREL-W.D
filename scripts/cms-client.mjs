@@ -7,7 +7,7 @@
  * same "read it back" check by hand, and two (`publish-garment`, `upload-posters`) never did —
  * the shape of the 2026-09-04 incident, where a PATCH naming a field that does not exist
  * answered 200, stored nothing, and a script printed "11 written, 0 failed"
- * (`apps/cms/CLAUDE.md`, "A PATCH NAMING A PROJECTED FIELD RETURNS 200 AND STORES NOTHING").
+ * (`apps/cms/CLAUDE.md`, "A PATCH naming a projected field returns 200 and stores nothing").
  *
  * WHAT IT GUARANTEES, in the order the rules in `.claude/rules/cms-scripted-writes.md` ask:
  *

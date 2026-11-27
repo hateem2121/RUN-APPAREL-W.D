@@ -20,8 +20,8 @@ rendered print is the only judge (its "Before you change the pipeline").
 
 - **🟡 `model-viewer.toDataURL()` returns a blank canvas** —
   `preserveDrawingBuffer: false`. Screenshot the element.
-  🟡 **`toBlob()` IS DIFFERENT AND IS ALSO NOT A MEASURING TOOL.** Measured
-  2026-08-27: `toBlob` returns REAL pixels where `toDataURL` is blank —
+  🟡 **`toBlob()` is different and is also not a measuring tool.** Measured
+  2026-08-27: `toBlob` returns real pixels where `toDataURL` is blank —
   1894x1440, 2,724,397 non-blank — so the `preserveDrawingBuffer` reasoning above
   does not apply to it. **But it does not reflect live scene-graph mutations.**
   Painting a decal bright red and diffing two `toBlob` captures reported **0
@@ -32,7 +32,7 @@ rendered print is the only judge (its "Before you change the pipeline").
   frame.** A no-op write through model-viewer's own
   `setAlphaCutoff(getAlphaCutoff())` does, and unlike nudging the camera it cannot
   move the view being judged.
-- **🟡 `fieldOfView` under 12° was silently ignored until 2026-08-08 — the SECOND
+- **🟡 `fieldOfView` under 12° was silently ignored until 2026-08-08 — the second
   camera control model-viewer overrides without telling you.** The orbit-radius
   clamp is already documented above; this is the same trap on the axis that was
   believed to be the reliable one. `min-field-of-view` defaults to **12deg** and
@@ -49,13 +49,13 @@ rendered print is the only judge (its "Before you change the pipeline").
   is above the old floor and was verified byte-identical across the change, so its
   calibration is untouched. Found by looking at a contact sheet, not by reading code
   — the four identical images were the tell.
-- **N001 guards THREE prints since 2026-08-09** — chest wordmark (14°), hem label
+- **N001 guards three prints since 2026-08-09** — chest wordmark (14°), hem label
   (2.7°), neck logo (3.1°) — and its ceiling went **4.2% → 6.5%** with them. That
   is not a loosened gate: the hem label sits on a curved hem, decimates harder
   than the flat chest print, and is now the worst case in all four rows (balanced
   3.970%, control 10.520%, known-bad 12.330%). A harder view was added; no
   measurement drifted. Three things from that session will save the next one:
-  🟡 **`--find-views` proposes the zoom that frames the PRIMITIVE**, which on the
+  🟡 **`--find-views` proposes the zoom that frames the primitive**, which on the
   neck logo sliced "RUN" off the bottom edge — the print is two elements and the
   primitive covers one — so the shipped view is one rung wider than proposed, and
   that is visible only in the PNG, never in the number. The camera-fingerprint
@@ -67,7 +67,7 @@ rendered print is the only judge (its "Before you change the pipeline").
   RUNBOOK's repo-relative one did not exist.
   🟡 That calibration was measured on a **busy** machine (the wordmark column came
   back 0.490/2.510/5.290/5.330, an exact match to the busy set recorded above).
-  Busy runs read ~0.48pp LOW, so the ceiling is tighter than intended rather than
+  Busy runs read ~0.48pp low, so the ceiling is tighter than intended rather than
   looser, and the offset was added back explicitly when choosing 6.5%. Re-run idle
   and append a remeasurement when convenient; **do not lower the ceiling to match
   an idle run's higher `balanced`.**
@@ -79,22 +79,22 @@ rendered print is the only judge (its "Before you change the pipeline").
   who copied it verbatim. Relative paths now fall back to the repo root. The lesson
   is the cheap one: **run the documented command, do not read it.**
 - **🟡 A flat frame scores 0.00% against another flat frame.** 2026-09-02: three
-  ARISAN macro crops matched their control PERFECTLY because all three were grey —
+  ARISAN macro crops matched their control perfectly because all three were grey —
   the near-plane getter is read only when three rebuilds the projection, which
   model-viewer does on a FOV change and never on a radius-only move, so a 2.2 m view
   followed by a 0.6 m view kept the far plane and clipped the garment.
   `viewer-page.ts` refreshes the projection on every `camera-change`, `render`
-  names any flat view (`flatViews`, 🟡 FLAT in the CLI), and
+  names any flat view (`flatViews`, 🟡 flat in the CLI), and
   `instruments.browser.test.ts` drives the sequence both ways. Treat a 0.00% on a
   crop as "look at the picture", never as a pass.
   🟡 **Closed for N001 by `pnpm eval:artwork:real`**, the same method on the actual
   382 MB export — **manual and local** (why: "Before you change the pipeline"). Its
   ceilings and camera fingerprints live in `raw/CANONICAL.json`, recalibrated on the
-  truthful harness on 2026-09-02 (C-02). 🟡 **RUN IT ON AN IDLE MACHINE**: with a
+  truthful harness on 2026-09-02 (C-02). 🟡 **Run it on an idle machine**: with a
   test suite alongside every case read a *uniform* ~0.48pp low (2026-08-07, three
   idle runs identical to three decimals) — the baseline render, not decimation.
   🟡 **Do not "fix" a small absolute difference; re-run idle first.**
-  🟡 **The sweep is NOT the authority on a real garment.**
+  🟡 **The sweep is not the authority on a real garment.**
   `sweep-size-vs-artwork.mjs` imports no renderer and renders nothing; it measures
   file size, `artworkAtRisk`, `findArtworkAlphaProblems` and the alpha census. Its
   own recorded output (`output/sweep/sweep.json`) reports `wouldShip: true` for all
@@ -113,34 +113,34 @@ rendered print is the only judge (its "Before you change the pipeline").
   them equally, while one is verified and the other destroys the wordmark. A
   relative invariant cannot pin a value; changing that number means producing a new
   rendered crop, not editing the line.
-- **A backtick inside `review-server.ts`'s page script ENDS the template literal**, and
+- **A backtick inside `review-server.ts`'s page script ends the template literal**, and
   the error names something else (`TypeError: escapeHtml(...)…camera is not a function` —
   the whole template stringified). Cost two cycles on 2026-08-29. The page script must
   contain **zero** backticks.
-- **`pipeline review <dir>` resolves `<dir>` against the PACKAGE dir and indexes ONCE
+- **`pipeline review <dir>` resolves `<dir>` against the package dir and indexes once
   at startup** — a relative path is read from `tools/asset-pipeline/`, and files added
   after start report "0 garment(s)": restart it.
 
 ## From the 2026-08-27 session
 
-*Full record: [SESSION-2026-08-27.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-08-27.md). Here is only what tells you what to DO.*
+*Full record: [SESSION-2026-08-27.md](https://github.com/hateem2121/RUN-APPAREL-W.D/blob/bd384f3c0dc3df196047b1dd5e6d6b399bd3d4a1/docs/archive/sessions/SESSION-2026-08-27.md). Here is only what tells you what to do.*
 
-🟡 **COMPARE THE ARTIFACTS, NOT A PICTURE OF THE DIFFERENCE.** A rendered diff shows what
-CHANGED, never whether it got WORSE: a macro crop "proved" reduced texture settings had
+🟡 **Compare the artifacts, not a picture of the difference.** A rendered diff shows what
+changed, never whether it got worse: a macro crop "proved" reduced texture settings had
 damaged a slogan, and `pipeline textures` showed the artwork byte-identical — only the
-fabric atlas had shrunk, and the changed CLOTH outlined each stroke. Two wrong conclusions
+fabric atlas had shrunk, and the changed cloth outlined each stroke. Two wrong conclusions
 and an hour.
 
-🟡 **`pnpm eval:artwork` PASSES ON macOS.** Measured 2026-08-29 on this machine:
-**fidelity 1.680 / balanced 3.100 against the 5.000% ceiling, and CONTROL 9.390 — 3.0x
+🟡 **`pnpm eval:artwork` passes on macOS.** Measured 2026-08-29 on this machine:
+**fidelity 1.680 / balanced 3.100 against the 5.000% ceiling, and control 9.390 — 3.0x
 the shipped preset, above the ceiling as a negative control must be: a clean pass**,
 matching the 2026-08-28 audit; `c405537` ("give eval:artwork the same baseline its
-optimized runs get") fixed the baseline. 🟡 **So do NOT dismiss a local failure as a
+optimized runs get") fixed the baseline. 🟡 **So do not dismiss a local failure as a
 platform artefact** — it would hide a real regression. CI runs it inside the
 `mcr.microsoft.com/playwright` image matching `@playwright/test`, and 🟡 **do not raise the ceiling to make
 anything green.**
 
-🟡 **`review-server.ts` and `apps/viewer` are DIFFERENT PAGES.** A fix in one is not in the
+🟡 **`review-server.ts` and `apps/viewer` are different pages.** A fix in one is not in the
 other; the review viewer kept flickering after the product was fixed, which read as "the
 fix did not work". Both carry the bias at `-8/-8`, pinned by `review-server.test.ts`.
 🟡 **A `git add -A` once swept this file's constant into a viewer commit**; stage per

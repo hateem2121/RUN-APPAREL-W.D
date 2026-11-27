@@ -35,10 +35,10 @@ reported clean while measuring nothing — a WebGL buffer read after compositing
 `preserveDrawingBuffer`), a sample box on the wrong part of the garment, and
 `drawImage` on model-viewer's non-preserved canvas returning a stale frame (tell:
 identical counts across five colourways). Prove the harness sees a defect you
-INTRODUCE, not just that it passes a good case. Before adding a test, ask what would have to break for it to fail. If
+introduce, not just that it passes a good case. Before adding a test, ask what would have to break for it to fail. If
 the answer is "nothing that happens in production", it is not a test.
 
-## Coverage floors are MEASURED, not chosen
+## Coverage floors are measured, not chosen
 
 (`vitest.coverage.mjs`, a `thresholds:` block per package, `scripts/check-coverage.mjs`
 for the repo.)
@@ -46,10 +46,10 @@ for the repo.)
 `.claude/hooks/guard-coverage-floor.mjs` refuses an Edit or Write that does; raising
 one is allowed. `apps/viewer` is deliberately the lowest (58% of lines, against 84% and up
 elsewhere; `apps/viewer/vitest.config.ts` has the four numbers)
-— do NOT "fix" it by excluding `App.tsx`/`Stage.tsx`; most of its uncovered
+— do not "fix" it by excluding `App.tsx`/`Stage.tsx`; most of its uncovered
 lines are in those two, so dropping them reports a far higher number while
 testing identically. (`RenderPage.tsx` was the third until it was deleted on
-2026-08-17 with the poster-capture job; the floor was deliberately NOT raised
+2026-08-17 with the poster-capture job; the floor was deliberately not raised
 to match — a threshold is a measurement, and a number a deletion happened to
 produce is one nobody measured.) They are covered by `apps/viewer/e2e/` in a
 real browser, because
@@ -64,7 +64,7 @@ machine, run 36285360710; split across `e2e-shard` machines since 2026-09-29, si
 locally (**about 45s**, four engines) — run it before pushing a viewer change. Two CI
 round trips were spent learning that.
 
-🟡 **Playwright's browsers are NOT installed here, and a missing one fails at 0ms.**
+🟡 **Playwright's browsers are not installed here, and a missing one fails at 0ms.**
 Found 2026-08-27: `test:e2e` reported four engines failing with `(0ms)`, which reads
 as broken code and is a browser that never launched. Install once —
 `npx --yes pnpm@12.15.0 --filter @run-apparel/viewer exec playwright install chromium webkit firefox`.
@@ -75,7 +75,7 @@ as broken code and is a browser that never launched. Install once —
 late") failed on PRs #111 and #114 (2026-10-01) and passed on a re-run of the failed job.
 Re-run it before debugging it.
 
-🟡 **EVERY LOADER HIDES UNDER AUTOMATION, so a test of one must act like a person** (12 Nov 2026): the
+🟡 **Every loader hides under automation, so a test of one must act like a person** (12 Nov 2026): the
 website curtain and the garment opening screen both skip themselves when `navigator.webdriver` is true,
 and an Awwwards motion recording's first frame at 0.6 s showed the finished page. Lift the flag with
 `addInitScript` and set `reducedMotion: 'no-preference'`, as `apps/cms/e2e/firstArrival.spec.ts` does.

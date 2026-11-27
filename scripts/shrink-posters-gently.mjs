@@ -254,8 +254,8 @@ export function idOf(value) {
 /**
  * Replace ONLY `posterPreview`, on ONLY the rows named in `idsBySlug`; every other
  * row and every other field is returned untouched. A PATCH to `colourways` replaces
- * the WHOLE array (apps/cms/CLAUDE.md — "A PATCH to an array field REPLACES THE
- * WHOLE ARRAY"), so the caller must send every row back, and this is the one place
+ * the WHOLE array (apps/cms/CLAUDE.md — "A PATCH to an array field replaces the
+ * whole array"), so the caller must send every row back, and this is the one place
  * that decides which field is allowed to differ.
  *
  * @param {import('./shrink-posters-gently.d.mts').ColourwayRow[]} rows
@@ -294,8 +294,8 @@ const RELATION_FIELDS = new Set(['posterPreview', 'glbAsset'])
 
 /**
  * Compare what was SENT in a colourways PATCH against what Payload reports for that
- * array afterwards. A 200 is not storage (apps/cms/CLAUDE.md — "A PATCH NAMING A
- * PROJECTED FIELD RETURNS 200 AND STORES NOTHING" cost eleven silent no-ops on
+ * array afterwards. A 200 is not storage (apps/cms/CLAUDE.md — "A PATCH naming a
+ * projected field returns 200 and stores nothing" cost eleven silent no-ops on
  * 2026-09-04), so every write in this script is read back and compared field by
  * field rather than trusted from the response status.
  *

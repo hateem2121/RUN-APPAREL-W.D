@@ -18,7 +18,7 @@ on:
   workflow_dispatch: {}
 
 # WHY IT BLOCKS NOTHING. The ruleset may list a job only AFTER a workflow on main posts
-# it (.github/CLAUDE.md, "ORDER MATTERS HERE TOO"), so a pull request that adds a gating
+# it (.github/CLAUDE.md, "Order matters here too"), so a pull request that adds a gating
 # job disagrees with the ruleset until it merges, by design; this therefore runs on main,
 # not on pull requests. A failure reaches the owner through GitHub's own
 # workflow-failure notification, as perf-watch.yml and link-crawl.yml do.

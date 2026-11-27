@@ -61,9 +61,9 @@ ls -lh backups/d1 | tail -3
 See `docs/BACKUP-RESTORE.md` for the restore path — read it now, not during an
 incident.
 
-### 2. Capture the live payload BEFORE
+### 2. Capture the live payload before
 
-⚠️ **THE SLUG IS `rxps`, and a wrong one makes this whole step a no-op.** A wrong slug
+⚠️ **The slug is `rxps`, and a wrong one makes this whole step a no-op.** A wrong slug
 returns **404, 84 bytes, `{"error":"not_found"}`**, and two 404s diff to nothing, so
 step 5's "empty diff is the pass condition" passes *by construction* — the single check
 that caught the last data-loss incident, passing no matter what the migration did to the
@@ -86,12 +86,12 @@ related garments joined the payload in between, and #249 dropped the two `catalo
 98 bytes, on 2026-10-25). The size moves as the product's content does; the code and the
 colourway count are the check.
 
-⚠️ **Longer is fine; SHORTER, or a non-zero exit, is a stop.** The payload grows when
+⚠️ **Longer is fine; shorter, or a non-zero exit, is a stop.** The payload grows when
 sales copy is added (it did on 2026-09-08), so "longer than expected" is the reading
 that gets waved through. Re-measure this line whenever `slug` or `productCode` changes:
 they are different fields, and a stale expected value leaves the reader unable to tell
 a real regression from a documentation lag.
-🟡 **A code change can shorten it on purpose, so a SHORTER reading means: diff before deciding.**
+🟡 **A code change can shorten it on purpose, so a shorter reading means: diff before deciding.**
 Compare it field by field with the last saved capture (`backups/`) and find the commit that
 removed each missing field. On 2026-10-26 the before-capture read 98 bytes short; the diff showed
 only the two `catalogueUrl` fields, removed by #249 the day before on the owner's decision.
@@ -130,7 +130,7 @@ Merge to `main`. Watch the run:
 gh run watch
 ```
 
-### 5. Capture AFTER, and diff
+### 5. Capture after, and diff
 
 ```bash
 curl -s https://cms.wear-run.help/api/public/viewer/rxps/wine > /tmp/rxps-wine-after.json
@@ -154,7 +154,7 @@ curl -s -o /dev/null -w '%{http_code} %{size_download}\n' <the model URL>
 ```
 
 Plain `GET`, bare URL, no `?v=`. If it 404s, confirm the object exists under exactly
-that key — `--remote` is required, or wrangler reads LOCAL storage and reports a real
+that key — `--remote` is required, or wrangler reads local storage and reports a real
 object as missing (`<key>` is the URL's path without the leading `/`):
 
 ```bash

@@ -17,10 +17,10 @@ public website that feed it. A CLO 3D export goes in, a compressed GLB comes out
 buyer scans a garment tag and turns the garment in 3D. **For a garment reference the
 printed artwork IS the product** — "the 3D loads" is not success; look at the print.
 
-🔴 **The repository is PUBLIC (since 2026-09-10).** Commit code, tests and docs only: no
+🔴 **The repository is public (since 2026-09-10).** Commit code, tests and docs only: no
 audits, supplier or factory data, D1 dumps, customer data, secrets or PDF link codes.
 Why: on 2026-09-11 a public Actions log carried a presigned link to the whole database
-(`.github/CLAUDE.md`). Before a CI step runs a CLI against production, ask what it PRINTS.
+(`.github/CLAUDE.md`). Before a CI step runs a CLI against production, ask what it prints.
 
 ## Where things are
 
@@ -123,7 +123,7 @@ is missed:
 
 | Hook in `.claude/hooks/` | What it does |
 |---|---|
-| `guard-bare-pnpm.mjs`, `guard-pipeline-input.mjs`, `guard-main-branch.mjs`, `guard-coverage-floor.mjs`, `guard-live-form.mjs` | Rewrite a bare `pnpm` to the `npx` form; refuse the pipeline on its own output, a commit or push on `main`, an edit that lowers a coverage floor, and a post to the LIVE contact or careers form (every post emails the team; never fill it in a browser either — test on localhost:4174) |
+| `guard-bare-pnpm.mjs`, `guard-pipeline-input.mjs`, `guard-main-branch.mjs`, `guard-coverage-floor.mjs`, `guard-live-form.mjs` | Rewrite a bare `pnpm` to the `npx` form; refuse the pipeline on its own output, a commit or push on `main`, an edit that lowers a coverage floor, and a post to the live contact or careers form (every post emails the team; never fill it in a browser either — test on localhost:4174) |
 | `format-edited-file.mjs`, `check-doc-citations.mjs` | After each edit: Biome formats the file; a Markdown edit re-checks citations |
 | `explain-failure.mjs` | Names the real cause when an error blames the wrong thing |
 | `note-compaction.mjs`, `recall-nested-instructions.mjs` | After `/compact`, name the instruction files no longer loaded |
@@ -133,7 +133,7 @@ is missed:
 
 Only this file loads in every session. The rest load when Claude reads a matching file:
 the Read, Write or Edit tool, or a plain `cat`, `head`, `tail`, `sed -n 'X,Yp'` or `grep`
-of ONE file. A pipe or a redirect (`… | head`, `> out`) makes it not count, so in a
+of one file. A pipe or a redirect (`… | head`, `> out`) makes it not count, so in a
 Bash-first session read the matching file on its own before changing anything
 (Anthropic's memory and tools-reference pages, read 2026-10-23). After `/compact` only
 this file comes back; a hook names the others.

@@ -17,7 +17,7 @@ bullets moved here from `apps/cms/CLAUDE.md` the same day, also word for word.
   does**: stage or drop referencing tables first. A `DROP TABLE` runs an implicit
   `DELETE`, and that cascades.
 - 🟢 **`node:sqlite` is built into Node (22.5 and up; CI runs 26)** — `scripts/verify-backup.mjs`
-  uses it to replay a D1 dump with foreign keys ON. Reach for it before adding a
+  uses it to replay a D1 dump with foreign keys on. Reach for it before adding a
   SQLite dependency.
 
 ## Before you change a migration
@@ -26,7 +26,7 @@ Run `apps/cms/src/migrationReplay/replay.test.ts`. It replays every migration ag
 real SQLite with foreign keys **on**, seeds every table, and fails if any table
 that had rows ends up empty. It exists because a migration once reported success
 while cascade-deleting two tables nobody was watching. Since 2026-09-29 it also seeds
-**two** rows per table (all 31 take them) and fails if any table ends up with FEWER —
+**two** rows per table (all 31 take them) and fails if any table ends up with fewer —
 at one row, losing part of a table and losing all of it were the same event, so a
 partial delete passed. A migration that means to delete rows must say so in that test.
 
@@ -43,7 +43,7 @@ with a negative control that drops `products` to prove it can see a cascade — 
 signature of the 2026-07-29 incident, a migration that **reported success while
 cascade-deleting**, on the path `migrate:remote:down` runs against production.
 
-`down()` is NOT held to the partial-loss rule `up()` is: undoing a migration that
+`down()` is not held to the partial-loss rule `up()` is: undoing a migration that
 inserted rows legitimately deletes them again.
 
 ## Reading production D1 without the wrangler CLI

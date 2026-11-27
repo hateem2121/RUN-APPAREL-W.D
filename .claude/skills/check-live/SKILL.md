@@ -33,12 +33,12 @@ cached 404 shows up as a 404, for 1 KB.
   from the media host is `no-store` (a missing `.glb` answered `BYPASS` on 2026-09-24).
   The object is missing or its key differs; confirm with
   `npx --yes wrangler@4.164.0 r2 object get "run-apparel-viewer-media/<key>" --remote --file /tmp/r2-check`
-  (without `--remote` wrangler reads LOCAL storage and reports a real object as missing).
+  (without `--remote` wrangler reads local storage and reports a real object as missing).
   Never a redeploy.
 - **`FAIL API ... HTTP 404`** — the slug is not served. Slugs are printed on physical
   QR tags, so the slug is not the thing to change; find what renamed.
 - **Every garment with a model ends in `model carries no CLO metadata … (JSON chunk N KB)`
-  or a FAIL.** Until 2026-10-24 a JSON chunk over 512 KB printed NOTHING on a clean scan,
+  or a FAIL.** Until 2026-10-24 a JSON chunk over 512 KB printed nothing on a clean scan,
   so copyright and extras went unchecked for r-ttp (552 KB) and r-mss (1,284 KB). A garment
   with no verdict line now is a bug in this script — count them.
 - **`note "<colourway>" is not a colourway`** — not an outage. The API fell back on
