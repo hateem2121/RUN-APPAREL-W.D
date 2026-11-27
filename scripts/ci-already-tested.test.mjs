@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { alreadyTested, verdict } from './ci-already-tested.mjs'
+import { jobBlocks, jobNeeds } from './check-required-checks.mjs'
 
 /**
  * scripts/ci-already-tested.mjs lets a push to `main` skip the browser tests. A wrong `proven`
@@ -180,4 +182,93 @@ test('the gate: every other way of not running fails', () => {
   ]) {
     assert.equal(verdict(results).ok, false, JSON.stringify(results))
   }
+})
+
+/**
+ * A JOB DOWNSTREAM OF THE SHARDS MUST NAME EVERY NEED'S RESULT (27 Nov 2026). `e2e-shard` may be
+ * skipped on proof, and GitHub skips every job further down the chain unless its `if:` replaces
+ * the unwritten `success()`: the merge of #494 passed `e2e` and then skipped `deploy` (run
+ * 45959048828). With `!cancelled()` in its place each need must be named, or a red gate deploys.
+ */
+// The opening of a GitHub expression, spelled apart so that no string here reads as a template.
+const OPEN = '$' + '{{'
+
+function unguardedJobs(source) {
+  const blocks = jobBlocks(source)
+  const downstream = new Set(['e2e-shard'])
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const [id, text] of blocks) {
+      if (!downstream.has(id) && jobNeeds(text).some((need) => downstream.has(need))) {
+        downstream.add(id)
+        grew = true
+      }
+    }
+  }
+  const problems = []
+  for (const id of downstream) {
+    // `e2e-shard` is the job that skips; `e2e` decides with `verdict` above, not with an `if:`.
+    if (id === 'e2e-shard' || id === 'e2e') continue
+    const text = blocks.get(id) ?? ''
+    const condition = (text.match(/^ {4}if:[ \t]*(>-\n(?: {6}.*\n?)+|.*)/m)?.[1] ?? '').replace(
+      /\s+/g,
+      ' ',
+    )
+    if (!condition.includes('!cancelled()')) problems.push(`${id}: no !cancelled()`)
+    for (const need of jobNeeds(text)) {
+      if (!condition.includes(`needs.${need}.result == 'success'`)) {
+        problems.push(`${id}: does not check needs.${need}.result`)
+      }
+    }
+  }
+  return problems
+}
+
+test('ci.yml: every job downstream of the shards names each need it waits for', () => {
+  const source = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8')
+  assert.deepEqual(unguardedJobs(source), [])
+  // The check found jobs to judge: an empty list from an unparsed file would prove nothing.
+  assert.ok(jobBlocks(source).has('deploy') && jobBlocks(source).has('deploy-shrink'))
+})
+
+test('control: the conditions that skipped the deploy on 27 Nov are reported', () => {
+  const shape = (deployIf) => `jobs:
+  changes:
+    runs-on: x
+  e2e-shard:
+    needs: [changes]
+    if: needs.changes.outputs.browser_tests != 'proven'
+  e2e:
+    needs: [e2e-shard, changes]
+    if: \${{ !cancelled() }}
+  deploy:
+    needs: [e2e, changes]
+${deployIf}
+`
+  assert.deepEqual(unguardedJobs(shape("    if: github.ref == 'refs/heads/main'")), [
+    'deploy: no !cancelled()',
+    'deploy: does not check needs.e2e.result',
+    'deploy: does not check needs.changes.result',
+  ])
+  // One need left out of an otherwise right condition is still reported.
+  assert.deepEqual(
+    unguardedJobs(
+      shape(
+        '    if: >-\n      ' +
+          OPEN +
+          " !cancelled()\n      && needs.e2e.result == 'success'\n      && github.ref == 'refs/heads/main' }}",
+      ),
+    ),
+    ['deploy: does not check needs.changes.result'],
+  )
+  assert.deepEqual(
+    unguardedJobs(
+      shape(
+        '    if: >-\n      ' +
+          OPEN +
+          " !cancelled()\n      && needs.e2e.result == 'success'\n      && needs.changes.result == 'success' }}",
+      ),
+    ),
+    [],
+  )
 })
