@@ -1298,7 +1298,25 @@ jobs:
     needs: [verify, e2e, audit, secrets, artwork, changes]
     # Enabled once Cloudflare secrets are configured (Phase 10):
     #   gh variable set DEPLOY_ENABLED --body true
-    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true' && needs.changes.outputs.site == 'true'
+    # ⚠️ EVERY NEED IS CHECKED BY NAME, WITH `!cancelled()` (27 Nov 2026). GitHub's workflow-syntax
+    # page (read that day): "If a job fails or is skipped, all jobs that need it are skipped … a
+    # failure or skip applies to all jobs in the dependency chain". So when `e2e-shard` was skipped
+    # on proof (see `changes`), `e2e` passed and this job was SKIPPED anyway: run 45959048828, the
+    # merge of #494, went green and deployed nothing. A plain `if:` carries an unwritten
+    # `success()` that reads the whole chain; `!cancelled()` replaces it, so each result must then
+    # be named or a red gate would deploy. Proved both ways on a throwaway branch (run 45960192458).
+    # scripts/ci-already-tested.test.mjs holds this job and `deploy-shrink` to it.
+    if: >-
+      ${{ !cancelled()
+      && needs.verify.result == 'success'
+      && needs.e2e.result == 'success'
+      && needs.audit.result == 'success'
+      && needs.secrets.result == 'success'
+      && needs.artwork.result == 'success'
+      && needs.changes.result == 'success'
+      && github.ref == 'refs/heads/main'
+      && vars.DEPLOY_ENABLED == 'true'
+      && needs.changes.outputs.site == 'true' }}
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     # The `production` environment is a LABEL here, and that is a CLOSED DECISION
@@ -2357,7 +2375,21 @@ jobs:
   # run until 2026-07-28 with `ApiError: Forbidden`. Full table: docs/RUNBOOK.md.
   deploy-shrink:
     needs: [changes, verify, artwork, audit, secrets, shrink-image-audit, deploy]
-    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true' && vars.SHRINK_DEPLOY_FROM_CI == 'true' && needs.changes.outputs.shrink == 'true'
+    # Every need by name, with `!cancelled()`: the reason is beside `deploy`'s `if:`. It needs
+    # `deploy`, whose chain holds the browser-test shards that a push to main may skip on proof.
+    if: >-
+      ${{ !cancelled()
+      && needs.changes.result == 'success'
+      && needs.verify.result == 'success'
+      && needs.artwork.result == 'success'
+      && needs.audit.result == 'success'
+      && needs.secrets.result == 'success'
+      && needs.shrink-image-audit.result == 'success'
+      && needs.deploy.result == 'success'
+      && github.ref == 'refs/heads/main'
+      && vars.DEPLOY_ENABLED == 'true'
+      && vars.SHRINK_DEPLOY_FROM_CI == 'true'
+      && needs.changes.outputs.shrink == 'true' }}
     runs-on: ubuntu-26.04
     # 45: the image build runs `npm ci` for sharp, which links against system libraries.
     timeout-minutes: 45

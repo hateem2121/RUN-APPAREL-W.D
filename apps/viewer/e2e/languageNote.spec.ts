@@ -288,7 +288,23 @@ test.describe('a browser that asks for Russian first, on the English page', () =
        * nothing: the page was still settling by 4px on CI's slower WebKit when the first reading
        * was taken. So the page is read once it holds still, with the note showing, and again
        * straight after the × takes the note away (below, after the note's own boxes are read).
+       *
+       * ⚠️ AND IT WAITS FOR THE FOOTER'S NAME TO BE FITTED, BY NAME (27 Nov 2026). The 4px is
+       * `.footer-mark`: unfitted it is 85px tall (its letters 1,335px wide in a 1,280px slab),
+       * fitted 81px, and `watchWordmarkFit` marks a fit by writing the size inline. Timed in
+       * CI's image (v1.64.1-noble, 4 CPUs): Chromium fits at about 175 ms, WebKit between 2.2
+       * and 5.7 s after the page opens, so "held still for 250 ms" could pass seconds BEFORE
+       * the fit and the page then shrank under the note. With only that wait this loop failed 8
+       * of 120 times there (mobile Safari and WebKit); main's run 45945482262 passed it on the
+       * retry, and Dependabot's 45552789135 failed it twice. A wait on the clock measures the
+       * machine; this waits for the thing. Why WebKit fits late was not determined.
        */
+      await expect
+        .poll(() => page.locator('.footer-mark').evaluate((el: HTMLElement) => el.style.fontSize), {
+          message: "the footer's name was never fitted",
+          timeout: 15_000,
+        })
+        .not.toBe('')
       await expect
         .poll(
           async () => {
