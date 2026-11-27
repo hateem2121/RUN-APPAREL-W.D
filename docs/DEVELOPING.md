@@ -126,14 +126,14 @@ it pulled expires after 14 days and the surviving copy is local, where no runner
 reach it. See `docs/RUNBOOK.md` → "The canonical raw garment".
 
 **Scheduled workflows** — the first eight pause when `DEPLOY_ENABLED` is not `true`
-(off means no backups and no monitoring); the last four watch the repository itself and
+(off means no backups and no monitoring); the last five watch the repository itself and
 run either way:
 
 | Workflow | Cadence | What it does |
 |---|---|---|
 | `uptime.yml` | every 6 h since 2026-09-29 (daily from 2026-08-18) *(requested — GitHub delivers 19–90 min late, measured n=11)* | health + viewer + **every** live product's model payload + both apex PDFs; opens an `outage` issue |
 | `nightly-backup.yml` | nightly | D1 export; R2 media mirror on Mondays |
-| `heartbeat.yml` | every 6 h | checks the other scheduled workflows have actually *run* — its `WATCHED` list names all eleven; opens a `monitoring` issue |
+| `heartbeat.yml` | every 6 h | checks the other scheduled workflows have actually *run* — its `WATCHED` list names fourteen; opens a `monitoring` issue |
 | `diagnostics-digest.yml` | Mondays | reads the Events table — the client errors the viewer records |
 | `perf-watch.yml` | Mondays | live response times vs the thresholds in `docs/QA-CHECKLIST.md`; a 403 is inconclusive, never a failure |
 | `lighthouse-live.yml` | Tuesdays, and after each deploy | Lighthouse 13.6.0 on the four pages `scripts/lighthouse-robot.mjs` measures (home, products, contact, one garment) — a corner of a site that now has 22 top-level pages and 27 guides — phone and computer, five runs each, judged on the median; a 403 is inconclusive, never a failure |
@@ -143,6 +143,7 @@ run either way:
 | `security-scans.yml` | Wednesdays, and after each merge to `main` | publishes OpenSSF Scorecard and the other report-only security scans |
 | `refresh-skills.yml` | Mondays | opens the weekly pull request refreshing the vendored agent skills |
 | `tool-versions.yml` | Mondays | says when a newer actionlint, zizmor, gitleaks or Trivy has been out a week |
+| `gate-health.yml` | Mondays | one issue with the week's check times, the browser tests that failed or needed a retry, and whether Cloudflare offers Encrypted Client Hello again |
 
 `heartbeat.yml` exists because a monitor that fails **before** it measures anything
 opens no alert at all — which is how the uptime check sat dead for ~23 hours on

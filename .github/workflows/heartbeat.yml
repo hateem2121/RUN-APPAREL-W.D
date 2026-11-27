@@ -172,6 +172,9 @@ jobs:
           # guide-sources.yml (added 2026-11-15) is watched for SUCCESS: a broken guide source
           # opens an issue and the run stays green; it fails only when lychee's report cannot be
           # read or checked too few addresses, so a week of red is a dead checker.
+          # gate-health.yml (added 2026-11-27) is watched for SUCCESS: a finding goes into its
+          # weekly issue and the run stays green; it fails only when GitHub's records of ci.yml
+          # cannot be read whole, so a week of red is a dead watcher.
           WATCHED="
           uptime.yml:24:completed:every 6 hours, at :23
           nightly-backup.yml:36:success:nightly
@@ -186,6 +189,7 @@ jobs:
           tool-versions.yml:192:completed:weekly on Mondays
           actions-changelog.yml:192:success:weekly on Tuesdays
           guide-sources.yml:192:success:weekly on Sundays
+          gate-health.yml:192:success:weekly on Mondays
           "
 
           # perf-watch.yml was NOT watched until 2026-08-30 — it could have stopped
