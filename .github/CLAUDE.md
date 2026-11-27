@@ -66,7 +66,8 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   only (GitHub's page, read that day; this one is a user's). So a behind PR merges untested
   against the newest `main`: `main` then runs the browser tests itself, because
   `scripts/ci-already-tested.mjs` finds the files differ, and a clash shows there, before the
-  deploy. Put it back: `strict_required_status_checks_policy: true`. On 2026-10-25 GitHub
+  deploy. To put it back, set the ruleset's `strict_required_status_checks_policy` to true
+  again. On 2026-10-25 GitHub
   accepted a PATCH turning on secret-scanning validity checks and generic patterns, answered
   200 and stored `disabled` for both: not on this plan. The rules below carry its history. It first existed as org ruleset
   `21016174` (applied 2026-08-19, while the repo sat in the RUN-APPAREL org on GitHub
