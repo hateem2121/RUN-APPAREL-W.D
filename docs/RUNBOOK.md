@@ -20,7 +20,7 @@ push and requires the checks `verify`, `e2e`, `audit`, `secrets`, `artwork` and 
 
 1. **The gates**, in parallel — `verify` (lint, typecheck, unit tests with coverage,
    build, bundle weight), `e2e` (the browser tests; since 2026-09-29 they run on separate
-   `e2e-shard` machines, seven since 2026-10-05: three viewer, four website; `e2e` passes only if every one did), `audit`, `secrets`
+   `e2e-shard` machines, sixteen since 2026-11-27: seven viewer, nine website; `e2e` passes only if every one did), `audit`, `secrets`
    and `artwork`.
 2. **deploy**, on `main` only, when every gate passed, `vars.DEPLOY_ENABLED == 'true'`
    *and* something a Worker is built from changed since the last successful deploy.

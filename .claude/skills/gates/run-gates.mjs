@@ -198,7 +198,7 @@ const GATES = [
   },
   {
     name: 'e2e',
-    why: 'separate CI job — ALSO gates the deploy. Slowest in CI (8 machines since 2026-11-07), ~45s locally',
+    why: 'separate CI job — ALSO gates the deploy. Slowest in CI (16 machines since 2026-11-27), ~45s locally',
     argv: [...PNPM, '--filter', '@run-apparel/viewer', 'test:e2e'],
     // ⚠️ THE VIEWER'S TEST SERVER MUST BE THIS RUN'S OWN (2026-11-24). Playwright reuses whatever
     // already answers on 4173 (`reuseExistingServer` off CI). Two sessions ran this gate in two
