@@ -299,14 +299,16 @@ jobs:
       # A glob, so a new hook test is picked up without editing this step; the count floor
       # so a glob matching nothing cannot pass having run nothing (8 existed that day, all
       # green in ~6 s). No build, no browser — plain node in throwaway temp dirs.
+      # The floor is 11 since 2026-11-27, the number on disk that day: at 8, three tests could
+      # have gone missing and this step would still have passed. Raise it when a test is added.
       - name: Hook guard tests (.claude/hooks)
         run: |
           set -euo pipefail
           shopt -s nullglob
           tests=(.claude/hooks/*.test.mjs)
           echo "hook tests found: ${#tests[@]}"
-          if [ "${#tests[@]}" -lt 8 ]; then
-            echo "::error::expected at least 8 .claude/hooks/*.test.mjs, found ${#tests[@]}"
+          if [ "${#tests[@]}" -lt 11 ]; then
+            echo "::error::expected at least 11 .claude/hooks/*.test.mjs, found ${#tests[@]}"
             exit 1
           fi
           for t in "${tests[@]}"; do
@@ -922,6 +924,13 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0 # full history — a secret is usually in an older commit
+      # For scripts/check-secret-scan-count.mjs at the end of the next step (2026-11-27): one
+      # script, node built-ins only, nothing installed. The same block as the `changes` job.
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 26
+          cache: ''
+          package-manager-cache: false
 
       # ⚠️ RUNS THE GITLEAKS BINARY, NOT gitleaks/gitleaks-action — a licence
       # decision AND a coverage one. Both were measured on 2026-08-18.
@@ -999,12 +1008,29 @@ jobs:
           # Proves the binary is real before the scan, so a corrupt archive fails
           # here with a clear message rather than as an ambiguous scan result.
           /tmp/gitleaks version
+          # ⚠️ THE COUNT IS CHECKED, NOT ONLY THE EXIT CODE (2026-11-27). Twice this scan was
+          # green on "1 commits scanned" and "0 commits scanned" (the COVERAGE note above and
+          # .github/CLAUDE.md), and the rule since was for a person to read the count. Now
+          # scripts/check-secret-scan-count.mjs reads it: under 90% of the non-merge commits git
+          # counts from HEAD, or no count at all, fails by name. That file says why a floor and
+          # not "equal" (measured: 1,031 or 1,032 scanned where git counts 1,028 to 1,031).
+          # Written to a file and printed whole, NOT piped: the scan's own exit code is read
+          # first, so a found secret still fails as a found secret.
+          scan=0
           /tmp/gitleaks detect \
             --source . \
             --config .gitleaks.toml \
             --redact \
             --verbose \
-            --exit-code 1
+            --exit-code 1 > /tmp/gitleaks.out 2>&1 || scan=$?
+          cat /tmp/gitleaks.out
+          if [ "$scan" -ne 0 ]; then
+            echo "::error::gitleaks exited ${scan}: a leak, or the scan itself failed (read its lines above)"
+            exit "$scan"
+          fi
+          # A git that cannot count leaves this empty, and the script then fails by name.
+          expected="$(git rev-list --count --no-merges HEAD || true)"
+          node scripts/check-secret-scan-count.mjs /tmp/gitleaks.out "$expected"
 
   # Performance budget + a11y snapshot (Lighthouse CI) against the viewer served
   # with the same server-side mock the e2e suite uses. Informational: it does
@@ -1765,8 +1791,17 @@ jobs:
       # deletes them after upload and emits them 'hidden' so no browser asks for
       # them; this asserts the outcome rather than trusting either mechanism, because
       # the failure is silent and would not be noticed until someone looked.
+      # ⚠️ IT LOOKS ONLY IF THERE IS SOMETHING TO LOOK AT (2026-11-27). The count below comes
+      # from `find … | wc -l`, and a `find` that fails still leaves `wc` printing 0: run against
+      # a folder that did not exist, these lines printed "No source maps in dist. Safe to
+      # deploy." and exited 0. So the built page must be there first, or the step fails by name.
       - name: Assert no source maps are about to be deployed
         run: |
+          set -euo pipefail
+          if [ ! -f apps/viewer/dist/index.html ]; then
+            echo "::error::apps/viewer/dist/index.html is missing: the viewer build is not there, so nothing was checked — refusing to deploy."
+            exit 1
+          fi
           maps=$(find apps/viewer/dist -name '*.map' | wc -l | tr -d ' ')
           if [ "$maps" != "0" ]; then
             echo "::error::$maps source map(s) survived in apps/viewer/dist — refusing to deploy."
