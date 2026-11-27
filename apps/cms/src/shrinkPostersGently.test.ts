@@ -341,8 +341,8 @@ describe('readBackProblems', () => {
   })
 
   it('catches a field Payload silently did not store', () => {
-    // The trap this exists for: apps/cms/CLAUDE.md, "A PATCH NAMING A PROJECTED
-    // FIELD RETURNS 200 AND STORES NOTHING" — a 200 alone would have missed this.
+    // The trap this exists for: apps/cms/CLAUDE.md, "A PATCH naming a projected
+    // field returns 200 and stores nothing" — a 200 alone would have missed this.
     const sent = [row({ posterPreview: 999 })]
     const stored = [row({ posterPreview: 10 })] // the OLD id: the write did not take
     expect(readBackProblems(sent, stored)).toEqual([

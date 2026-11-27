@@ -38,7 +38,7 @@ same header `apps/shrink/src/cms.ts` already uses. Every product write has to pa
 and writes an Events row when a live product loses its colour mapping), plus the
 `beforeValidate` hooks that uppercase a code and derive a slug. A direct INSERT
 skips all of it. `scripts/import-catalogue-products.mjs` is the worked example:
-dry-run by default, idempotent by `productCode`, and it prints Payload's INNER
+dry-run by default, idempotent by `productCode`, and it prints Payload's inner
 validation error (`errors[0].data.errors[]`) because the outer message is the
 useless "The following field is invalid" with no field named.
 
@@ -47,7 +47,7 @@ in D1 with `PAYLOAD_SECRET`, and the robot's copy lives in a Cloudflare secret
 (`CMS_ROBOT_API_KEY` on `apps/shrink`) which Cloudflare will not return.
 🟡 **Regenerating the robot's key breaks the shrink pipeline** — issue a key on a
 different user instead, and untick it afterwards.
-🟡 **Rotating `PAYLOAD_SECRET` kills EVERY API key, the robot's included**, and
+🟡 **Rotating `PAYLOAD_SECRET` kills every API key, the robot's included**, and
 *Generate new API key* stores nothing until **Save**. Follow `docs/RUNBOOK.md` →
 "Rotating PAYLOAD_SECRET" (2026-09-10: skipping either stranded a job on Queued).
 
@@ -61,7 +61,7 @@ one**, 66 of them then drafts with no colourways, deliberately: the CLO
 file names the colours (`ImportColoursFromFile`), so guessing 335 tag slugs was
 refused. Three defects are in the PDF itself, not the data: its product codes are
 unusable (67 products share 26; `R-XPB` alone is printed on 26 garments, so the
-CMS codes are generated and do NOT match the book), pages 66/67 have their
+CMS codes are generated and do not match the book), pages 66/67 have their
 material blocks crossed (which dropped a genuine-leather claim from a polyurethane
 jacket — unsettled), and the index contradicts the artwork on two garments.
 `scripts/catalogue-products.json` carries `sourcePage` on every row so any value
@@ -81,7 +81,7 @@ name it the way the existing objects are named (`<product>-<colour>-poster.webp`
 `altText` on a colourway auto-fills from `productName` + `displayName` via a
 `beforeValidate` hook, so leave it out rather than retyping it.
 
-🟡 **A PATCH to an array field REPLACES THE WHOLE ARRAY.** Fetch the product first,
+🟡 **A PATCH to an array field replaces the whole array.** Fetch the product first,
 change only the field you mean to, and send **every row back with its `id`** — or
 Payload drops the rows you omitted. Row order decides the default colourway and each
 `slug` is printed on a physical QR tag, so a partial send is silent data loss. Print
@@ -95,13 +95,13 @@ trap in the root file. A fresh upload answers `200` with `cf-cache-status: MISS`
 
 ## Writing to a product from a script — four things measured 2026-09-04
 
-- **🟡 The shrink robot REFUSES to attach a model or import colours to a PUBLISHED product** —
+- **🟡 The shrink robot refuses to attach a model or import colours to a published product** —
   "swapping the model under a published page is your decision, not the robot's"
   (`apps/shrink/src/colourImport.ts`, and the same refusal for `glbAsset`). So a republish is
-  TWO acts: the robot produces the Media doc, then a human PATCHes `glbAsset`. Do not read a
+  two acts: the robot produces the Media doc, then a human PATCHes `glbAsset`. Do not read a
   `ready` raw upload as "the live page changed" — eleven garments went through on 2026-09-04
   and not one attached itself.
-- **`retry` only fires on a false → true TRANSITION** (`rawUploadRetry.ts` → `retryDecision`:
+- **`retry` only fires on a false → true transition** (`rawUploadRetry.ts` → `retryDecision`:
   `doc.retry === true && previousDoc.retry !== true`). PATCHing `{retry:true}` onto a row that
   is already `true` returns **200 and does nothing at all**. Reset it to `false`, then tick it.
 - **`sortOrder` is a plain `number` with no uniqueness rule**, so **10.5** inserts a product
@@ -114,6 +114,6 @@ trap in the root file. A fresh upload answers `200` with `cf-cache-status: MISS`
   was retired by owner decision (docs/BACKUP-RESTORE.md); the script is gone with it, so
   every re-ingestion is now a fresh upload from the owner's Mac, the same as a first-time
   garment — `scripts/ingest-local-glb.mjs`, or a browser upload through the CMS at
-  ~300 kB/s. 🟢 Its `clientUploadContext` must be TRUTHY, or `@payloadcms/storage-r2`
+  ~300 kB/s. 🟢 Its `clientUploadContext` must be truthy, or `@payloadcms/storage-r2`
   skips its own >50 MB short-circuit and the CMS Worker tries to buffer the whole object
   to satisfy a create.

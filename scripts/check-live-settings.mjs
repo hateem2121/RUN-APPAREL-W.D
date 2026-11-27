@@ -27,7 +27,7 @@ const REPOSITORY = 'hateem2121/RUN-APPAREL-W.D'
 /** What the notes say. Change a value here only together with the note that decided it. */
 export const EXPECTED = {
   github: {
-    // .github/CLAUDE.md, "Since 2026-11-07 … lets ONLY `main` use its six secrets".
+    // .github/CLAUDE.md, "Since 2026-11-07 … lets only `main` use its six secrets".
     'production environment: branch policy': 'custom',
     'production environment: allowed branches': ['main'],
     // NOT code scanning's setup: GitHub's docs ("Get a code scanning default setup configuration",

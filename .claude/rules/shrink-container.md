@@ -18,36 +18,36 @@ rule that `apps/shrink` must never reach `tools/asset-pipeline/src/validate.ts` 
   own weekly Dependabot pull request (the `/apps/shrink/container` block in
   `.github/dependabot.yml`); the workspace's npm block never reached them.
   🟢 **The typecheck step was never the gap — `npm ci` is.** `tools/asset-pipeline`
-  carries a SECOND lockfile (`package-lock.json`, npm's, read only by
+  carries a second lockfile (`package-lock.json`, npm's, read only by
   `apps/shrink/Dockerfile`) that no workspace tooling maintains, so bumping that
   `package.json` in the workspace desynchronises it and the image build dies on
   `npm ci` **after** every local gate has passed. Cost a deploy on 2026-08-12; full
   procedure in `tools/asset-pipeline/CLAUDE.md`.
 - **🟡 The shrink container runs as uid 1000, not root, since 2026-08-13 — it can
-  write ONLY under `/tmp`.** `/app` is root-owned and read-only to it, so any new
+  write only under `/tmp`.** `/app` is root-owned and read-only to it, so any new
   scratch path must go through `mkdtemp(join(tmpdir(), …))` as `container/server.ts`
   already does. A write to `/app` will pass every local gate and fail at runtime
   inside the Container, where the error surfaces as a failed shrink job rather
   than as a permissions problem. Verified by running the image: writes `/tmp`,
   refused `/app`, service starts and answers. The base image is **digest-pinned**
   for build reproducibility (sharp links against system libs).
-  🟡 **SINCE 2026-10-03 DEPENDABOT PROPOSES DIGEST BUMPS — CHECK A PRINT BEFORE MERGING
-  ONE.** `.github/dependabot.yml` gained a `docker` ecosystem for `apps/shrink` that day
+  🟡 **Since 2026-10-03 Dependabot proposes digest bumps — check a print before merging
+  one.** `.github/dependabot.yml` gained a `docker` ecosystem for `apps/shrink` that day
   (owner decision, told that CI does not render garments inside this image): one pull
   request at a time, within the current Node major (26 since 2026-10-24), after a 7-day
   cooldown. Until then nothing automated
   refreshed the pin. A digest bump changes the system libraries sharp links against, so
   look at a rendered garment print before merging one; `apps/cms/src/baseImageAge.test.ts`
   still turns CI red when the pin ages. Do not unpin it to make an update easier. The
-  Playwright container in `.github/workflows/ci.yml` was pinned by TAG alone until
-  2026-09-29; since then it is tag AND digest (owner decision — a tag can be republished, a
+  Playwright container in `.github/workflows/ci.yml` was pinned by tag alone until
+  2026-09-29; since then it is tag and digest (owner decision — a tag can be republished, a
   digest cannot), both bumped by hand in the same change, and `workflowHardening.test.ts`
   refuses an image without the digest. Dependabot's `needs-hand-sync` group proposes the
   `@playwright/test` bump; the session that finishes it moves the tag and digest with it.
-- **🟢 A CLO 7.0 export arrives as one GLB PER COLOURWAY** (`_0.._N`); `pipeline merge`
+- **🟢 A CLO 7.0 export arrives as one GLB per colourway** (`_0.._N`); `pipeline merge`
   joins them, and **`apps/shrink` never calls it**. See `tools/asset-pipeline/CLAUDE.md`.
 
-## `tools/asset-pipeline/` has TWO lockfiles, and only one of them pnpm maintains
+## `tools/asset-pipeline/` has two lockfiles, and only one of them pnpm maintains
 
 **If you change `tools/asset-pipeline/package.json`, you must regenerate
 `package-lock.json` by hand, or the container deploy fails on `main`.**
@@ -69,7 +69,7 @@ because **none of them run `npm ci`**. `.claude/rules/shrink-container.md` alrea
 step"; the typecheck step was never the gap. `npm ci` is, and it lives one
 directory away, here.
 
-✅ **CAUGHT LOCALLY.** `scripts/check-lockfile-sync.mjs`
+✅ **Caught locally.** `scripts/check-lockfile-sync.mjs`
 reproduces `npm ci`'s own sync rule with no npm, no network and no install, and
 runs inside `pnpm test` via `apps/cms/src/lockfileSync.test.ts`. It also fails on
 the `"resolved": "file:"` paths that appear when the lockfile is regenerated
