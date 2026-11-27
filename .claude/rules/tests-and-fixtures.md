@@ -30,7 +30,7 @@ reason: the test fixtures could not exhibit the failure.**
 **If production compresses, seed compressed. If production prints, seed a
 print.**
 
-🟡 **A NEGATIVE CONTROL MUST RUN BOTH WAYS.** 2026-08-29: three GPU harnesses each
+🟡 **A negative control must run both ways.** 2026-08-29: three GPU harnesses each
 reported clean while measuring nothing — a WebGL buffer read after compositing (needs
 `preserveDrawingBuffer`), a sample box on the wrong part of the garment, and
 `drawImage` on model-viewer's non-preserved canvas returning a stale frame (tell:

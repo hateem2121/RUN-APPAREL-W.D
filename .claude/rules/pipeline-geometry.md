@@ -35,7 +35,7 @@ rendered print is the only judge (its "Before you change the pipeline").
   flags arrived as one word, none matched, and the skinsuit "compressed" to 12 MB with
   `geometry: none` (2026-09-03). Build the list as a bash array; `geometry: none` in a log
   means a flag never arrived.
-- **🟡 A print piece is NEVER decimated — since 2026-09-02 (fix plan Rank 3).**
+- **🟡 A print piece is never decimated — since 2026-09-02 (fix plan Rank 3).**
   `simplifyTextured` skips every primitive whose material is artwork by name or by
   UV span (colourway mappings walked, thread excluded) and reports `N print piece(s)
   left exactly as exported`; `artworkAtRisk` now ASSERTS that, on every path.

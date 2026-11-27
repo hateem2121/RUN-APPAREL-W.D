@@ -23,8 +23,8 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   older commit". A green gate that scanned almost nothing, the same defect class as
   the citation command that exited 0 having checked nothing. There is no
   `--log-opts` now, so the full history is scanned every run against `.gitleaks.toml`.
-  🟡 **THE FIX WAS APPLIED TO `ci.yml` ONLY, AND `deploy-shrink.yml` KEPT THE
-  ACTION FOR THREE MONTHS.** Found 2026-08-25. That file has its own `secrets` job
+  🟡 **The fix was applied to `ci.yml` only, and `deploy-shrink.yml` kept the
+  action for three months.** Found 2026-08-25. That file has its own `secrets` job
   — correctly, since a scan in another workflow cannot appear in this deploy's
   `needs:` — and it still called the wrapper. Run 32506101672 (2026-08-21) reported
   **success** while logging `[RUN-APPAREL] is an organization. License key is
@@ -68,7 +68,7 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `21016174` (APPLIED 2026-08-19, while the repo sat in the RUN-APPAREL org on GitHub
   ENTERPRISE), alongside `production` restricted to protected branches and
   `sha_pinning_required: true`, which the repo already satisfied so it cost nothing.
-  🟡 **A 40-hex SHA CAN STILL BE THE WRONG OBJECT, and the hardening test cannot
+  🟡 **A 40-hex SHA can still be the wrong object, and the hardening test cannot
   see it.** Found 2026-08-25 while pinning `aquasecurity/trivy-action`. For an
   ANNOTATED tag, `gh api /repos/O/R/git/ref/tags/vX` returns the **tag object's**
   SHA (`"type": "tag"`), not the commit's. Actions resolves `uses: repo@<sha>` only
@@ -117,7 +117,7 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   retention setting also CAPS every `retention-days` (measured 2026-09-10: an artifact
   asking for 90 days was given the repository's 30; the setting was put back to 90 the
   same day).
-  🟡 **THE REQUIRED-CHECKS LIST IS A SECOND COPY OF `deploy.needs`, and one command
+  🟡 **The required-checks list is a second copy of `deploy.needs`, and one command
   prints it** — it is repository config under the ordinary `repo` scope:
   ```bash
   gh api repos/hateem2121/RUN-APPAREL-W.D/rulesets \
@@ -150,7 +150,7 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `e2e-shard`, and a small job keeping the id `e2e` merges their reports and fails unless
   `needs.e2e-shard.result == 'success'`. That last step is load-bearing — without it a
   failed shard makes `e2e` SKIPPED, and a skipped required check counts as passed.
-  🟡 ORDER MATTERS HERE TOO, the same way it does for `production` below: add a check
+  🟡 Order matters here too, the same way it does for `production` below: add a check
   to this list only AFTER a workflow exists on `main` that produces it, or every PR
   blocks forever waiting on a check that never runs.
   🟡 At one filled seat, any rule requiring an approving review would deadlock every
@@ -257,12 +257,12 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   unpacked when e2e began: all 23 viewer-webkit tests died on
   `libevent-2.1.so.7: cannot open shared object file` while all 119 chromium/firefox
   tests passed. That reads as a WebKit regression and is not one.
-  🟡 **RETRYING IS THE WRONG FIX AND WAS TRIED FIRST** (run 32290202909): a second
-  `install-deps` RACES the orphan, loses the lock immediately and exits 100 in five
+  🟡 **Retrying is the wrong fix and was tried first** (run 32290202909): a second
+  `install-deps` races the orphan, loses the lock immediately and exits 100 in five
   seconds — `dpkg frontend lock was locked by another process with pid 4625`. Five
   seconds reads like "nothing left to do" and is the opposite. Wait for the orphan; it
   is the thing doing the real work.
-  🟡 **WAITING LONGER IS ALSO WRONG** (run 32294473409): at a 10-minute wait apt STILL
+  🟡 **Waiting longer is also wrong** (run 32294473409): at a 10-minute wait apt still
   had not finished — 18+ minutes across both steps — and the `ldd` check then named
   THIRTY-THREE missing libraries, i.e. essentially the whole WebKit stack rather than
   one straggler. Waiting does not rescue a mirror that degraded; it only costs the job
@@ -277,14 +277,14 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   107s baseline (+35s per run), and `e2e` 417s while `verify` fell 470s -> 159s by
   shedding it, so the RUN's long pole went 470s -> 417s — billed minutes up,
   wall-clock down. The image pull is 36-40s with a 60s tail (seven pulls).
-  ✅ **AND `deploy-shrink.yml` FOLLOWED ON 2026-08-30 — NO WORKFLOW IN THIS REPO
-  RUNS `apt` ANY MORE.** It was the last one, and it had kept BOTH apt paths
+  ✅ **And `deploy-shrink.yml` followed on 2026-08-30 — no workflow in this repo
+  runs `apt` any more.** It was the last one, and it had kept both apt paths
   (`playwright install --with-deps` on a cache miss, `install-deps` on a hit) at a
   🟢 **20-minute** ceiling while ci.yml had already been raised to 30 *and* then moved
   to the container — so the file most exposed to the mirror outage was the one with
   the least headroom. It now uses the same `mcr.microsoft.com/playwright`
   image and installs no browser at all.
-  🟢 **KEEP THIS TRAP ANYWAY.** Everything above is the reasoning, not the residue:
+  🟢 **Keep this trap anyway.** Everything above is the reasoning, not the residue:
   it is why raising a ceiling is the wrong fix, why a retry races an orphan holding
   the dpkg lock, and why the wait loop's budget must stay strictly below the step's
   own `timeout-minutes`. The next person tempted to add an `apt-get` to a workflow
@@ -292,7 +292,7 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   same gates" rule at the top of this file** — the container fix sat in ci.yml for ten
   days before anyone checked the other copy, exactly as gitleaks did for three months.
 
-- **🟡 AN UNPARSEABLE WORKFLOW IS NOT A FAILED CHECK — CI GOES GREEN.** Found 2026-08-30
+- **🟡 An unparseable workflow is not a failed check — CI goes green.** Found 2026-08-30
   in PR #50. Scoping two secrets out of a job-level `env:` deleted the `env:` key and
   left `GH_TOKEN` orphaned under `timeout-minutes: 10`. A key cannot nest under a
   scalar, so GitHub could not parse the file and produced a run named after the **file
@@ -318,7 +318,7 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   watchdog: it is the state `uptime.yml` sat in for 23 hours in 8301e60, and it trains
   you to ignore the one alert that matters. Re-measure before assuming it improved:
   `gh run list --workflow=<file>.yml --json createdAt,event`
-  🟡 **RE-MEASURED 2026-08-30 AND IT IS WORSE — AND THE DELAY IS THE WRONG NUMBER.**
+  🟡 **Re-measured 2026-08-30 and it is worse — and the delay is the wrong number.**
   Over 39 scheduled runs (08-19 → 08-30): worst single delay **331 min**, and **three
   runs were DROPPED ENTIRELY**. A margin sized on lateness assumes every run happens.
   The quantity that matters is the **GAP between consecutive check-ins** — worst
@@ -394,7 +394,7 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   setup-node caches automatically only for npm, never for this pnpm repo, so only an
   explicit `cache: pnpm` uses a cache here. Drop the ignore once actionlint knows the key.
 
-- **🟡 CI's WebKit REPORTS A STALE COMPUTED STYLE, and no write beats it.** 2026-09-05,
+- **🟡 CI's WebKit reports a stale computed style, and no write beats it.** 2026-09-05,
   `.page`'s bottom reserve, read on one element in one pass:
   `attr "padding-bottom: 107px !important;"  prio "important"  pad "73px"` — an
   important INLINE declaration losing the cascade, always to the PREVIOUS value. Seven
@@ -405,11 +405,11 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `html { font-size }`; macOS WebKit, Chromium and Firefox all do, and a real visitor's
   text-size setting is a different path entirely. **Confirm a test's SETUP took effect
   before asserting on it** — six CI rounds went into fixing a page that was never
-  broken. The specs now `test.skip()` WITH THE MEASURED NUMBERS when the precondition
+  broken. The specs now `test.skip()` with the measured numbers when the precondition
   demonstrably did not apply; asserting on a page whose setup never landed is measuring
   the harness.
 
-- **🟡 `gh run rerun --failed` CAN CANCEL ITSELF ON THIS WORKFLOW, and reports `cancelled`
+- **🟡 `gh run rerun --failed` can cancel itself on this workflow, and reports `cancelled`
   rather than an error.** Measured 2026-09-07. `ci.yml` cancels in progress on every
   branch except `main` (never there, since 2026-08-31), and a re-run of a job is placed in
   the SAME concurrency group as the run it belongs to — so on a pull request it queues,
@@ -421,7 +421,7 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   To decide whether a failing test is flaky or real, push an empty or trivial commit and
   read the fresh run — and confirm nothing is in flight first, because a push during a run
   cancels that one too (the trap the root `CLAUDE.md` records).
-  🟡 **NOT EVERY TIME — re-measured 2026-09-18.** `gh run rerun 35311293630 --failed`, on a
+  🟡 **Not every time — re-measured 2026-09-18.** `gh run rerun 35311293630 --failed`, on a
   `pull_request` run with nothing else in flight, ran attempt 2 to `success` and cancelled
   nothing. So try it first, then read the run's `conclusion`. Push an empty commit only if
   it comes back `cancelled`.
@@ -436,8 +436,8 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `grep -l 'vars.DEPLOY_ENABLED' .github/workflows/*.yml` — and discount
   `required-checks.yml`, which names it only in a comment saying it is NOT gated by it.
 
-- **🔴 ON A PUBLIC REPO EVERY ACTIONS LOG IS PUBLIC, and `wrangler d1 export` prints a
-  one-hour download link to the WHOLE database.** 2026-09-11, the first nightly-backup
+- **🔴 On a public repo every Actions log is public, and `wrangler d1 export` prints a
+  one-hour download link to the whole database.** 2026-09-11, the first nightly-backup
   run here: its log carried a presigned R2 URL to the unencrypted dump (password hashes,
   API keys, customer inquiries), readable by anyone who opened the run. The deploy's
   pre-migration backup was cancelled before it could print a second. `scripts/backup-d1.mjs`
@@ -445,7 +445,7 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   `apps/cms/src/backupD1Redaction.test.ts` runs it against a fake runner that prints a
   real-shaped link. Before any step runs a CLI against production, ask what it PRINTS.
 
-- **🟡 A PULL REQUEST OPENED WITH `GITHUB_TOKEN` WAITS FOR A PERSON TO START ITS CHECKS.**
+- **🟡 A pull request opened with `GITHUB_TOKEN` waits for a person to start its checks.**
   GitHub's docs ("Triggering a workflow", read 2026-10-03): its `pull_request` event
   "creates workflow runs in an **approval-required** state", and a user with write access
   starts them with **Approve workflows to run** in the merge box; only `workflow_dispatch`

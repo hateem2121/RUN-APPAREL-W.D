@@ -65,8 +65,8 @@ Moved here from `apps/viewer/CLAUDE.md` on 2026-09-26, word for word.
   returning 200 while quietly ceasing to set it on every link, which is why
   `worker/preview.test.ts` asserts each rewritten tag still exists there.
 
-- **🟢 `_headers` is applied by the STATIC ASSET HANDLER, so it survives
-  `env.ASSETS.fetch()` and NEVER reaches a response the Worker builds itself.** Both
+- **🟢 `_headers` is applied by the static asset handler, so it survives
+  `env.ASSETS.fetch()` and never reaches a response the Worker builds itself.** Both
   halves measured on the live edge 2026-08-12, same route:
   ```
   200 asset-served:  csp, hsts, permissions-policy, referrer-policy, nosniff  ALL PRESENT

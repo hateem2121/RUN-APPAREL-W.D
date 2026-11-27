@@ -91,7 +91,7 @@ ceiling only moved which job died. See `.github/CLAUDE.md`.
 
 ## Reading the edge cache
 
-- **🟡 Read `cf-cache-status` off the GET's own headers, NEVER off a `HEAD`.**
+- **🟡 Read `cf-cache-status` off the GET's own headers, never off a `HEAD`.**
   `HEAD` and `GET` land on DIFFERENT edge cache entries on this domain, measured
   twice in both directions: 2026-08-06 a just-written model served `GET 404` while
   `HEAD` returned 200 with the right `content-length`; 2026-08-13 the same URL in
