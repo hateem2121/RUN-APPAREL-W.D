@@ -13,8 +13,8 @@ open the files they govern (`docs/CLAUDE-MD-MAINTENANCE.md` explains the mechani
 
 ## Traps
 
-- **A STATIC IMPORT OF ONE 700-BYTE HELPER DRAGGED 287 KB OF THREE.JS ONTO THE
-  CRITICAL PATH, and every deferral mechanism in the repo was powerless against
+- **A static import of one 700-byte helper dragged 287 KB of three.js onto the
+  critical path, and every deferral mechanism in the repo was powerless against
   it.** Found 2026-08-19. `__vitePreload` — Vite's own runtime function for
   loading a dynamic chunk — had been placed by rolldown *inside* the
   🟢 **model-viewer** chunk. The entry and the polish layer each imported that one

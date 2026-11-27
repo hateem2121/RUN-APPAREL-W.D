@@ -72,7 +72,7 @@ every COOP page (400 of 400), and four Firefox tests failed on it (reported as
 microsoft/playwright#43287). Keep it until
 `node e2e/firefox-coop-hang.mjs --prefs=none` shows 0 stuck AND 0 emulation lost.
 
-🟡 **`next start` NEVER RUNS `worker.mjs`, THE SCRIPT GUARD (SE-04, 2026-09-18).** This suite
+🟡 **`next start` never runs `worker.mjs`, the script guard (SE-04, 2026-09-18).** This suite
 therefore tests the fallback policy (`PUBLIC_PAGE_CSP`, still with `'unsafe-inline'`) and never
 the nonce. To see the guard:
 1. Run `opennextjs-cloudflare build`.
