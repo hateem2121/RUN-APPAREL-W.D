@@ -419,7 +419,7 @@ jobs:
   # heartbeat.yml, so it needs something that parses jq syntax. The static gates and the
   # browser gates need different machines anyway.
   #
-  # SPLIT ACROSS MACHINES SINCE 2026-09-29 (EIGHT SINCE 2026-11-07), BEHIND ONE `e2e` JOB.
+  # SPLIT ACROSS MACHINES SINCE 2026-09-29 (SIXTEEN SINCE 2026-11-27), BEHIND ONE `e2e` JOB.
   #
   # Until then one job ran the viewer suite and THEN the public-site suite on one
   # machine: run 36285360710 took 13.0 min (1,013 passed, 2 workers) plus 7.1 min
@@ -427,9 +427,8 @@ jobs:
   # job was done in under 5. And a red viewer suite meant the site suite never ran —
   # it sat dark from 2026-09-06 to 2026-09-07 that way.
   #
-  # `e2e-shard` is one matrix job: the viewer suite in thirds (`--shard=i/3`), and since
-  # 2026-10-05 the site suite one engine a machine, Firefox in halves (see `timeout-minutes`
-  # there), all at once. Both configs are `fullyParallel`, so a shard is a slice of TESTS,
+  # `e2e-shard` is one matrix job: both suites one engine a machine (the website since
+  # 2026-10-05, the viewer since 2026-11-27; the counts are above the job), all at once. Both configs are `fullyParallel`, so a shard is a slice of TESTS,
   # not of files (listed 2026-09-29: viewer 379/379/378 of 1,136). ONE matrix job, not one per suite, because
   # workflowHardening.test.ts allows ci.yml exactly two Playwright containers (this and
   # `artwork`), so neither can drift.
@@ -460,8 +459,27 @@ jobs:
   # microsoft/playwright#31685). Chromium and WebKit do not check. (A self-hosted runner
   # built from the same image made this moot from 2026-09-08 until it was retired; this
   # job is back in the container, so the override is back with it.)
+  #
+  # SIXTEEN MACHINES, ONE ENGINE EACH, SINCE 27 Nov 2026 (eight before). Timed test by test from
+  # the reports of run 45945482262: 6,885 tests, 189.1 min of test time, and no slow test to
+  # fix — 97% take under 5 s. The split was the cost: the viewer's thirds cut its list by COUNT
+  # across five engines, so its machines ran 15.3, 15.4 and 9.7 min of tests while the
+  # website's ran 9.8 to 14.1. Each engine's test time, halved for the two tests a machine runs
+  # at once, is divided here so that no machine carries more than about 6.5 min:
+  #   viewer   chromium 20.8 min → 2 machines · webkit 20.3 → 2 · iPhone 21.9 → 2 ·
+  #            firefox 9.4 + webgl 2.3 → 1 (webgl stays file-parallel, on one machine)
+  #   website  chromium 38.8 → 3 · firefox 51.4 → 4 · webkit 23.2 + its font file 1.0 → 2
+  # With the five other jobs that makes 21 at once against the account's 20 (GitHub's limits
+  # page, read 27 Nov); `secrets` ends in 0.4 min, so one job waits seconds. Re-time it the same
+  # way (`gh run download <run> --pattern 'blob-*'`, then sum `onTestEnd` durations per project)
+  # before changing a count.
+  #
+  # IT WAITS FOR `changes` (0.4 min), which says whether these exact files already passed on
+  # the pull request; see that job. A `changes` that fails skips this job, and `e2e` then FAILS.
   e2e-shard:
     name: e2e (${{ matrix.suite }} ${{ matrix.label }})
+    needs: [changes]
+    if: needs.changes.outputs.browser_tests != 'proven'
     runs-on: ubuntu-26.04
     # 30, raised from 20 on 2026-10-05 (PR #129). The 20 was set against ~5-6 min of tests per
     # shard; the website suite has since grown to 2,346 tests across its engines. The SAME shard
@@ -477,7 +495,7 @@ jobs:
     # 20.8-min job), at about 1.0 s a Chromium test, 1.4 s a Firefox one and 3.6 s a WebKit one.
     # On the same per-test times one engine a machine, Firefox in halves, comes to about 8.6
     # (chromium), 6.3 and 6.2 (firefox) and 7.9 (webkit) min of tests, plus ~2 min of setup each.
-    # Viewer 2/3 took 16.5 min in that run, and is now the longest.
+    # Viewer 2/3 took 16.5 min in that run; the viewer went one engine a machine on 2026-11-27.
     timeout-minutes: 30
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
@@ -490,18 +508,27 @@ jobs:
           # ENGINE A MACHINE (2026-10-05), Firefox in halves: `--shard` alone cuts the test LIST
           # by count, in the config's project order, so `site 2/2` drew every Firefox and WebKit
           # test (see `timeout-minutes` above).
-          - { suite: viewer, dir: apps/viewer, id: '1', label: 1/3, args: --shard=1/3 }
-          - { suite: viewer, dir: apps/viewer, id: '2', label: 2/3, args: --shard=2/3 }
-          - { suite: viewer, dir: apps/viewer, id: '3', label: 3/3, args: --shard=3/3 }
-          # Chromium in halves too, since 2026-11-07: one machine took 17.3 min on 25 Oct and a
-          # median 21.0 (23.6 worst) over 15 PR runs to 7 Nov, growing ~0.3 min a day as buyer
-          # pages arrive — on course for the 30-min ceiling above by early December, while each
-          # Firefox half took ~12-13. `--shard` within ONE project cuts that project's list evenly.
-          - { suite: site, dir: apps/cms, id: chromium-1, label: chromium 1/2, args: --project=chromium --shard=1/2 }
-          - { suite: site, dir: apps/cms, id: chromium-2, label: chromium 2/2, args: --project=chromium --shard=2/2 }
-          - { suite: site, dir: apps/cms, id: firefox-1, label: firefox 1/2, args: --project=firefox --shard=1/2 }
-          - { suite: site, dir: apps/cms, id: firefox-2, label: firefox 2/2, args: --project=firefox --shard=2/2 }
-          - { suite: site, dir: apps/cms, id: webkit, label: webkit, args: --project=webkit --project=fontswap-webkit }
+          # The viewer runs one engine a machine too since 27 Nov 2026 (thirds of the whole list
+          # before): the counts and the measurement are in the comment above this job.
+          - { suite: viewer, dir: apps/viewer, id: chromium-1, label: chromium 1/2, args: --project=viewer --shard=1/2 }
+          - { suite: viewer, dir: apps/viewer, id: chromium-2, label: chromium 2/2, args: --project=viewer --shard=2/2 }
+          - { suite: viewer, dir: apps/viewer, id: webkit-1, label: webkit 1/2, args: --project=viewer-webkit --shard=1/2 }
+          - { suite: viewer, dir: apps/viewer, id: webkit-2, label: webkit 2/2, args: --project=viewer-webkit --shard=2/2 }
+          - { suite: viewer, dir: apps/viewer, id: iphone-1, label: iphone 1/2, args: --project=viewer-mobile-safari --shard=1/2 }
+          - { suite: viewer, dir: apps/viewer, id: iphone-2, label: iphone 2/2, args: --project=viewer-mobile-safari --shard=2/2 }
+          - { suite: viewer, dir: apps/viewer, id: firefox-webgl, label: firefox + webgl, args: --project=viewer-firefox --project=webgl }
+          # Chromium was halved on 2026-11-07: one machine took 17.3 min on 25 Oct and a median
+          # 21.0 (23.6 worst) over 15 PR runs to 7 Nov, growing ~0.3 min a day as buyer pages
+          # arrive. `--shard` within ONE project cuts that project's list evenly.
+          - { suite: site, dir: apps/cms, id: chromium-1, label: chromium 1/3, args: --project=chromium --shard=1/3 }
+          - { suite: site, dir: apps/cms, id: chromium-2, label: chromium 2/3, args: --project=chromium --shard=2/3 }
+          - { suite: site, dir: apps/cms, id: chromium-3, label: chromium 3/3, args: --project=chromium --shard=3/3 }
+          - { suite: site, dir: apps/cms, id: firefox-1, label: firefox 1/4, args: --project=firefox --shard=1/4 }
+          - { suite: site, dir: apps/cms, id: firefox-2, label: firefox 2/4, args: --project=firefox --shard=2/4 }
+          - { suite: site, dir: apps/cms, id: firefox-3, label: firefox 3/4, args: --project=firefox --shard=3/4 }
+          - { suite: site, dir: apps/cms, id: firefox-4, label: firefox 4/4, args: --project=firefox --shard=4/4 }
+          - { suite: site, dir: apps/cms, id: webkit-1, label: webkit 1/2, args: --project=webkit --project=fontswap-webkit --shard=1/2 }
+          - { suite: site, dir: apps/cms, id: webkit-2, label: webkit 2/2, args: --project=webkit --project=fontswap-webkit --shard=2/2 }
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -530,7 +557,7 @@ jobs:
       # nothing else, so it runs once, on one shard, and FIRST, so a red test cannot
       # hide it.
       - name: Doc pictures and diagrams
-        if: matrix.suite == 'viewer' && matrix.id == '1'
+        if: matrix.suite == 'viewer' && matrix.id == 'chromium-1'
         env:
           HOME: /root
         run: node apps/cms/scripts/check-doc-visuals.mjs
@@ -627,7 +654,7 @@ jobs:
   # seeded admin's password is the dev default already printed in apps/cms/src/seed/seed.ts.
   e2e:
     cache-mode: write
-    needs: [e2e-shard]
+    needs: [e2e-shard, changes]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-26.04
     timeout-minutes: 15
@@ -647,7 +674,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Collect the viewer shards' reports
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && needs.e2e-shard.result != 'skipped' }}
         continue-on-error: true
         uses: actions/download-artifact@v8.0.2
         with:
@@ -655,7 +682,7 @@ jobs:
           path: ${{ runner.temp }}/blob/viewer
           merge-multiple: true
       - name: Collect the public-site shards' reports
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && needs.e2e-shard.result != 'skipped' }}
         continue-on-error: true
         uses: actions/download-artifact@v8.0.2
         with:
@@ -663,7 +690,7 @@ jobs:
           path: ${{ runner.temp }}/blob/site
           merge-multiple: true
       - name: Merge the viewer report
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && needs.e2e-shard.result != 'skipped' }}
         continue-on-error: true
         env:
           PLAYWRIGHT_HTML_OUTPUT_DIR: ${{ runner.temp }}/report/viewer
@@ -671,7 +698,7 @@ jobs:
           BLOBS: ${{ runner.temp }}/blob/viewer
         run: pnpm --filter @run-apparel/viewer exec playwright merge-reports --reporter html "$BLOBS"
       - name: Merge the public-site report
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && needs.e2e-shard.result != 'skipped' }}
         continue-on-error: true
         env:
           PLAYWRIGHT_HTML_OUTPUT_DIR: ${{ runner.temp }}/report/site
@@ -679,7 +706,7 @@ jobs:
           BLOBS: ${{ runner.temp }}/blob/site
         run: pnpm --filter @run-apparel/cms exec playwright merge-reports --reporter html "$BLOBS"
       - name: Keep the merged report (14 days)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && needs.e2e-shard.result != 'skipped' }}
         continue-on-error: true
         uses: actions/upload-artifact@v7.0.2
         with:
@@ -687,15 +714,17 @@ jobs:
           path: ${{ runner.temp }}/report
           retention-days: 14
           if-no-files-found: warn
+      # Passes when every shard passed, or — on a push to `main` only — when the shards were
+      # skipped BECAUSE `changes` proved the same files passed on the pull request. Every other
+      # skip fails: scripts/ci-already-tested.mjs (`verdict`) and its test hold each case.
       - name: Every shard passed (the verdict)
         env:
           SHARDS: ${{ needs.e2e-shard.result }}
+          CHANGES: ${{ needs.changes.result }}
+          BROWSER_TESTS: ${{ needs.changes.outputs.browser_tests }}
         run: |
-          echo "e2e-shard result: ${SHARDS}"
-          if [ "${SHARDS}" != "success" ]; then
-            echo "::error::a browser-test shard did not pass (result: ${SHARDS}). The merged report is the 'playwright-report-<sha>' artifact of this run."
-            exit 1
-          fi
+          echo "e2e-shard result: ${SHARDS}; changes: ${CHANGES}; browser_tests: ${BROWSER_TESTS}"
+          node scripts/ci-already-tested.mjs --verdict
 
   # Dependency vulnerability gate. Runs in parallel with verify and gates the
   # deploy: a HIGH/CRITICAL advisory blocks production until it is fixed or
@@ -2153,12 +2182,24 @@ jobs:
     # `deployments: read` lets the script find the last commit that deployed (the
     # `production` records), so a failed deploy is never skipped over by a docs push.
     # A job-level block REPLACES the workflow's, so `contents: read` is restated.
+    #
+    # BROWSER TESTS ARE NOT RUN TWICE ON THE SAME FILES (27 Nov 2026, owner's yes). `browser_tests`
+    # is `proven` only on a push to `main` whose files GitHub's records show already passed every
+    # browser-test machine on the pull request; `e2e-shard` then skips and `e2e` passes on that
+    # proof. Measured over the 60 runs of 24–27 Nov: a merge re-ran the suite for a median 19.0 min
+    # inside 33.9 min from merge to live, on files identical to the pull request's for 8 of 8
+    # merges checked. The conditions, and a control for each, are in scripts/ci-already-tested.mjs
+    # and its test. Any doubt answers `run`. `actions: read` and `pull-requests: read` are what
+    # it reads those records with.
     permissions:
       contents: read
       deployments: read # finds the last deployed commit
+      actions: read # reads the pull request's CI run and its jobs
+      pull-requests: read # finds the pull request a commit on main came from
     outputs:
       shrink: ${{ steps.paths.outputs.shrink }}
       site: ${{ steps.paths.outputs.site }}
+      browser_tests: ${{ steps.tested.outputs.browser_tests }}
     steps:
       - name: Network guard (Harden-Runner, watch mode)
         uses: step-security/harden-runner@v2.22.4
@@ -2185,6 +2226,15 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/ci-changed-paths.mjs >> "$GITHUB_OUTPUT"
+      - name: Did the browser tests already pass on exactly these files?
+        id: tested
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ci-already-tested.mjs >> "$GITHUB_OUTPUT"
 
   # THE CONTAINER'S BASE IMAGE, SCANNED — on pull requests too since 2026-09-29, not only
   # after a merge as when it lived in deploy-shrink.yml's `shrink-audit`.
