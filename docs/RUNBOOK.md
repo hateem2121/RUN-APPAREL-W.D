@@ -1185,6 +1185,52 @@ where to look. To see what grew: `opennextjs-cloudflare build`, then in `apps/cm
 `wrangler deploy --dry-run --outdir <dir> --metafile <file>`, and list
 `.next/server/app/**/page_client-reference-manifest.js` by size.
 
+## The garment page loads but its model and picture do not, in Chrome only (ECH, since 2026-11-27)
+
+**What it looks like.** In Google Chrome a garment page shows "The picture could not load" and
+"The 3D view could not connect". The page itself and its scripts arrive. Safari, `curl`,
+`node .claude/skills/check-live/check-live.mjs` and every Playwright test pass at the same moment
+from the same computer, and Sentry is quiet. Chrome's console shows each request to
+`media.wear-run.com` ending in `ERR_CONNECTION_RESET`.
+
+**The cause, measured 2026-11-27.** Cloudflare switches Encrypted Client Hello (ECH) on by
+default for a Free zone. It hides the site's name inside the first message of a secure
+connection, and Chrome uses it whenever the zone's HTTPS DNS record offers it. Some networks reset
+a connection that carries it. On the network where this was found, Chrome's own log showed the
+reset arriving 23–37 ms after the hello while the server was 104–138 ms away, so a device on the
+route sent it, not Cloudflare. It hit all four hostnames and an unrelated Cloudflare site alike
+(56 of 56 connections), and never a connection with a plain hello. The model breaks first because
+`media.wear-run.com` offers HTTP/2 only; the page's own host also offers HTTP/3, which mostly got
+through.
+
+**The fix: ECH is OFF on both zones, on purpose** (`wear-run.com` and `wear-run.help`; owner's
+decision, 2026-11-27). Installed Chrome went from 0 of 12 media requests to 12 of 12 once the old
+DNS copies had expired (five minutes at most). The price is that a network can read the name
+`wear-run.com` in the connection, as it can for most websites. This setting lives only in
+Cloudflare: no file here holds it and no test reads it.
+
+**Check it.** The setting is `GET /zones/<zone id>/settings/ech` on Cloudflare's API and should
+answer `"value": "off"`. Cloudflare's page on it
+(<https://developers.cloudflare.com/ssl/edge-certificates/ech/>, read 2026-11-27) says only paid
+plans can change it; the API accepted the change on Free that day. From outside, the zone's HTTPS
+record should carry no `ech` entry:
+
+```bash
+dig +short wear-run.com TYPE65
+```
+
+A record with ECH contains the bytes `636C6F7564666C6172652D6563682E636F6D`, which spell
+`cloudflare-ech.com`.
+
+**If it comes back.** Record what Chrome does before blaming the site: start it with
+`--log-net-log=<file> --net-log-capture-mode=Everything`, load the page, and in the file compare,
+for one connection, the time from hello to error with that connection's own connect time. An
+error that arrives sooner than one round trip did not come from the server.
+⚠️ Three checks gave a false answer that day: Playwright's own Chromium never sends ECH, so it
+passes whatever the network does; Chrome's `--disable-features=EncryptedClientHello` changed
+nothing on Chrome 158 (the log still showed an encrypted hello); and
+`openssl s_client -ech_config_list` reported a failed ECH even against Cloudflare's own test host.
+
 ## Private document links (catalogue and profile)
 
 Decided 2026-09-11 and live from the merge that deploys it: the catalogue and the
