@@ -139,7 +139,7 @@ a review starts giving advice nobody recognises.
 
 ## When two skills disagree
 
-Six pairs here overlap. Each ruling exists because the alternative is an agent
+Six pairs here overlap, and one skill collides with how the owner works. Each ruling exists because the alternative is an agent
 picking whichever it read most recently.
 
 - **Animation advice.** `review-animations` (Emil Kowalski) and the `motion` skill's
@@ -183,6 +183,12 @@ picking whichever it read most recently.
   on 2026-10-03, brings its own taste: it flags "overused" fonts and pure black, for
   example. **`docs/DESIGN.md` wins**, the same ruling as `emil-design-eng`: an advisor,
   not a gate. It is not in this folder; see "Not here: Impeccable" below.
+- **Helpers.** `improve-animations` tells the agent to fan out one read-only subagent per
+  audit category at `standard` and `deep` effort, and its `execute <plan>` mode dispatches
+  one more. **The owner's limit wins**: at most two helpers at once in this repository,
+  each in its own worktree; do the remaining categories yourself, one after another. The
+  skill's text is hash-pinned in `skills-lock.json` and the weekly robot would undo an edit
+  to it, so the ruling lives here (prompt audit, 2026-11-27).
 
 ## The Motion MCP server
 
