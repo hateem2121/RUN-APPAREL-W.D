@@ -37,7 +37,7 @@ The list must match CI. Until 2026-09-30 it silently lacked the docs-index and
 doc-pictures checks that CI runs, so "All gates passed" did not cover them, and until
 2026-10-25 it still lacked knip, actionlint, zizmor, the three post-build guards and the
 script tests, because the parity test compared only `node <x>.mjs` lines.
-`apps/cms/src/gateRunnerParity.test.ts` now compares EVERY gate command CI's `verify` and
+`apps/cms/src/gateRunnerParity.test.ts` now compares every gate command CI's `verify` and
 `e2e-shard` jobs run (pnpm, npm, bash and node) and fails on one this script neither runs nor
 lists as "not run" (`--list` shows them: the runner-image check, and the website's browser
 tests, which need a seeded local database and are run by hand).

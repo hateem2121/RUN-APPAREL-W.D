@@ -32,7 +32,7 @@ For each file, read it and decide:
 
 - **Jargon.** Which words would stop a 10-year-old? The script only catches acronyms;
   words like "deploy", "repository" or "cache" need a plain meaning at first use too.
-- **Pictures.** Does each diagram explain ONE idea a child could say back? A table of
+- **Pictures.** Does each diagram explain one idea a child could say back? A table of
   twelve columns is a visual only on paper.
 - **Accuracy.** Simplifying must not make a sentence false. Check every rewritten claim
   against the code before suggesting it; if you cannot verify one, mark it
