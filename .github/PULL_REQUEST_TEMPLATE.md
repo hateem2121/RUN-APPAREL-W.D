@@ -58,7 +58,14 @@ Tick only what applies. Each line is here because it has already gone wrong.
 - [ ] This merges to `main` and therefore **deploys to production**. I have taken
       a D1 backup and captured `GET /api/public/viewer/rxps/wine`.
       See `.claude/skills/deploy-preflight/`.
-- [ ] No deploy impact (docs, tests, or tooling only).
+- [ ] No deploy impact. CI decides by each file's **path**, not by what changed inside it,
+      so I ran `touchesSite` from `scripts/ci-changed-paths.mjs` over this branch's files
+      and it named none. A comment-only edit in `scripts/` or an app's `src/` still deploys:
+      #498 said "no deploy" and four such files made it one (2026-11-27).
+
+<!-- The check, run from the branch. No output means the merge will not deploy:
+git diff --name-only origin/main...HEAD | node --input-type=module -e "import {touchesSite} from './scripts/ci-changed-paths.mjs'; import {readFileSync} from 'node:fs'; for (const f of readFileSync(0,'utf8').trim().split('\n')) if (touchesSite(f)) console.log('deploys:', f)"
+-->
 
 ## 🔍 Evidence
 
