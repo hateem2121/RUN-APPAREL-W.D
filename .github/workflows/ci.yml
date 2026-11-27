@@ -714,6 +714,35 @@ jobs:
           path: ${{ runner.temp }}/report
           retention-days: 14
           if-no-files-found: warn
+      # The tests that did not simply pass, kept 30 days (27 Nov 2026). A test that fails and then
+      # passes on its retry leaves the run green, and a shard's own report lasts one day, so a
+      # test needing its retry week after week was invisible: `languageNote.spec.ts` did it on
+      # main (run 45945482262) after failing a Dependabot run twice. gate-health.yml reads a
+      # week of these files and names any test that appears twice. Never changes the verdict.
+      - name: List the tests that failed or needed a retry
+        if: ${{ !cancelled() && needs.e2e-shard.result != 'skipped' }}
+        continue-on-error: true
+        env:
+          VIEWER_BLOBS: ${{ runner.temp }}/blob/viewer
+          SITE_BLOBS: ${{ runner.temp }}/blob/site
+          OUT: ${{ runner.temp }}/outcomes
+        run: |
+          mkdir -p "$OUT"
+          PLAYWRIGHT_JSON_OUTPUT_NAME="$OUT/viewer-merged.json" pnpm --filter @run-apparel/viewer exec playwright merge-reports --reporter json "$VIEWER_BLOBS"
+          node scripts/e2e-outcomes.mjs viewer "$OUT/viewer-merged.json" > "$OUT/viewer.json"
+          PLAYWRIGHT_JSON_OUTPUT_NAME="$OUT/site-merged.json" pnpm --filter @run-apparel/cms exec playwright merge-reports --reporter json "$SITE_BLOBS"
+          node scripts/e2e-outcomes.mjs site "$OUT/site-merged.json" > "$OUT/site.json"
+          # Only the two short lists are kept: a whole merged report is about 3 MB a suite.
+          rm -f "$OUT/viewer-merged.json" "$OUT/site-merged.json"
+      - name: Keep that list (30 days)
+        if: ${{ !cancelled() && needs.e2e-shard.result != 'skipped' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: e2e-outcomes-${{ github.run_id }}
+          path: ${{ runner.temp }}/outcomes/*.json
+          retention-days: 30
+          if-no-files-found: warn
       # Passes when every shard passed, or — on a push to `main` only — when the shards were
       # skipped BECAUSE `changes` proved the same files passed on the pull request. Every other
       # skip fails: scripts/ci-already-tested.mjs (`verdict`) and its test hold each case.

@@ -1,0 +1,93 @@
+name: Gate health
+
+# One issue a week with the gates' own numbers (owner, 2026-11-27). That day three things were
+# found only because someone went looking: pull requests waited a median 21.3 min and merges
+# 33.9 min more to go live; a browser test had been passing only on its retry; and Cloudflare's
+# Encrypted Client Hello, on by default, made Chrome on one network lose every model and picture
+# (docs/RUNBOOK.md). scripts/gate-health.mjs reads GitHub's records of ci.yml's runs, the short
+# lists ci.yml's `e2e` job keeps (scripts/e2e-outcomes.mjs) and the four hostnames' public DNS
+# record, and writes the issue. It decides nothing and changes nothing on the site.
+#
+# Not gated by DEPLOY_ENABLED: it reads GitHub and public DNS and touches nothing of the site's.
+
+on:
+  schedule:
+    - cron: '23 7 * * 1' # Mondays, 07:23 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# No job here uses the Actions cache (GitHub `cache-mode`, as in every other workflow).
+cache-mode: none
+
+concurrency:
+  group: gate-health
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    # A job-level block REPLACES the workflow's, so `contents: read` is restated.
+    permissions:
+      contents: read
+      actions: read # ci.yml's runs, their jobs and the kept lists of flaky tests
+      issues: write # opens this week's issue and closes last week's
+    steps:
+      - name: Network guard (Harden-Runner, watch mode)
+        uses: step-security/harden-runner@v2.22.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 26
+          cache: ''
+          package-manager-cache: false
+      # The lists ci.yml's `e2e` job kept in the last 7 days, from this repository's own runs
+      # only. A pull request from a fork runs the fork's ci.yml and the fork's tests, so it can
+      # upload a list under this name with any test titles it likes, and those titles would be
+      # copied into an issue this job opens (security review, 2026-11-27). So a list counts
+      # only when its run's head repository IS this repository, and its name is exactly
+      # `e2e-outcomes-<digits>`; scripts/gate-health.mjs prints every title as inert code
+      # text besides. A list that cannot be downloaded is left out; the issue says how many
+      # reports it read.
+      - name: Fetch the week's lists of tests that failed or needed a retry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/outcomes"
+          since="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+          gh api --paginate "repos/${GH_REPO}/actions/artifacts?per_page=100" \
+            --jq ".artifacts[] | select(.name | test(\"^e2e-outcomes-[0-9]+$\")) | select(.workflow_run.head_repository_id == .workflow_run.repository_id) | select(.expired | not) | select(.created_at >= \"${since}\") | [.workflow_run.id, .name] | @tsv" \
+            > "$RUNNER_TEMP/outcomes.tsv"
+          echo "lists found: $(wc -l < "$RUNNER_TEMP/outcomes.tsv")"
+          while IFS=$'\t' read -r run name; do
+            case "$run" in ''|*[!0-9]*) continue ;; esac
+            case "$name" in e2e-outcomes-*[!0-9]*|e2e-outcomes-) continue ;; e2e-outcomes-*) ;; *) continue ;; esac
+            gh run download "$run" --name "$name" --dir "$RUNNER_TEMP/outcomes/$run" || echo "::warning::could not download $run"
+          done < "$RUNNER_TEMP/outcomes.tsv"
+      - name: This week's numbers, as an issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # The body reaches the issue only as a file, never through the shell.
+          node scripts/gate-health.mjs "$RUNNER_TEMP/outcomes" > "$RUNNER_TEMP/issue.md"
+          # Last week's issues by this robot, read before the new one exists. Only issues
+          # github-actions opened: on a public repo anyone can open one with this title.
+          gh issue list \
+            --search 'author:app/github-actions in:title "CI gate health"' --state open \
+            --limit 50 --json number --jq '.[].number' > "$RUNNER_TEMP/earlier.txt"
+          gh issue create --title "CI gate health" --body-file "$RUNNER_TEMP/issue.md"
+          while read -r number; do
+            case "$number" in ''|*[!0-9]*) continue ;; esac
+            gh issue close "$number" --comment "A newer weekly report has been opened."
+          done < "$RUNNER_TEMP/earlier.txt"

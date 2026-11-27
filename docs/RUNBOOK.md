@@ -748,6 +748,27 @@ pull request:
   against. It does **not** judge whether the artwork on the model is intact —
   that is not decidable over HTTP, and is gated at pipeline time instead.
 
+### The weekly gate-health issue (since 2026-11-27)
+
+Every Monday `gate-health.yml` opens one issue titled "CI gate health" and closes last week's.
+It reports and changes nothing. `scripts/gate-health.mjs` writes it from three sources:
+GitHub's own records of the week's `ci.yml` runs, the short lists the `e2e` job keeps for 30
+days (`scripts/e2e-outcomes.mjs`: the browser tests that failed or passed only on their
+retry), and the public HTTPS DNS record of the four hostnames.
+
+It shows the median time of a green pull request's checks and of a merge until it is live,
+beside the medians measured before 27 Nov 2026 (21.3 and 33.9 min). Three findings appear under
+"Look at this":
+
+- **Encrypted Client Hello is offered again.** Switch it off: see "The garment page loads but
+  its model and picture do not" below.
+- **Merges passed their tests and nothing deployed all week.** A week of documents looks the
+  same, so check what merged. On 27 Nov 2026 it was a fault in the deploy job's condition.
+- **A browser test failed or needed a retry in two or more runs.** Fix the test's wait or the
+  fault behind it; a retry that keeps passing is hiding one of the two.
+
+To see it without waiting for Monday: Actions → Gate health → Run workflow.
+
 ### The screenshot safety net — updating its pictures
 
 `apps/cms/e2e/visual.spec.ts` compares five website pages at 390, 768 and 1440 wide
