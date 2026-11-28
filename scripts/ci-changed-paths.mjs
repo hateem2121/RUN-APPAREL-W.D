@@ -131,9 +131,9 @@ export function touchesSite(file) {
  * `docs/` is its own step on one machine and is never skipped.
  *
  * NOT BY SUITE. Skipping only the viewer's machines for a website change (or the reverse) was
- * looked at and left out: 25 of the website's 84 specs name the viewer's files and 20 of the
- * viewer's 60 name the website's (`grep -rlE` for each app's folder and port over the other's
- * `e2e/`, 28 Nov 2026), and some read them: `liveGarment.spec.ts` serves a file out of
+ * looked at and left out: 23 of the website's 84 specs name the viewer's files and 17 of the
+ * viewer's 60 name the website's (`grep -lE` for each app's folder and port over the other's
+ * `e2e/*.spec.ts`, 28 Nov 2026), and some read them: `liveGarment.spec.ts` serves a file out of
  * `apps/viewer/public`, `siteFooter.spec.ts` reads `apps/cms/public/standards`.
  *
  * @param {string} file a repo-relative path from `git diff --name-only`

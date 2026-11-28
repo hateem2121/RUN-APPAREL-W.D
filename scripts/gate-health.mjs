@@ -80,9 +80,13 @@ export function summariseRuns(entries) {
   for (const entry of pulls.filter((e) => e.run.conclusion === 'failure')) {
     const names = (entry.jobs ?? [])
       .filter((job) => job.conclusion === 'failure')
-      // Sixteen machines are one gate; the verdict job `e2e` fails with them and says nothing new.
+      // The browser-test machines are one gate; the verdict job `e2e` fails with them and says
+      // nothing new. The same for `verify` since 28 Nov 2026, when it became the verdict over
+      // `verify-tests` and `verify-build`: it is dropped only when a half is named beside it,
+      // so a run from before the split, where `verify` was the job itself, still counts.
       .map((job) => (job.name.startsWith('e2e (') ? 'browser tests' : job.name))
       .filter((name) => name !== 'e2e')
+      .filter((name, _, all) => name !== 'verify' || !all.some((n) => n.startsWith('verify-')))
     for (const name of new Set(names.length ? names : ['(jobs not read)'])) {
       failedBy[name] = (failedBy[name] ?? 0) + 1
     }
