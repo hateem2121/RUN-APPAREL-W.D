@@ -24,7 +24,8 @@ import { describe, expect, it } from 'vitest'
 
 const REPO_ROOT = join(import.meta.dirname, '..', '..', '..')
 const RUNNER = join(REPO_ROOT, '.claude', 'skills', 'gates', 'run-gates.mjs')
-const GATE_JOBS = ['verify', 'e2e-shard']
+// `verify` is two side-by-side jobs behind a verdict job since 2026-11-28; the gates are in the halves.
+const GATE_JOBS = ['verify-tests', 'verify-build', 'e2e-shard']
 const PNPM = 'npx --yes pnpm@12.15.0'
 
 type Step = { job: string; name: string; commands: string[] }
@@ -127,6 +128,8 @@ const NAMED_STEPS: Record<string, { gate?: string; notRun?: string; diagnostic?:
   'zizmor (workflow security)': { gate: 'zizmor' },
   'Runner image has the tools the workflows rely on': { notRun: 'runner-tools' },
   'Container facts (user, HOME, browsers)': { diagnostic: true },
+  // Prints one notice when `changes` found no file a browser test can read (2026-11-28).
+  'Browser tests not run (no changed file can reach them)': { diagnostic: true },
 }
 
 /** Everything in the CI gate jobs that the runner neither runs nor explains. Empty when in step. */

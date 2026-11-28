@@ -48,7 +48,8 @@
  *   Only a push to `main` can skip: a by-hand run always deploys.
  *
  * Environment: EVENT_NAME, BEFORE (push), BASE_SHA (pull_request), and for the site answer
- * REF, REPOSITORY and GH_TOKEN (needs `deployments: read`). Prints `shrink=…` and `site=…`.
+ * REF, REPOSITORY and GH_TOKEN (needs `deployments: read`). Prints `shrink=…`, `site=…` and
+ * `browser_paths=run|skip` (see `touchesBrowserTests`).
  */
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -112,6 +113,53 @@ export function touchesSite(file) {
   if (/\.test\.[cm]?[jt]sx?$/.test(file)) return false
   if (/(^|\/)e2e\//.test(file)) return false
   return true
+}
+
+/**
+ * Can this file change what a browser test sees? (28 Nov 2026, owner's yes.)
+ *
+ * `e2e-shard` skips its test steps, on every machine, only when NO changed file can: `changes`
+ * hands it `browser_paths=skip` and each machine says so in its log and ends green in about a
+ * minute. Measured before it was built: 12% of the last 119 merged pull requests changed nothing
+ * a browser test reads, and each of them ran all 6,885 tests.
+ *
+ * NARROWER THAN `touchesSite`, ON PURPOSE. A test file or an `e2e/` file never reaches a Worker,
+ * but it IS the browser tests, so both count here. Only the folders and files that no build, no
+ * test server and no spec reads are left out: the same lists as above, and Markdown. Checked the
+ * day it was added: no spec, Playwright config or app source opens a file under `docs/`,
+ * `.claude/`, `.agents/`, `.github/` or a `.md` file. The picture-and-diagram check that reads
+ * `docs/` is its own step on one machine and is never skipped.
+ *
+ * NOT BY SUITE. Skipping only the viewer's machines for a website change (or the reverse) was
+ * looked at and left out: ten of the website's specs name the viewer's files and ten of the
+ * viewer's name the website's, so neither suite is independent of the other app.
+ *
+ * @param {string} file a repo-relative path from `git diff --name-only`
+ * @returns {boolean} false only for a file no browser test can read
+ */
+export function touchesBrowserTests(file) {
+  if (file === '.github/workflows/ci.yml') return true
+  if (NOT_SHIPPED_FOLDERS.some((folder) => file.startsWith(folder))) return false
+  if (NOT_SHIPPED_FILES.includes(file)) return false
+  if (file.endsWith('.md')) return false
+  return true
+}
+
+/**
+ * WHEN IN DOUBT, `true` (run the tests): no base to diff against, or a base git cannot see.
+ *
+ * @param {{ eventName?: string, before?: string, baseSha?: string }} event
+ * @param {(base: string) => string[] | null} changedSince
+ * @returns {boolean}
+ */
+export function browserTestsChanged(event, changedSince) {
+  const base = baseFor(event)
+  if (base === null) return true
+  const files = changedSince(base)
+  if (files === null) return true
+  // An empty list is not "nothing can reach them": it is a diff that found nothing, so test.
+  if (files.length === 0) return true
+  return files.some(touchesBrowserTests)
 }
 
 /**
@@ -249,4 +297,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     `last deployed=${deployed ?? 'none'} changed since=${siteFiles === null ? 'unknown' : siteFiles.length} → site=${site}`,
   )
   console.log(`site=${site}`)
+
+  const browser = browserTestsChanged(event, () => files)
+  console.error(`browser tests: ${browser ? 'run' : 'skip — no changed file can reach them'}`)
+  console.log(`browser_paths=${browser ? 'run' : 'skip'}`)
 }

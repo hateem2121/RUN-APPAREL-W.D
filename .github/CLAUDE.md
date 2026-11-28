@@ -243,7 +243,9 @@ npx --yes pnpm@12.15.0 --filter @run-apparel/cms exec vitest run src/workflowHar
   before extracting: a retry resuming mid-stream would splice two responses into `tar`.
   🟡 **Read the count, not the colour.** A healthy run says `435 commits scanned.
   scanned ~6684770 bytes`; the two documented green-but-empty failures said "1 commits
-  scanned ... ~60 bytes" and "0 commits scanned".
+  scanned ... ~60 bytes" and "0 commits scanned". 🟢 Since 2026-11-27 CI reads it too (#507):
+  the job's last line fails the run when the count is under 90% of the non-merge commits git
+  counts, or when there is no count at all.
 - **🟡 `timeout-minutes` kills the step's shell, not the `apt-get` that step started.**
   The child survives as an orphan, keeps installing, and keeps holding
   `/var/lib/dpkg/lock-frontend`, so the next step runs against a half-unpacked system: all 23

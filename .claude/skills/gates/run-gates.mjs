@@ -26,6 +26,7 @@
  *   node .claude/skills/gates/run-gates.mjs --from build # resume from a gate
  *   node .claude/skills/gates/run-gates.mjs --list       # names only, run nothing
  *   node .claude/skills/gates/run-gates.mjs --dirty      # run although files are uncommitted
+ *   node .claude/skills/gates/run-gates.mjs --site-e2e   # also the website's Chromium browser tests
  */
 import { spawnSync } from 'node:child_process'
 
@@ -198,7 +199,7 @@ const GATES = [
   },
   {
     name: 'e2e',
-    why: 'separate CI job — ALSO gates the deploy. Slowest in CI (16 machines since 2026-11-27), ~45s locally',
+    why: 'separate CI job — ALSO gates the deploy. Slowest in CI (11 machines on trial since 2026-11-28, 16 before), ~45s locally',
     argv: [...PNPM, '--filter', '@run-apparel/viewer', 'test:e2e'],
     // ⚠️ THE VIEWER'S TEST SERVER MUST BE THIS RUN'S OWN (2026-11-24). Playwright reuses whatever
     // already answers on 4173 (`reuseExistingServer` off CI). Two sessions ran this gate in two
@@ -241,13 +242,43 @@ const NOT_RUN = [
   },
   {
     name: 'cms-e2e',
-    why: 'browser tests of the website (CI e2e-shard): needs `pnpm seed:assets`, `pnpm --filter @run-apparel/cms migrate`, `pnpm seed:cms` on a local D1, then `pnpm --filter @run-apparel/cms exec playwright test`; run by hand',
+    why: 'browser tests of the website (CI e2e-shard): needs `pnpm seed:assets`, `pnpm --filter @run-apparel/cms migrate`, `pnpm seed:cms` on a local D1, then `pnpm --filter @run-apparel/cms exec playwright test`; run by hand, or its Chromium part with --site-e2e',
+  },
+]
+
+/**
+ * Gates that run only when asked for by flag, after GATES and before the hooks.
+ *
+ * `--site-e2e` (2026-11-28, owner's yes): the website's Chromium browser tests. Over the 300 CI
+ * runs of 11 to 27 Nov the website's browser tests failed 50 steps, against 17 for the unit tests
+ * and 15 for the viewer's browser tests, and nothing here ran them before a push. Opt-in because
+ * it needs a seeded local database first (the three commands in NOT_RUN's `cms-e2e`; a fresh
+ * worktree without them fails with "no such table"), and Chromium only because that is where a
+ * changed page shows first. Its local time was not measured when it was added: the summary
+ * prints it on each run. The CMS's test server must be this run's own, as for `e2e` above.
+ */
+const OPT_IN = [
+  {
+    flag: '--site-e2e',
+    name: 'site-e2e-chromium',
+    why: "the website's Chromium browser tests (opt-in). Needs the local database seeded first: see --list",
+    argv: [
+      ...PNPM,
+      '--filter',
+      '@run-apparel/cms',
+      'exec',
+      'playwright',
+      'test',
+      '--project=chromium',
+    ],
+    freePort: 4174,
   },
 ]
 
 const args = process.argv.slice(2)
 if (args.includes('--list')) {
   for (const g of GATES) console.log(`  ${g.name.padEnd(20)} ${g.why}`)
+  for (const o of OPT_IN) console.log(`  ${`(${o.flag}) ${o.name}`.padEnd(20)} ${o.why}`)
   console.log(`  ${'hooks'.padEnd(20)} the .claude/ guards (also CI's verify since 2026-09-29)`)
   for (const n of NOT_RUN) console.log(`  ${`(not run) ${n.name}`.padEnd(20)} ${n.why}`)
   process.exit(0)
@@ -366,6 +397,14 @@ for (const gate of GATES) {
     console.log(`\nNot run: ${remaining.join(', ')}`)
     console.log(`Resume with: node .claude/skills/gates/run-gates.mjs --from ${gate.name}`)
   }
+  process.exit(1)
+}
+
+for (const gate of OPT_IN) {
+  if (!args.includes(gate.flag)) continue
+  if (runGate(gate.name, gate.argv, undefined, gate.why, undefined, gate.freePort)) continue
+  console.log(`\n${gate.name} FAILED.`)
+  summarise()
   process.exit(1)
 }
 
