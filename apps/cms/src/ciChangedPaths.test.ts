@@ -5,10 +5,13 @@ import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   baseFor,
+  browserPaths,
+  browserTestsChanged,
   lastDeployedSha,
   latestSuccessfulSha,
   shrinkChanged,
   siteChanged,
+  touchesBrowserTests,
   touchesShrink,
   touchesSite,
 } from '../../../scripts/ci-changed-paths.mjs'
@@ -144,6 +147,77 @@ describe('which files the deployed Workers are built from', () => {
     ]) {
       expect(touchesSite(file), file).toBe(false)
     }
+  })
+})
+
+describe('which files a browser test can read', () => {
+  it('counts app code, styles, config, and the tests themselves', () => {
+    for (const file of [
+      'apps/viewer/src/App.tsx',
+      'apps/cms/src/components/site/SiteFooter.tsx',
+      'packages/ui/src/tokens.css',
+      'packages/shared/src/media.ts',
+      'tools/asset-pipeline/src/optimize.ts',
+      'pnpm-lock.yaml',
+      'package.json',
+      'scripts/seed-assets.mjs',
+      '.github/workflows/ci.yml',
+      // Never shipped to a Worker, so `touchesSite` says false: but they ARE the browser tests.
+      'apps/cms/e2e/fontSwap.spec.ts',
+      'apps/viewer/e2e/fixtures/garment.json',
+      'apps/viewer/playwright.config.ts',
+      'apps/viewer/src/lib/sentry.test.ts',
+    ]) {
+      expect(touchesBrowserTests(file), file).toBe(true)
+    }
+  })
+
+  it('does not count what no build, test server or spec reads (negative control)', () => {
+    for (const file of [
+      'docs/RUNBOOK.md',
+      'docs/assets/reference/cards.png',
+      'CLAUDE.md',
+      'apps/cms/CLAUDE.md',
+      '.claude/rules/cms-site.md',
+      '.claude/skills/gates/run-gates.mjs',
+      '.agents/skills/pick-ui-library/SKILL.md',
+      '.github/workflows/uptime.yml',
+      '.github/CLAUDE.md',
+      'ci-installs/guidepup/package-lock.json',
+      'skills-lock.json',
+      'scripts/perf-probe.mjs',
+    ]) {
+      expect(touchesBrowserTests(file), file).toBe(false)
+    }
+  })
+
+  it('skips only when every changed file is one of those, and runs on any doubt', () => {
+    const pull = { eventName: 'pull_request', baseSha: 'abc' }
+    expect(browserTestsChanged(pull, () => ['docs/RUNBOOK.md', 'CLAUDE.md'])).toBe(false)
+    // One file a test can read, riding along with docs, runs everything.
+    expect(browserTestsChanged(pull, () => ['docs/RUNBOOK.md', 'apps/cms/e2e/x.spec.ts'])).toBe(
+      true,
+    )
+    // No base (a by-hand run), a base git cannot see, and a diff that found nothing all run.
+    expect(browserTestsChanged({ eventName: 'workflow_dispatch' }, () => ['docs/a.md'])).toBe(true)
+    expect(browserTestsChanged(pull, () => null)).toBe(true)
+    expect(browserTestsChanged(pull, () => [])).toBe(true)
+  })
+})
+
+describe('the answer handed to the browser-test machines', () => {
+  it('skips a notes-only pull request, and a notes-only push with nothing waiting to deploy', () => {
+    expect(browserPaths({ onMainPush: false, site: true, changed: false })).toBe('skip')
+    expect(browserPaths({ onMainPush: true, site: false, changed: false })).toBe('skip')
+  })
+
+  it('runs on main while anything is waiting to deploy, whatever this push changed (negative control)', () => {
+    // The hole the reviewer found: code whose browser tests failed on main is still undeployed,
+    // so `site` is true; a notes-only push must not let `e2e` pass and `deploy` run over it.
+    expect(browserPaths({ onMainPush: true, site: true, changed: false })).toBe('run')
+    expect(browserPaths({ onMainPush: true, site: true, changed: true })).toBe('run')
+    expect(browserPaths({ onMainPush: true, site: false, changed: true })).toBe('run')
+    expect(browserPaths({ onMainPush: false, site: true, changed: true })).toBe('run')
   })
 })
 
@@ -303,16 +377,22 @@ describe('the CLI against a real git history', () => {
     const { dir, commit } = repo()
     const first = commit('apps/viewer/src/App.tsx')
     commit('apps/viewer/src/Stage.tsx')
-    expect(run(dir, { EVENT_NAME: 'push', BEFORE: first })).toBe('shrink=false\nsite=true')
+    expect(run(dir, { EVENT_NAME: 'push', BEFORE: first })).toBe(
+      'shrink=false\nsite=true\nbrowser_paths=run',
+    )
 
     commit('packages/shared/src/media.ts')
-    expect(run(dir, { EVENT_NAME: 'push', BEFORE: first })).toBe('shrink=true\nsite=true')
+    expect(run(dir, { EVENT_NAME: 'push', BEFORE: first })).toBe(
+      'shrink=true\nsite=true\nbrowser_paths=run',
+    )
   })
 
   it('says true when the base commit is not in the checkout', () => {
     const { dir, commit } = repo()
     commit('apps/viewer/src/App.tsx')
-    expect(run(dir, { EVENT_NAME: 'push', BEFORE: 'f'.repeat(40) })).toBe('shrink=true\nsite=true')
+    expect(run(dir, { EVENT_NAME: 'push', BEFORE: 'f'.repeat(40) })).toBe(
+      'shrink=true\nsite=true\nbrowser_paths=run',
+    )
   })
 
   it('deploys on a main push when it cannot read the deploy records (no token here)', () => {
@@ -321,6 +401,11 @@ describe('the CLI against a real git history', () => {
     const first = commit('apps/viewer/src/App.tsx')
     commit('docs/RUNBOOK.md')
     const env = { EVENT_NAME: 'push', BEFORE: first, REF: 'refs/heads/main', GH_TOKEN: '' }
-    expect(run(dir, env)).toBe('shrink=false\nsite=true')
+    // And with something possibly waiting to deploy, the browser tests run too.
+    expect(run(dir, env)).toBe('shrink=false\nsite=true\nbrowser_paths=run')
+    // The same notes-only change as a pull request is judged by its own files.
+    expect(run(dir, { EVENT_NAME: 'pull_request', BASE_SHA: first })).toBe(
+      'shrink=false\nsite=true\nbrowser_paths=skip',
+    )
   })
 })

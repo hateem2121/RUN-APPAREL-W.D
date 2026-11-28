@@ -48,7 +48,8 @@
  *   Only a push to `main` can skip: a by-hand run always deploys.
  *
  * Environment: EVENT_NAME, BEFORE (push), BASE_SHA (pull_request), and for the site answer
- * REF, REPOSITORY and GH_TOKEN (needs `deployments: read`). Prints `shrink=…` and `site=…`.
+ * REF, REPOSITORY and GH_TOKEN (needs `deployments: read`). Prints `shrink=…`, `site=…` and
+ * `browser_paths=run|skip` (see `touchesBrowserTests`).
  */
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -112,6 +113,76 @@ export function touchesSite(file) {
   if (/\.test\.[cm]?[jt]sx?$/.test(file)) return false
   if (/(^|\/)e2e\//.test(file)) return false
   return true
+}
+
+/**
+ * Can this file change what a browser test sees? (28 Nov 2026, owner's yes.)
+ *
+ * `e2e-shard` skips its test steps, on every machine, only when NO changed file can: `changes`
+ * hands it `browser_paths=skip` and each machine says so in its log and ends green in about a
+ * minute. Measured before it was built: 12% of the last 119 merged pull requests changed nothing
+ * a browser test reads, and each of them ran all 6,885 tests.
+ *
+ * NARROWER THAN `touchesSite`, ON PURPOSE. A test file or an `e2e/` file never reaches a Worker,
+ * but it IS the browser tests, so both count here. Only the folders and files that no build, no
+ * test server and no spec reads are left out: the same lists as above, and Markdown. Checked the
+ * day it was added: no spec, Playwright config or app source opens a file under `docs/`,
+ * `.claude/`, `.agents/`, `.github/` or a `.md` file. The picture-and-diagram check that reads
+ * `docs/` is its own step on one machine and is never skipped.
+ *
+ * NOT BY SUITE. Skipping only the viewer's machines for a website change (or the reverse) was
+ * looked at and left out: 23 of the website's 84 specs name the viewer's files and 17 of the
+ * viewer's 60 name the website's (`grep -lE` for each app's folder and port over the other's
+ * `e2e/*.spec.ts`, 28 Nov 2026), and some read them: `liveGarment.spec.ts` serves a file out of
+ * `apps/viewer/public`, `siteFooter.spec.ts` reads `apps/cms/public/standards`.
+ *
+ * @param {string} file a repo-relative path from `git diff --name-only`
+ * @returns {boolean} false only for a file no browser test can read
+ */
+export function touchesBrowserTests(file) {
+  if (file === '.github/workflows/ci.yml') return true
+  if (NOT_SHIPPED_FOLDERS.some((folder) => file.startsWith(folder))) return false
+  if (NOT_SHIPPED_FILES.includes(file)) return false
+  if (file.endsWith('.md')) return false
+  return true
+}
+
+/**
+ * WHEN IN DOUBT, `true` (run the tests): no base to diff against, or a base git cannot see.
+ *
+ * @param {{ eventName?: string, before?: string, baseSha?: string }} event
+ * @param {(base: string) => string[] | null} changedSince
+ * @returns {boolean}
+ */
+export function browserTestsChanged(event, changedSince) {
+  const base = baseFor(event)
+  if (base === null) return true
+  const files = changedSince(base)
+  if (files === null) return true
+  // An empty list is not "nothing can reach them": it is a diff that found nothing, so test.
+  if (files.length === 0) return true
+  return files.some(touchesBrowserTests)
+}
+
+/**
+ * The answer `changes` hands to `e2e-shard`.
+ *
+ * ⚠️ ON `main` A NOTES-ONLY PUSH SKIPS ONLY WHEN NOTHING IS WAITING TO DEPLOY. Found by the
+ * reviewer before this was ever pushed (28 Nov 2026): a code commit lands on `main`, its
+ * browser tests fail there and the deploy is stopped; a notes-only push follows. Judged by its
+ * own files that push would skip the tests, `e2e` would pass, and `deploy` would run, because
+ * `site` is measured from the last commit that DEPLOYED and still holds the failed code. So on
+ * a push to `main` the tests run whenever `site` is true. A pull request is judged by its own
+ * files alone: it deploys nothing, and `main`'s own run decides afterwards.
+ *
+ * @param {{ onMainPush: boolean, site: boolean, changed: boolean }} facts `changed` is
+ *   `browserTestsChanged`'s answer, `site` is `siteChanged`'s
+ * @returns {'run' | 'skip'}
+ */
+export function browserPaths({ onMainPush, site, changed }) {
+  if (changed) return 'run'
+  if (onMainPush && site) return 'run'
+  return 'skip'
 }
 
 /**
@@ -249,4 +320,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     `last deployed=${deployed ?? 'none'} changed since=${siteFiles === null ? 'unknown' : siteFiles.length} → site=${site}`,
   )
   console.log(`site=${site}`)
+
+  const changed = browserTestsChanged(event, () => files)
+  const answer = browserPaths({ onMainPush, site, changed })
+  console.error(
+    `browser tests: ${answer} (a changed file can reach them: ${changed}; push to main with something to deploy: ${onMainPush && site})`,
+  )
+  console.log(`browser_paths=${answer}`)
 }

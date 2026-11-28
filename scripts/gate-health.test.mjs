@@ -116,7 +116,7 @@ test('a docs-only merge beside a real deploy is not a finding', () => {
   assert.match(week(entries), /## Nothing needs attention/)
 })
 
-test('failed pull requests are counted by gate, sixteen machines as one', () => {
+test('failed pull requests are counted by gate, the browser-test machines as one', () => {
   const entries = quietWeek()
   entries.push({
     run: run(5, 'pull_request', 'failure', T, 14),
@@ -131,9 +131,18 @@ test('failed pull requests are counted by gate, sixteen machines as one', () => 
     run: run(6, 'pull_request', 'failure', T, 9),
     jobs: [job('verify', 'failure', T)],
   })
+  // Since the split of 28 Nov 2026 a failed half fails the verdict job too: one gate, named by its half.
+  entries.push({
+    run: run(8, 'pull_request', 'failure', T, 9),
+    jobs: [
+      job('verify-build', 'failure', T),
+      job('verify-tests', 'success', T),
+      job('verify', 'failure', T),
+    ],
+  })
   entries.push({ run: run(7, 'pull_request', 'cancelled', T, 2) })
   const summary = summariseRuns(entries)
-  assert.deepEqual(summary.pulls.failedBy, { 'browser tests': 1, verify: 1 })
+  assert.deepEqual(summary.pulls.failedBy, { 'browser tests': 1, verify: 1, 'verify-build': 1 })
   assert.equal(summary.pulls.cancelled, 1)
   // A failed or cancelled run does not pull the median: it is the time a green check takes.
   assert.equal(summary.pulls.medianMin, 13)
