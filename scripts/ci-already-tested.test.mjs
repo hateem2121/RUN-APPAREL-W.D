@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { alreadyTested, verdict } from './ci-already-tested.mjs'
+import { alreadyTested, ranItsTests, TEST_STEPS, verdict } from './ci-already-tested.mjs'
 import { jobBlocks, jobNeeds } from './check-required-checks.mjs'
 
 /**
@@ -38,8 +38,23 @@ function goodRecords() {
       total_count: 4,
       jobs: [
         { name: 'verify', conclusion: 'success' },
-        { name: 'e2e (viewer chromium 1/2)', conclusion: 'success' },
-        { name: 'e2e (site webkit 1/2)', conclusion: 'success' },
+        {
+          name: 'e2e (viewer chromium 1/2)',
+          conclusion: 'success',
+          steps: [
+            { name: 'Run pnpm install --frozen-lockfile', conclusion: 'success' },
+            { name: 'e2e (viewer, this shard)', conclusion: 'success' },
+            { name: 'e2e (public site, this shard)', conclusion: 'skipped' },
+          ],
+        },
+        {
+          name: 'e2e (site webkit 1/2)',
+          conclusion: 'success',
+          steps: [
+            { name: 'e2e (viewer, this shard)', conclusion: 'skipped' },
+            { name: 'e2e (public site, this shard)', conclusion: 'success' },
+          ],
+        },
         { name: 'e2e', conclusion: 'success' },
       ],
     },
@@ -71,7 +86,7 @@ const ask = (records, over = {}) =>
 test('proven: the same files passed on the pull request', async () => {
   const result = await ask(goodRecords())
   assert.equal(result.proven, true)
-  assert.match(result.reason, /#7: run 11 passed 2 browser-test machines/)
+  assert.match(result.reason, /#7: run 11 ran and passed its tests on 2 browser-test machines/)
 })
 
 test('a pull request, a by-hand run and another branch always test', async () => {
@@ -162,6 +177,39 @@ test('a failed run does not hide a later green one on the same head', async () =
     `actions/workflows/ci.yml/runs?head_sha=${HEAD}&event=pull_request&per_page=100`
   ].workflow_runs.unshift({ id: 10, head_sha: HEAD, conclusion: 'failure' })
   assert.equal((await ask(records)).proven, true)
+})
+
+test('a green shard that ran no test is not proof (a notes-only pull request, 28 Nov 2026)', async () => {
+  const jobsAt = 'actions/runs/11/jobs?filter=latest&per_page=100'
+  // Control: the untouched records are proof, so each change below is what turns it down.
+  assert.equal((await ask(goodRecords())).proven, true)
+
+  const skipped = goodRecords()
+  for (const job of skipped[jobsAt].jobs) {
+    for (const step of job.steps ?? [])
+      if (TEST_STEPS.includes(step.name)) step.conclusion = 'skipped'
+  }
+  assert.equal((await ask(skipped)).proven, false)
+
+  const oneSkipped = goodRecords()
+  oneSkipped[jobsAt].jobs[2].steps[1].conclusion = 'skipped'
+  assert.equal((await ask(oneSkipped)).proven, false)
+
+  const noSteps = goodRecords()
+  for (const job of noSteps[jobsAt].jobs) delete job.steps
+  assert.equal((await ask(noSteps)).proven, false)
+
+  assert.equal(ranItsTests({ steps: [{ name: TEST_STEPS[0], conclusion: 'success' }] }), true)
+  assert.equal(ranItsTests({ steps: [{ name: TEST_STEPS[0], conclusion: 'failure' }] }), false)
+  assert.equal(ranItsTests({ steps: [{ name: 'Run pnpm install', conclusion: 'success' }] }), false)
+  assert.equal(ranItsTests({}), false)
+})
+
+test('ci.yml: the two test steps still carry the names the proof looks for', () => {
+  const source = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8')
+  for (const name of TEST_STEPS) {
+    assert.equal(source.split(`      - name: ${name}\n`).length, 2, `one step named "${name}"`)
+  }
 })
 
 test('the gate: passes on green shards, or on skipped shards WITH the proof', () => {

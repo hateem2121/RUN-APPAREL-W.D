@@ -45,8 +45,8 @@ cache-mode: none
 
 jobs:
   # `verify` IS TWO MACHINES SIDE BY SIDE SINCE 28 Nov 2026 (owner's yes), BEHIND ONE `verify` JOB.
-  # As one job it took about 7 min, and on a merge whose browser tests were already proven it was
-  # the last thing the deploy waited for. Timed step by step on four runs of 27 Nov (45991925991,
+  # As one job it was the last thing a deploy waited for on a merge whose browser tests were
+  # already proven. Timed step by step on four runs of 27 Nov (45991925991,
   # 45998852110, 46000744295, 46001429614): `pnpm test:coverage` 112 to 175 s; and seed, build and
   # the two Worker builds 126 to 176 s together. Neither half reads anything the other writes:
   # the unit tests ran BEFORE the build on purpose (see the preload guard), and the build steps
@@ -574,9 +574,11 @@ jobs:
           # before): the counts and the measurement are in the comment above this job.
           #
           # ⚠️ A TRIAL SINCE 28 Nov 2026 (owner's yes): ELEVEN machines running THREE tests at once
-          # (`--workers=3`), where sixteen ran two. Why: sixteen plus the other jobs was 21 to 22
-          # jobs against the 20 the account may run at once, and over the 13 pull-request runs of
-          # 27 Nov the median run lost 4.0 min waiting for a free machine (worst tenth 9.9). A
+          # (`--workers=3`), where sixteen ran two. Why: sixteen plus the five other jobs was 21
+          # at once against the 20 the account may run (the comment above this job), and over the
+          # 13 pull-request runs of 27 Nov the median run lost 4.0 min waiting for a free machine,
+          # the worst tenth 9.9 (the CI review of that day: each job's `created_at` against its
+          # `started_at`, from `gh api repos/<repo>/actions/runs/<id>/jobs`). A
           # standard runner on a public repository has 4 processors (GitHub's runners page, read
           # 28 Nov). The counts below are each engine's test time from run 45945482262 divided by
           # three: viewer chromium 20.8 → 6.9 min on one machine, webkit 20.3 → 6.8, iPhone
@@ -749,7 +751,7 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
-          # The pnpm store cache; the reason is beside `verify`'s setup-node.
+          # The pnpm store cache; the reason is beside `verify-tests`'s setup-node.
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Collect the viewer shards' reports
@@ -862,7 +864,7 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
-          # The pnpm store cache; the reason is beside `verify`'s setup-node.
+          # The pnpm store cache; the reason is beside `verify-tests`'s setup-node.
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Vulnerability audit (high/critical)
@@ -1157,7 +1159,7 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26
-          # The pnpm store cache; the reason is beside `verify`'s setup-node.
+          # The pnpm store cache; the reason is beside `verify-tests`'s setup-node.
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Build viewer with the e2e mock origin

@@ -131,8 +131,10 @@ export function touchesSite(file) {
  * `docs/` is its own step on one machine and is never skipped.
  *
  * NOT BY SUITE. Skipping only the viewer's machines for a website change (or the reverse) was
- * looked at and left out: ten of the website's specs name the viewer's files and ten of the
- * viewer's name the website's, so neither suite is independent of the other app.
+ * looked at and left out: 25 of the website's 84 specs name the viewer's files and 20 of the
+ * viewer's 60 name the website's (`grep -rlE` for each app's folder and port over the other's
+ * `e2e/`, 28 Nov 2026), and some read them: `liveGarment.spec.ts` serves a file out of
+ * `apps/viewer/public`, `siteFooter.spec.ts` reads `apps/cms/public/standards`.
  *
  * @param {string} file a repo-relative path from `git diff --name-only`
  * @returns {boolean} false only for a file no browser test can read
@@ -160,6 +162,27 @@ export function browserTestsChanged(event, changedSince) {
   // An empty list is not "nothing can reach them": it is a diff that found nothing, so test.
   if (files.length === 0) return true
   return files.some(touchesBrowserTests)
+}
+
+/**
+ * The answer `changes` hands to `e2e-shard`.
+ *
+ * ⚠️ ON `main` A NOTES-ONLY PUSH SKIPS ONLY WHEN NOTHING IS WAITING TO DEPLOY. Found by the
+ * reviewer before this was ever pushed (28 Nov 2026): a code commit lands on `main`, its
+ * browser tests fail there and the deploy is stopped; a notes-only push follows. Judged by its
+ * own files that push would skip the tests, `e2e` would pass, and `deploy` would run, because
+ * `site` is measured from the last commit that DEPLOYED and still holds the failed code. So on
+ * a push to `main` the tests run whenever `site` is true. A pull request is judged by its own
+ * files alone: it deploys nothing, and `main`'s own run decides afterwards.
+ *
+ * @param {{ onMainPush: boolean, site: boolean, changed: boolean }} facts `changed` is
+ *   `browserTestsChanged`'s answer, `site` is `siteChanged`'s
+ * @returns {'run' | 'skip'}
+ */
+export function browserPaths({ onMainPush, site, changed }) {
+  if (changed) return 'run'
+  if (onMainPush && site) return 'run'
+  return 'skip'
 }
 
 /**
@@ -298,7 +321,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   )
   console.log(`site=${site}`)
 
-  const browser = browserTestsChanged(event, () => files)
-  console.error(`browser tests: ${browser ? 'run' : 'skip — no changed file can reach them'}`)
-  console.log(`browser_paths=${browser ? 'run' : 'skip'}`)
+  const changed = browserTestsChanged(event, () => files)
+  const answer = browserPaths({ onMainPush, site, changed })
+  console.error(
+    `browser tests: ${answer} (a changed file can reach them: ${changed}; push to main with something to deploy: ${onMainPush && site})`,
+  )
+  console.log(`browser_paths=${answer}`)
 }

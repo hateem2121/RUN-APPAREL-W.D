@@ -24,13 +24,18 @@
  *      with `main` as it was then; when the head already holds the newest `main` it holds every
  *      earlier one, so that merge was the head's own files;
  *   5. a `pull_request` run of ci.yml on that head succeeded, its job list was read whole, at
- *      least one `e2e (…)` shard ran and every one succeeded, and so did its `e2e` job.
+ *      least one `e2e (…)` shard ran and every one succeeded, and so did its `e2e` job;
+ *   6. every one of those shards RAN its tests: its `e2e (viewer, this shard)` or
+ *      `e2e (public site, this shard)` step ended `success`. Since 28 Nov 2026 a pull request of
+ *      notes only ends its shards green without running a test (`browser_paths=skip`), and a
+ *      green shard that tested nothing proves nothing about the files underneath it.
  *
  * WHEN IN DOUBT, `run`. An unanswered request, an odd shape or a missing token all test again:
  * a repeated run costs minutes, a skipped one that should have run ships an untested page.
  *
  * `verify`, `artwork`, `audit`, `secrets` and `lighthouse` still run on every push to `main`:
- * each ends inside the 5.9 min `verify` takes, so skipping them would not bring a deploy forward,
+ * each ends inside the time `verify` takes (5.9 min that day; two side-by-side halves since
+ * 28 Nov 2026), so skipping them would not bring a deploy forward,
  * and `audit` reads advisories that can change between two runs of the same files.
  *
  * Environment: EVENT_NAME, REF, SHA, REPOSITORY, GH_TOKEN (needs `actions: read` and
@@ -40,6 +45,24 @@
 import { fileURLToPath } from 'node:url'
 
 const run = (reason) => ({ proven: false, reason })
+
+/** The two steps of `e2e-shard` that run tests. scripts/ci-already-tested.test.mjs holds the names to ci.yml. */
+export const TEST_STEPS = ['e2e (viewer, this shard)', 'e2e (public site, this shard)']
+
+/**
+ * Did this shard run its tests, or only end green? (See condition 6 above.)
+ *
+ * @param {{ steps?: { name?: string, conclusion?: string }[] }} job
+ * @returns {boolean}
+ */
+export function ranItsTests(job) {
+  return (
+    Array.isArray(job?.steps) &&
+    job.steps.some(
+      (step) => TEST_STEPS.includes(String(step?.name)) && step.conclusion === 'success',
+    )
+  )
+}
 
 /**
  * @param {{ eventName?: string, ref?: string, sha?: string, repository?: string, token?: string, fetchImpl?: typeof fetch }} opts
@@ -100,10 +123,11 @@ export async function alreadyTested({ eventName, ref, sha, repository, token, fe
       const verdictJob = jobs.find((job) => job.name === 'e2e')
       if (shards.length === 0) continue
       if (!shards.every((job) => job.conclusion === 'success')) continue
+      if (!shards.every(ranItsTests)) continue
       if (verdictJob?.conclusion !== 'success') continue
       return {
         proven: true,
-        reason: `#${pull.number}: run ${candidate.id} passed ${shards.length} browser-test machines on tree ${commit.tree.sha}`,
+        reason: `#${pull.number}: run ${candidate.id} ran and passed its tests on ${shards.length} browser-test machines, on tree ${commit.tree.sha}`,
       }
     }
     return run(`#${pull.number}: no successful pull-request run with passing browser tests`)

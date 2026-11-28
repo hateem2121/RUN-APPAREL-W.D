@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   baseFor,
+  browserPaths,
   browserTestsChanged,
   lastDeployedSha,
   latestSuccessfulSha,
@@ -204,6 +205,22 @@ describe('which files a browser test can read', () => {
   })
 })
 
+describe('the answer handed to the browser-test machines', () => {
+  it('skips a notes-only pull request, and a notes-only push with nothing waiting to deploy', () => {
+    expect(browserPaths({ onMainPush: false, site: true, changed: false })).toBe('skip')
+    expect(browserPaths({ onMainPush: true, site: false, changed: false })).toBe('skip')
+  })
+
+  it('runs on main while anything is waiting to deploy, whatever this push changed (negative control)', () => {
+    // The hole the reviewer found: code whose browser tests failed on main is still undeployed,
+    // so `site` is true; a notes-only push must not let `e2e` pass and `deploy` run over it.
+    expect(browserPaths({ onMainPush: true, site: true, changed: false })).toBe('run')
+    expect(browserPaths({ onMainPush: true, site: true, changed: true })).toBe('run')
+    expect(browserPaths({ onMainPush: true, site: false, changed: true })).toBe('run')
+    expect(browserPaths({ onMainPush: false, site: true, changed: true })).toBe('run')
+  })
+})
+
 describe('the last commit that deployed', () => {
   const at = (minute: number) => `2026-10-26T05:${String(minute).padStart(2, '0')}:00Z`
 
@@ -384,6 +401,11 @@ describe('the CLI against a real git history', () => {
     const first = commit('apps/viewer/src/App.tsx')
     commit('docs/RUNBOOK.md')
     const env = { EVENT_NAME: 'push', BEFORE: first, REF: 'refs/heads/main', GH_TOKEN: '' }
-    expect(run(dir, env)).toBe('shrink=false\nsite=true\nbrowser_paths=skip')
+    // And with something possibly waiting to deploy, the browser tests run too.
+    expect(run(dir, env)).toBe('shrink=false\nsite=true\nbrowser_paths=run')
+    // The same notes-only change as a pull request is judged by its own files.
+    expect(run(dir, { EVENT_NAME: 'pull_request', BASE_SHA: first })).toBe(
+      'shrink=false\nsite=true\nbrowser_paths=skip',
+    )
   })
 })
